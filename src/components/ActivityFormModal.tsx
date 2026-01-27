@@ -14,7 +14,9 @@ import {
   TextInput,
   Pressable,
   Alert,
+  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Activity, ActivityColor, ActivityCategory } from '../types';
 import { ActivityEmojis, EmojiList } from '../constants/emojis';
@@ -60,6 +62,7 @@ export default function ActivityFormModal({
   onClose,
   onSubmit,
 }: ActivityFormModalProps) {
+  const insets = useSafeAreaInsets();
   const isEditMode = !!activity;
 
   const [name, setName] = useState('');
@@ -148,6 +151,9 @@ export default function ActivityFormModal({
                 onChangeText={setName}
                 placeholder="예: 숙제하기"
                 placeholderTextColor={SoftPopColors.textSecondary}
+                {...(Platform.OS === 'android' && {
+                  underlineColorAndroid: 'transparent', // Android underline 제거
+                })}
               />
             </View>
 
@@ -261,7 +267,12 @@ export default function ActivityFormModal({
           </ScrollView>
 
           {/* Footer Buttons */}
-          <View style={styles.footer}>
+          <View style={[
+            styles.footer,
+            Platform.OS === 'android' && {
+              marginBottom: Math.max(insets.bottom, 16),
+            }
+          ]}>
             <Pressable
               style={({ pressed }) => [
                 styles.button,
@@ -321,7 +332,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: Platform.OS === 'android' ? 'normal' : '700',
     color: SoftPopColors.text,
     lineHeight: 32,
     fontFamily: 'BMJUA',
@@ -355,7 +366,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: Platform.OS === 'android' ? 'normal' : '600',
     color: SoftPopColors.text,
     marginBottom: 16,
     lineHeight: 24,
@@ -363,15 +374,24 @@ const styles = StyleSheet.create({
   },
   textInput: {
     fontSize: 18,
-    fontWeight: '500',
+    fontWeight: Platform.OS === 'android' ? 'normal' : '500',
     backgroundColor: SoftPopColors.background,
     borderRadius: 20,
     padding: 20,
     color: SoftPopColors.text,
-    borderWidth: 2,
-    borderColor: SoftPopColors.white,
     fontFamily: 'BMJUA',
-    // Soft shadow
+    // iOS는 기존 테두리 유지, Android는 테두리 제거
+    ...(Platform.OS === 'ios'
+      ? {
+        borderWidth: 2,
+        borderColor: SoftPopColors.white,
+      }
+      : {
+        borderWidth: 0,
+        borderColor: 'transparent',
+      }
+    ),
+    // 그림자는 공통
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -485,7 +505,7 @@ const styles = StyleSheet.create({
   },
   categoryTextSelected: {
     color: SoftPopColors.white,
-    fontWeight: '700',
+    fontWeight: Platform.OS === 'android' ? 'normal' : '700',
     fontFamily: 'BMJUA',
   },
   durationGrid: {
@@ -530,7 +550,7 @@ const styles = StyleSheet.create({
   },
   durationTextSelected: {
     color: SoftPopColors.white,
-    fontWeight: '700',
+    fontWeight: Platform.OS === 'android' ? 'normal' : '700',
     fontFamily: 'BMJUA',
   },
   footer: {
@@ -565,7 +585,7 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: Platform.OS === 'android' ? 'normal' : '700',
     color: SoftPopColors.text,
     letterSpacing: 0.5,
     fontFamily: 'BMJUA',
@@ -575,7 +595,7 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: Platform.OS === 'android' ? 'normal' : '700',
     color: SoftPopColors.white,
     letterSpacing: 0.5,
     fontFamily: 'BMJUA',

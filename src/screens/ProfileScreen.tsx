@@ -5,8 +5,8 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Switch, useWindowDimensions, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Switch, useWindowDimensions, Image, Platform } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import * as Sharing from 'expo-sharing';
@@ -34,6 +34,7 @@ const SoftPopColors = {
 export default function ProfileScreen() {
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
+  const insets = useSafeAreaInsets();
   const { resetActivities } = useActivity();
   const { resetSchedules } = useSchedule();
   const [notificationEnabled, setNotificationEnabled] = useState(false);
@@ -256,11 +257,27 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView
       style={[styles.container, isLandscape && styles.containerLandscape]}
-      edges={isLandscape ? [] : ['top']}
+      edges={isLandscape
+        ? []
+        : Platform.OS === 'android'
+          ? ['top', 'bottom'] // Android만 bottom 추가
+          : ['top'] // iOS는 기존 유지
+      }
     >
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          {
+            // 동적 계산: 탭바 높이 + SafeArea bottom (OS별)
+            paddingBottom: (() => {
+              const TAB_BAR_HEIGHT = 68;
+              return Platform.OS === 'android'
+                ? TAB_BAR_HEIGHT + Math.max(insets.bottom, 16) + 8 // Android: 시스템 바 고려
+                : TAB_BAR_HEIGHT + Math.max(insets.bottom, 10); // iOS: 기존과 동일한 로직
+            })(),
+          }
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* 앱 정보 카드 */}
@@ -463,7 +480,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 32,
-    paddingBottom: 120, // Tab bar height + safe margin
+    // paddingBottom은 동적으로 계산 (contentContainerStyle에서)
   },
   appInfoCard: {
     backgroundColor: SoftPopColors.white,
@@ -503,7 +520,7 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: Platform.OS === 'android' ? 'normal' : '700',
     color: SoftPopColors.text,
     marginBottom: 8,
     lineHeight: 32,
@@ -532,7 +549,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: Platform.OS === 'android' ? 'normal' : '700',
     color: SoftPopColors.text,
     marginBottom: 20,
     lineHeight: 28,

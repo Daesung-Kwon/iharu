@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { ScheduleItem } from '../types';
 import { ActivityEmojis } from '../constants/emojis';
@@ -317,7 +317,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
-    elevation: 2,
+    // Android: 투명 배경에서 elevation 제거
+    ...(Platform.OS !== 'android' && {
+      elevation: 2,
+    }),
   },
   statusBadgeText: {
     fontSize: 12,

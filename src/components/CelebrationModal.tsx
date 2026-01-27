@@ -5,7 +5,8 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, Animated } from 'react-native';
+import { View, Text, StyleSheet, Modal, Pressable, Animated, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 
 // Soft Pop 3D 디자인 색상 팔레트
@@ -25,6 +26,7 @@ interface CelebrationModalProps {
 }
 
 export default function CelebrationModal({ visible, onClose }: CelebrationModalProps) {
+  const insets = useSafeAreaInsets();
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const rotationAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -175,7 +177,10 @@ export default function CelebrationModal({ visible, onClose }: CelebrationModalP
           <Pressable
             style={({ pressed }) => [
               styles.button,
-              pressed && styles.buttonPressed
+              pressed && styles.buttonPressed,
+              Platform.OS === 'android' && {
+                marginBottom: Math.max(insets.bottom, 16),
+              }
             ]}
             onPress={onClose}
           >

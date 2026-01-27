@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Activity } from '../types';
 import { ActivityEmojis } from '../constants/emojis';
@@ -33,7 +33,7 @@ export default function ActivityCard({ activity, onEdit, onDelete }: ActivityCar
   const colorScheme = ActivityMaterialColors[activity.colorKey];
 
   return (
-    <View 
+    <View
       style={[
         styles.card,
         { backgroundColor: colorScheme.surface }
@@ -50,10 +50,10 @@ export default function ActivityCard({ activity, onEdit, onDelete }: ActivityCar
           {activity.name}
         </Text>
         <View style={styles.durationContainer}>
-          <MaterialIcons 
-            name="schedule" 
-            size={16} 
-            color={SoftPopColors.textSecondary} 
+          <MaterialIcons
+            name="schedule"
+            size={16}
+            color={SoftPopColors.textSecondary}
           />
           <Text style={styles.duration}>
             {activity.durationMinutes}분
@@ -72,10 +72,10 @@ export default function ActivityCard({ activity, onEdit, onDelete }: ActivityCar
           accessibilityLabel="활동 수정"
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <MaterialIcons 
-            name="edit" 
-            size={20} 
-            color={SoftPopColors.textSecondary} 
+          <MaterialIcons
+            name="edit"
+            size={20}
+            color={SoftPopColors.textSecondary}
           />
         </Pressable>
         <Pressable
@@ -87,10 +87,10 @@ export default function ActivityCard({ activity, onEdit, onDelete }: ActivityCar
           accessibilityLabel="활동 삭제"
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <MaterialIcons 
-            name="delete-outline" 
-            size={20} 
-            color={SoftPopColors.error} 
+          <MaterialIcons
+            name="delete-outline"
+            size={20}
+            color={SoftPopColors.error}
           />
         </Pressable>
       </View>
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
-    elevation: 1,
+    elevation: Platform.OS === 'android' ? 0 : 1,
   },
   actionButtonPressed: {
     transform: [{ scale: 0.95 }],

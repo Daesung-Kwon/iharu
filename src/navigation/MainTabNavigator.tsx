@@ -50,10 +50,10 @@ const CustomTabBarButton = ({ children, onPress, accessibilityState, style }: an
 export const MainTabNavigator: React.FC = () => {
   const insets = useSafeAreaInsets();
 
-  // 태블릿에서는 탭바를 더 크게
+  // Android 시스템 네비게이션 바 높이 고려 (iOS는 기존 유지)
   const tabBarPaddingBottom = Platform.OS === 'ios'
-    ? Math.max(insets.bottom, 10)
-    : 10;
+    ? Math.max(insets.bottom, 10) // iOS 기존 로직 유지
+    : Math.max(insets.bottom, 16); // Android만 개선
 
   return (
     <Tab.Navigator
@@ -69,7 +69,10 @@ export const MainTabNavigator: React.FC = () => {
           bottom: 0,
           paddingBottom: tabBarPaddingBottom,
           paddingTop: 0,
-          height: 68 + (Platform.OS === 'ios' ? Math.max(insets.bottom - 8, 0) : 0),
+          height: 68 + (Platform.OS === 'ios' 
+            ? Math.max(insets.bottom - 8, 0) // iOS 기존 로직 유지
+            : Math.max(insets.bottom, 0) // Android만 개선
+          ),
           backgroundColor: 'transparent', // 뒤 배경이 비치도록 투명 처리
           borderTopWidth: 0,
           elevation: 0,
@@ -83,6 +86,10 @@ export const MainTabNavigator: React.FC = () => {
           textAlign: 'center',
           fontFamily: 'BMJUA',
           includeFontPadding: false,
+          // Android 폰트 정렬 개선
+          ...(Platform.OS === 'android' && {
+            textAlignVertical: 'center',
+          }),
         },
         tabBarIconStyle: {
           marginTop: 0,
@@ -103,8 +110,8 @@ export const MainTabNavigator: React.FC = () => {
               tabBarStyles.tabBarBackground,
               {
                 marginBottom: Platform.OS === 'ios'
-                  ? Math.max(insets.bottom, 12)
-                  : 12,
+                  ? Math.max(insets.bottom, 12) // iOS 기존 로직 유지
+                  : Math.max(insets.bottom, 16), // Android만 개선
               },
             ]}
           />
@@ -192,28 +199,34 @@ const tabBarStyles = StyleSheet.create({
     borderRadius: 20,
     marginHorizontal: 2,
     minHeight: 56,
-    // Soft shadow
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    // iOS 전용 shadow (Android에서는 elevation 제거)
+    ...(Platform.OS === 'ios' && {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+    }),
   },
   tabButtonActive: {
-    backgroundColor: SoftPopColors.background,
-    // Stronger shadow when active
-    shadowColor: SoftPopColors.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
+    // 배경색 제거 - Android에서 네모 박스가 보이지 않도록
+    backgroundColor: 'transparent',
+    // iOS 전용 shadow (Android에서는 elevation 제거)
+    ...(Platform.OS === 'ios' && {
+      shadowColor: SoftPopColors.primary,
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.15,
+      shadowRadius: 6,
+    }),
   },
   tabButtonPressed: {
     transform: [{ scale: 0.95 }],
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
     shadowRadius: 3,
-    elevation: 2,
+    // Android: elevation 제거 (투명 배경에서 박스 현상 방지)
+    ...(Platform.OS !== 'android' && {
+      elevation: 2,
+    }),
   },
 });
 

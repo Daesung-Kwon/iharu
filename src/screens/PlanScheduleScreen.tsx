@@ -5,7 +5,7 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, useWindowDimensions, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, useWindowDimensions, Pressable, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useActivity } from '../contexts/ActivityContext';
@@ -94,7 +94,12 @@ export default function PlanScheduleScreen() {
   return (
     <SafeAreaView
       style={[styles.container, isLandscape && styles.containerLandscape]}
-      edges={isLandscape ? [] : ['top']}
+      edges={isLandscape
+        ? []
+        : Platform.OS === 'android'
+          ? ['top', 'bottom'] // Android만 bottom 추가
+          : ['top'] // iOS는 기존 유지
+      }
     >
       {/* Dragging Indicator - 화면 상단 가운데 */}
       {draggingActivity && (
@@ -400,7 +405,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontWeight: '700',
+    fontWeight: Platform.OS === 'android' ? 'normal' : '700',
     color: SoftPopColors.text,
     marginBottom: 20,
     lineHeight: 40,
@@ -503,19 +508,21 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
     alignItems: 'center',
-    // 3D pressable effect
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    // 3D pressable effect - iOS only for base state
+    ...(Platform.OS === 'ios' && {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+    }),
+    // Android: 투명 상태에서 elevation 제거
   },
   viewModeButtonActive: {
     backgroundColor: SoftPopColors.secondary,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
     shadowRadius: 3,
-    elevation: 3,
+    elevation: 3, // 활성 상태(배경색 있음)에서는 elevation 유지
   },
   viewModeButtonPressed: {
     transform: [{ translateY: 1 }],

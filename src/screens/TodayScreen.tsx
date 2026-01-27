@@ -4,8 +4,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, useWindowDimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, useWindowDimensions, Platform } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSchedule } from '../contexts/ScheduleContext';
 import TodayScheduleItem from '../components/TodayScheduleItem';
@@ -39,6 +39,7 @@ import {
 export default function TodayScreen() {
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
+  const insets = useSafeAreaInsets();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const { getScheduleForDate, updateScheduleItem, schedules, copyScheduleToDate } = useSchedule();
   const selectedSchedule = getScheduleForDate(selectedDate);
@@ -245,11 +246,28 @@ export default function TodayScreen() {
   return (
     <SafeAreaView 
       style={[styles.container, isLandscape && styles.containerLandscape]} 
-      edges={isLandscape ? [] : ['top']}
+      edges={isLandscape 
+        ? [] 
+        : Platform.OS === 'android' 
+          ? ['top', 'bottom'] // Android만 bottom 추가
+          : ['top'] // iOS는 기존 유지
+      }
     >
       <ScrollView 
         style={styles.scrollView} 
-        contentContainerStyle={[styles.content, isLandscape && styles.contentLandscape]}
+        contentContainerStyle={[
+          styles.content, 
+          isLandscape && styles.contentLandscape,
+          {
+            // 동적 계산: 탭바 높이 + SafeArea bottom (OS별)
+            paddingBottom: (() => {
+              const TAB_BAR_HEIGHT = 68;
+              return Platform.OS === 'android'
+                ? TAB_BAR_HEIGHT + Math.max(insets.bottom, 16) + 8 // Android: 시스템 바 고려
+                : TAB_BAR_HEIGHT + Math.max(insets.bottom, 10); // iOS: 기존과 동일한 로직
+            })(),
+          }
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header Section */}
@@ -550,7 +568,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 32,
-    paddingBottom: 120, // Tab bar height + safe margin
+    // paddingBottom은 동적으로 계산 (contentContainerStyle에서)
   },
   header: {
     padding: 32,
@@ -581,11 +599,19 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    // Android에서는 fontWeight 제거 (커스텀 폰트와 충돌)
+    ...(Platform.OS === 'ios' && {
+      fontWeight: '700',
+    }),
     color: SoftPopColors.text,
     marginBottom: 8,
     lineHeight: 36,
     fontFamily: 'BMJUA',
+    // Android 폰트 렌더링 최적화
+    ...(Platform.OS === 'android' && {
+      includeFontPadding: false,
+      textAlignVertical: 'center',
+    }),
   },
   todayButton: {
     flexDirection: 'row',

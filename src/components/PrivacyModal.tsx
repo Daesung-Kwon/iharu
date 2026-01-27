@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, Modal, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Modal, ScrollView, Pressable, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { PRIVACY_POLICY } from '../data/privacy';
@@ -32,7 +32,10 @@ export default function PrivacyModal({ visible, onClose }: PrivacyModalProps) {
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView
+        style={styles.container}
+        edges={Platform.OS === 'android' ? ['top', 'bottom'] : ['top']}
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>개인정보처리방침</Text>
@@ -44,16 +47,16 @@ export default function PrivacyModal({ visible, onClose }: PrivacyModalProps) {
             onPress={onClose}
             accessibilityLabel="닫기"
           >
-            <MaterialIcons 
-              name="close" 
-              size={24} 
-              color={SoftPopColors.text} 
+            <MaterialIcons
+              name="close"
+              size={24}
+              color={SoftPopColors.text}
             />
           </Pressable>
         </View>
 
         {/* Content */}
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={true}
@@ -87,7 +90,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: Platform.OS === 'android' ? 'normal' : '700',
     color: SoftPopColors.text,
     lineHeight: 32,
     fontFamily: 'BMJUA',

@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, Modal, ScrollView, Pressable, Linking } from 'react-native';
+import { View, Text, StyleSheet, Modal, ScrollView, Pressable, Linking, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { OPEN_SOURCE_LICENSES, FONT_LICENSES } from '../data/licenses';
@@ -42,7 +42,10 @@ export default function LicenseModal({ visible, onClose }: LicenseModalProps) {
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView
+        style={styles.container}
+        edges={Platform.OS === 'android' ? ['top', 'bottom'] : ['top']}
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>오픈소스 라이센스</Text>
@@ -54,16 +57,16 @@ export default function LicenseModal({ visible, onClose }: LicenseModalProps) {
             onPress={onClose}
             accessibilityLabel="닫기"
           >
-            <MaterialIcons 
-              name="close" 
-              size={24} 
-              color={SoftPopColors.text} 
+            <MaterialIcons
+              name="close"
+              size={24}
+              color={SoftPopColors.text}
             />
           </Pressable>
         </View>
 
         {/* Content */}
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={true}
@@ -88,10 +91,10 @@ export default function LicenseModal({ visible, onClose }: LicenseModalProps) {
                       onPress={() => handleOpenURL(license.url)}
                       style={styles.linkButton}
                     >
-                      <MaterialIcons 
-                        name="open-in-new" 
-                        size={16} 
-                        color={SoftPopColors.link} 
+                      <MaterialIcons
+                        name="open-in-new"
+                        size={16}
+                        color={SoftPopColors.link}
                       />
                       <Text style={styles.linkText}>웹사이트</Text>
                     </Pressable>
@@ -121,10 +124,10 @@ export default function LicenseModal({ visible, onClose }: LicenseModalProps) {
                       onPress={() => handleOpenURL(font.url)}
                       style={styles.linkButton}
                     >
-                      <MaterialIcons 
-                        name="open-in-new" 
-                        size={16} 
-                        color={SoftPopColors.link} 
+                      <MaterialIcons
+                        name="open-in-new"
+                        size={16}
+                        color={SoftPopColors.link}
                       />
                       <Text style={styles.linkText}>웹사이트</Text>
                     </Pressable>
@@ -170,7 +173,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: Platform.OS === 'android' ? 'normal' : '700',
     color: SoftPopColors.text,
     lineHeight: 32,
     fontFamily: 'BMJUA',
@@ -198,7 +201,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: Platform.OS === 'android' ? 'normal' : '700',
     color: SoftPopColors.text,
     marginBottom: 20,
     lineHeight: 28,
@@ -225,7 +228,7 @@ const styles = StyleSheet.create({
   },
   licenseName: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: Platform.OS === 'android' ? 'normal' : '600',
     color: SoftPopColors.text,
     flex: 1,
     lineHeight: 24,
@@ -252,7 +255,7 @@ const styles = StyleSheet.create({
   },
   licenseTagText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: Platform.OS === 'android' ? 'normal' : '600',
     color: SoftPopColors.text,
     fontFamily: 'BMJUA',
   },

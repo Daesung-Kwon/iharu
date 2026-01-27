@@ -5,8 +5,8 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, useWindowDimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, Pressable, useWindowDimensions, Platform } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useActivity } from '../contexts/ActivityContext';
 import ActivityCard from '../components/ActivityCard';
@@ -26,7 +26,14 @@ const SoftPopColors = {
 export default function ActivitiesScreen() {
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
+  const insets = useSafeAreaInsets();
   const { activities, addActivity, updateActivity, deleteActivity } = useActivity();
+
+  const TAB_BAR_HEIGHT = 68;
+  const bottomPadding = Platform.OS === 'android'
+    ? TAB_BAR_HEIGHT + Math.max(insets.bottom, 16) + 8
+    : TAB_BAR_HEIGHT + Math.max(insets.bottom, 10);
+
   const [modalVisible, setModalVisible] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
 
@@ -58,9 +65,14 @@ export default function ActivitiesScreen() {
   };
 
   return (
-    <SafeAreaView 
-      style={[styles.container, isLandscape && styles.containerLandscape]} 
-      edges={isLandscape ? [] : ['top']}
+    <SafeAreaView
+      style={[styles.container, isLandscape && styles.containerLandscape]}
+      edges={isLandscape
+        ? []
+        : Platform.OS === 'android'
+          ? ['top', 'bottom'] // Android만 bottom 추가
+          : ['top'] // iOS는 기존 유지
+      }
     >
       {/* Header Section */}
       <View style={styles.header}>
@@ -69,7 +81,7 @@ export default function ActivitiesScreen() {
           <Text style={styles.subtitle}>자주 하는 활동들을 저장해두세요</Text>
         </View>
         {/* FAB (Floating Action Button) - Soft Pop 3D */}
-        <Pressable 
+        <Pressable
           style={({ pressed }) => [
             styles.fab,
             pressed && styles.fabPressed
@@ -78,25 +90,31 @@ export default function ActivitiesScreen() {
           accessibilityLabel="새 활동 추가"
           accessibilityRole="button"
         >
-          <MaterialIcons 
-            name="add" 
-            size={28} 
-            color={SoftPopColors.white} 
+          <MaterialIcons
+            name="add"
+            size={28}
+            color={SoftPopColors.white}
           />
         </Pressable>
       </View>
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          {
+            // 동적 계산: 탭바 높이 + SafeArea bottom (OS별)
+            paddingBottom: bottomPadding,
+          }
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {activities.length === 0 ? (
           <View style={styles.emptyState}>
-            <MaterialIcons 
-              name="star-outline" 
-              size={64} 
-              color={SoftPopColors.textSecondary} 
+            <MaterialIcons
+              name="star-outline"
+              size={64}
+              color={SoftPopColors.textSecondary}
             />
             <Text style={styles.emptyTitle}>활동이 없어요</Text>
             <Text style={styles.emptyMessage}>
@@ -163,7 +181,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontWeight: '700',
+    fontWeight: Platform.OS === 'android' ? 'normal' : '700',
     color: SoftPopColors.primary,
     marginBottom: 8,
     lineHeight: 40,
@@ -202,7 +220,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 120, // Tab bar height + safe margin
+    // paddingBottom은 동적으로 계산 (contentContainerStyle에서)
   },
   activityGrid: {
     flexDirection: 'row',

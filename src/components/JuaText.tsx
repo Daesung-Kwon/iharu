@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { Text, TextProps, StyleSheet } from 'react-native';
+import { Text, TextProps, StyleSheet, Platform } from 'react-native';
 
 interface JuaTextProps extends TextProps {
   children: React.ReactNode;
@@ -21,6 +21,11 @@ export const JuaText: React.FC<JuaTextProps> = ({ style, ...props }) => {
 const styles = StyleSheet.create({
   juaText: {
     fontFamily: 'BMJUA',
+    // Android 폰트 렌더링 최적화
+    ...(Platform.OS === 'android' && {
+      includeFontPadding: false,
+      textAlignVertical: 'center',
+    }),
   },
 });
 
