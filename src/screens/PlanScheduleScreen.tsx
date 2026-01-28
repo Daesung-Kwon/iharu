@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     backgroundColor: SoftPopColors.white,
     borderRadius: 24,
-    margin: 20,
+    margin: 32,
     marginBottom: 12,
     borderWidth: 2,
     borderColor: SoftPopColors.white,
@@ -448,8 +448,8 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     flexDirection: 'row',
-    padding: 20,
-    gap: 20,
+    padding: 32,
+    gap: 32,
   },
   activityListPanel: {
     flex: 1,

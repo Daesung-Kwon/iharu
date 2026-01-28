@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     backgroundColor: SoftPopColors.white,
     borderRadius: 24,
-    margin: 20,
+    margin: 32,
     marginBottom: 12,
     borderWidth: 2,
     borderColor: SoftPopColors.white,
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 20,
+    padding: 32,
     // paddingBottom은 동적으로 계산 (contentContainerStyle에서)
   },
   activityGrid: {

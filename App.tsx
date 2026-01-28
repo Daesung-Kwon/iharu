@@ -10,9 +10,20 @@ import { Text, TextProps } from 'react-native';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { ActivityProvider } from './src/contexts/ActivityContext';
 import { ScheduleProvider } from './src/contexts/ScheduleContext';
+import CustomSplashScreen from './src/screens/SplashScreen';
+
+import mobileAds from 'react-native-google-mobile-ads';
 
 // 스플래시 스크린을 유지하도록 설정
 SplashScreen.preventAutoHideAsync();
+
+// Initialize Google Mobile Ads SDK
+mobileAds()
+    .initialize()
+    .then(adapterStatuses => {
+        // Initialization complete!
+        console.log('📱 Google Mobile Ads SDK initialized:', adapterStatuses);
+    });
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -31,6 +42,8 @@ export default function App() {
         'BMJUA': require('./assets/fonts/BMJUA_ttf.ttf'),
     });
 
+    const [isSplashFinished, setIsSplashFinished] = React.useState(false);
+
     useEffect(() => {
         if (fontsLoaded) {
             console.log('✅ 주아체 폰트 로드 성공: BMJUA');
@@ -48,7 +61,7 @@ export default function App() {
         }
     }, [fontsLoaded, fontError]);
 
-    // 폰트가 로드되기 전에는 null 반환 (스플래시 스크린 표시)
+    // 폰트가 로드되기 전에는 null 반환 (네이티브 스플래시 스크린 표시)
     if (!fontsLoaded && !fontError) {
         return null;
     }
@@ -68,6 +81,9 @@ export default function App() {
                             <ScheduleProvider>
                                 <StatusBar style="auto" />
                                 <AppNavigator />
+                                {!isSplashFinished && (
+                                    <CustomSplashScreen onFinish={() => setIsSplashFinished(true)} />
+                                )}
                             </ScheduleProvider>
                         </ActivityProvider>
                     </NavigationContainer>

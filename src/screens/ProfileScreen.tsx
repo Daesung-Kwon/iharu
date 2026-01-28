@@ -12,6 +12,7 @@ import Constants from 'expo-constants';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
+import { AdBanner } from '../components/AdBanner';
 import { exportAllData, importAllData, clearAllData } from '../services/storage';
 import { requestNotificationPermissions, loadNotificationSettings, saveNotificationSettings } from '../services/notificationService';
 import { useActivity } from '../contexts/ActivityContext';
@@ -272,9 +273,11 @@ export default function ProfileScreen() {
             // 동적 계산: 탭바 높이 + SafeArea bottom (OS별)
             paddingBottom: (() => {
               const TAB_BAR_HEIGHT = 68;
-              return Platform.OS === 'android'
-                ? TAB_BAR_HEIGHT + Math.max(insets.bottom, 16) + 8 // Android: 시스템 바 고려
-                : TAB_BAR_HEIGHT + Math.max(insets.bottom, 10); // iOS: 기존과 동일한 로직
+              const AD_HEIGHT = 60;
+              const tabBarHeight = Platform.OS === 'android'
+                ? TAB_BAR_HEIGHT + Math.max(insets.bottom, 16) + 8
+                : TAB_BAR_HEIGHT + Math.max(insets.bottom, 10);
+              return tabBarHeight + AD_HEIGHT + 20;
             })(),
           }
         ]}
@@ -445,6 +448,17 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
       </ScrollView>
+
+      {/* Ad Banner */}
+      <AdBanner
+        style={{
+          position: 'absolute',
+          bottom: Platform.OS === 'android'
+            ? 68 + Math.max(insets.bottom, 16) + 8
+            : 68 + Math.max(insets.bottom, 10),
+          width: '100%',
+        }}
+      />
 
       {/* 약관 모달 */}
       <TermsModal

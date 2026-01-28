@@ -8,6 +8,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Alert, useWindowDimensio
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSchedule } from '../contexts/ScheduleContext';
+import { AdBanner } from '../components/AdBanner';
 import TodayScheduleItem from '../components/TodayScheduleItem';
 import CelebrationModal from '../components/CelebrationModal';
 import HorizontalDatePicker from '../components/HorizontalDatePicker';
@@ -49,23 +50,23 @@ export default function TodayScreen() {
   const [showClapAnimation, setShowClapAnimation] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [notifications, setNotifications] = useState<Record<string, boolean>>({});
-  
+
   const selectedDateString = selectedDate.toISOString().split('T')[0];
   const isViewingToday = isToday(selectedDateString);
   const isViewingPast = isPast(selectedDateString);
   const isViewingFuture = isFuture(selectedDateString);
   const dayStats = calculateDayStats(selectedSchedule);
-  
+
   // 앱 시작 시 알림 권한 요청 및 설정 로드
   useEffect(() => {
     const initializeNotifications = async () => {
       // 알림 권한 요청
       await requestNotificationPermissions();
-      
+
       // 저장된 알림 설정 로드
       const savedSettings = await loadNotificationSettings();
       setNotifications(savedSettings);
-      
+
       // 오늘 일정 알림 스케줄링
       const todaySchedule = getScheduleForDate(new Date());
       if (todaySchedule && todaySchedule.items.length > 0) {
@@ -83,7 +84,7 @@ export default function TodayScreen() {
     const scheduleNotifications = async () => {
       await scheduleTodayNotifications(scheduleItems, notifications);
     };
-    
+
     scheduleNotifications();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isViewingToday, scheduleItems.length]); // notifications 제거 - 개별 토글에서 처리
@@ -133,18 +134,18 @@ export default function TodayScreen() {
     if (item) {
       const wasCompleted = item.status === 'completed';
       const newStatus = wasCompleted ? 'planned' : 'completed';
-      
+
       // 현재 완료된 항목 수 계산
       const currentCompletedCount = scheduleItems.filter(i => i.status === 'completed').length;
-      const willBeCompletedCount = newStatus === 'completed' 
+      const willBeCompletedCount = newStatus === 'completed'
         ? currentCompletedCount + (wasCompleted ? 0 : 1)
         : currentCompletedCount - (wasCompleted ? 1 : 0);
-      
+
       // 마지막 활동 완료인지 확인
       const isLastActivity = willBeCompletedCount === totalItems && newStatus === 'completed';
-      
+
       updateScheduleItem(itemId, { status: newStatus });
-      
+
       // 완료 체크 시 박수 애니메이션 표시 (마지막 활동이 아닐 때만)
       if (!wasCompleted && newStatus === 'completed' && !isLastActivity) {
         console.log('🎉 Activity completed, showing clap animation');
@@ -161,7 +162,7 @@ export default function TodayScreen() {
     if (!item) return;
 
     const newEnabled = !notifications[itemId];
-    
+
     // 상태 업데이트
     const updatedNotifications = {
       ...notifications,
@@ -195,7 +196,7 @@ export default function TodayScreen() {
   const handleCopyToToday = () => {
     const today = new Date();
     const todaySchedule = getScheduleForDate(today);
-    
+
     // 오늘 이미 일정이 있는지 확인
     if (todaySchedule && todaySchedule.items.length > 0) {
       Alert.alert(
@@ -203,8 +204,8 @@ export default function TodayScreen() {
         '오늘 이미 일정이 있습니다. 기존 일정을 삭제하고 복사하시겠습니까?',
         [
           { text: '취소', style: 'cancel' },
-          { 
-            text: '삭제하고 복사', 
+          {
+            text: '삭제하고 복사',
             style: 'destructive',
             onPress: () => {
               // 기존 일정 삭제 후 복사
@@ -226,8 +227,8 @@ export default function TodayScreen() {
         `${selectedDate.toLocaleDateString('ko-KR')} 일정을 오늘로 복사하시겠습니까?`,
         [
           { text: '취소', style: 'cancel' },
-          { 
-            text: '복사', 
+          {
+            text: '복사',
             onPress: () => {
               const success = copyScheduleToDate(selectedDate, today);
               if (success) {
@@ -244,27 +245,29 @@ export default function TodayScreen() {
   };
 
   return (
-    <SafeAreaView 
-      style={[styles.container, isLandscape && styles.containerLandscape]} 
-      edges={isLandscape 
-        ? [] 
-        : Platform.OS === 'android' 
+    <SafeAreaView
+      style={[styles.container, isLandscape && styles.containerLandscape]}
+      edges={isLandscape
+        ? []
+        : Platform.OS === 'android'
           ? ['top', 'bottom'] // Android만 bottom 추가
           : ['top'] // iOS는 기존 유지
       }
     >
-      <ScrollView 
-        style={styles.scrollView} 
+      <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={[
-          styles.content, 
+          styles.content,
           isLandscape && styles.contentLandscape,
           {
             // 동적 계산: 탭바 높이 + SafeArea bottom (OS별)
             paddingBottom: (() => {
               const TAB_BAR_HEIGHT = 68;
-              return Platform.OS === 'android'
-                ? TAB_BAR_HEIGHT + Math.max(insets.bottom, 16) + 8 // Android: 시스템 바 고려
-                : TAB_BAR_HEIGHT + Math.max(insets.bottom, 10); // iOS: 기존과 동일한 로직
+              const AD_HEIGHT = 60; // Approximate ad height
+              const tabBarHeight = Platform.OS === 'android'
+                ? TAB_BAR_HEIGHT + Math.max(insets.bottom, 16) + 8
+                : TAB_BAR_HEIGHT + Math.max(insets.bottom, 10);
+              return tabBarHeight + AD_HEIGHT + 20; // Extra padding
             })(),
           }
         ]}
@@ -310,7 +313,7 @@ export default function TodayScreen() {
               </View>
             )}
           </View>
-          
+
           {/* Horizontal Date Picker - 카드 안으로 이동 */}
           <View style={styles.datePickerContainer}>
             <HorizontalDatePicker
@@ -338,15 +341,15 @@ export default function TodayScreen() {
                 {Math.round(dayStats.completionRate)}%
               </Text>
             </View>
-            
+
             <View style={styles.progressBarContainer}>
               <View style={styles.progressBar}>
-                <View 
+                <View
                   style={[
-                    styles.progressFill, 
+                    styles.progressFill,
                     { width: `${dayStats.completionRate}%` },
                     dayStats.completionRate === 100 && styles.progressFillPerfect
-                  ]} 
+                  ]}
                 />
               </View>
               <Text style={styles.progressText}>
@@ -475,10 +478,10 @@ export default function TodayScreen() {
         {/* Schedule Items or Empty State */}
         {scheduleItems.length === 0 ? (
           <View style={styles.emptyState}>
-            <MaterialIcons 
-              name="calendar-today" 
-              size={64} 
-              color={SoftPopColors.textSecondary} 
+            <MaterialIcons
+              name="calendar-today"
+              size={64}
+              color={SoftPopColors.textSecondary}
             />
             <Text style={styles.emptyTitle}>아직 일정이 없어요</Text>
             <Text style={styles.emptyMessage}>
@@ -502,16 +505,16 @@ export default function TodayScreen() {
                 </View>
               )}
             </View>
-            
+
             {sortedItems.map((item) => {
-              const itemStatus = isViewingToday 
+              const itemStatus = isViewingToday
                 ? getItemStatus(item, currentTime, selectedDate)
                 : isViewingFuture
                   ? getItemStatus(item, currentTime, selectedDate)
-                  : item.status === 'completed' 
-                    ? 'completed' 
+                  : item.status === 'completed'
+                    ? 'completed'
                     : 'missed';
-              
+
               return (
                 <TodayScheduleItem
                   key={item.id}
@@ -535,6 +538,19 @@ export default function TodayScreen() {
         )}
       </ScrollView>
 
+      {/* Ad Banner - Sticky above TabBar */}
+      <AdBanner
+        style={{
+          position: 'absolute',
+          bottom: Platform.OS === 'android'
+            ? 68 + Math.max(insets.bottom, 16) + 8
+            : 68 + Math.max(insets.bottom, 10),
+          width: '100%',
+          zIndex: 100,
+          elevation: 10,
+        }}
+      />
+
       {/* Celebration Modal (Today Only) */}
       {isViewingToday && (
         <CelebrationModal
@@ -546,7 +562,7 @@ export default function TodayScreen() {
           }}
         />
       )}
-      
+
       {/* Clap Animation (활동 완료 시) */}
       <ClapAnimation
         visible={showClapAnimation}
@@ -801,6 +817,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  containerLandscape: {
+    flexDirection: 'row',
+  },
+  contentLandscape: {
+    paddingHorizontal: 32,
   },
   emptyEmoji: {
     fontSize: 64,
