@@ -12,18 +12,12 @@ import { ActivityProvider } from './src/contexts/ActivityContext';
 import { ScheduleProvider } from './src/contexts/ScheduleContext';
 import CustomSplashScreen from './src/screens/SplashScreen';
 
+
 import mobileAds from 'react-native-google-mobile-ads';
 
 // 스플래시 스크린을 유지하도록 설정
 SplashScreen.preventAutoHideAsync();
 
-// Initialize Google Mobile Ads SDK
-mobileAds()
-    .initialize()
-    .then(adapterStatuses => {
-        // Initialization complete!
-        console.log('📱 Google Mobile Ads SDK initialized:', adapterStatuses);
-    });
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -43,6 +37,18 @@ export default function App() {
     });
 
     const [isSplashFinished, setIsSplashFinished] = React.useState(false);
+
+    // Initialize Google Mobile Ads SDK (안드로이드 크래시 방지를 위해 useEffect 내부에서 초기화)
+    useEffect(() => {
+        mobileAds()
+            .initialize()
+            .then(adapterStatuses => {
+                console.log('📱 Google Mobile Ads SDK initialized:', adapterStatuses);
+            })
+            .catch(error => {
+                console.warn('⚠️ Google Mobile Ads SDK initialization failed:', error);
+            });
+    }, []);
 
     useEffect(() => {
         if (fontsLoaded) {
