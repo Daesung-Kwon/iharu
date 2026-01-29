@@ -12,18 +12,37 @@ const adUnitId = __DEV__
         ? 'ca-app-pub-xxxxxxxxxxxxxxxx/xxxxxxxxxx' // iOS 실제 ID (추후 교체)
         : 'ca-app-pub-xxxxxxxxxxxxxxxx/xxxxxxxxxx'; // Android 실제 ID (추후 교체)
 
+// 실제 ID가 설정되지 않은 경우 테스트 ID 사용 (Preview 빌드 등에서 테스트 가능하도록)
+const finalAdUnitId = (adUnitId.includes('xxxxxxxxxxxxxxxx') || adUnitId.includes('ca-app-pub-xxxxxxxxxxxxxxxx/xxxxxxxxxx'))
+    ? TestIds.BANNER
+    : adUnitId;
+
 export const AdBanner: React.FC<AdBannerProps> = ({ style }) => {
     const [error, setError] = useState(false);
+    const [isLoaded, setIsLoaded] = useState(false);
 
     if (error) return null;
 
     return (
-        <View style={[styles.container, style]}>
+        <View style={[
+            styles.container,
+            style,
+            !isLoaded && {
+                backgroundColor: 'transparent',
+                elevation: 0,
+                shadowOpacity: 0,
+                borderWidth: 0
+            }
+        ]}>
             <BannerAd
-                unitId={adUnitId}
+                unitId={finalAdUnitId}
                 size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
                 requestOptions={{
                     requestNonPersonalizedAdsOnly: true,
+                }}
+                onAdLoaded={() => {
+                    console.log('Ad loaded');
+                    setIsLoaded(true);
                 }}
                 onAdFailedToLoad={(err) => {
                     console.error('Ad failed to load', err);

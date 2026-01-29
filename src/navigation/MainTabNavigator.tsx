@@ -69,7 +69,7 @@ export const MainTabNavigator: React.FC = () => {
           bottom: 0,
           paddingBottom: tabBarPaddingBottom,
           paddingTop: 0,
-          height: 68 + (Platform.OS === 'ios' 
+          height: 68 + (Platform.OS === 'ios'
             ? Math.max(insets.bottom - 8, 0) // iOS 기존 로직 유지
             : Math.max(insets.bottom, 0) // Android만 개선
           ),
@@ -189,7 +189,7 @@ const tabBarStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.2,
     shadowRadius: 16,
-    elevation: 12,
+    elevation: Platform.OS === 'android' ? 0 : 12,
   },
   tabButton: {
     alignItems: 'center',

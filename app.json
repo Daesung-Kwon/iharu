@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFF8E7"
+      "backgroundColor": "#FFFFFF"
     },
     "fonts": [
       "./assets/fonts/BMJUA_ttf.ttf"
@@ -26,7 +26,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFF8E7"
+        "backgroundColor": "#FFFFFF"
       },
       "package": "com.dailyschedule.app",
       "tabletOnly": true,
@@ -51,11 +51,12 @@
     ],
     "extra": {
       "eas": {
-        "projectId": ""
+        "projectId": "31a89f46-760d-491d-8ba6-a3ffda29ad8d"
       }
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "owner": "ds.kwon"
   }
 }
