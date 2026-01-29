@@ -17,7 +17,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.dailyschedule.app",
+      "bundleIdentifier": "com.iharu.dailyschedule",
       "requireFullScreen": false,
       "deviceFamily": [
         "ipad"
@@ -28,7 +28,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
-      "package": "com.dailyschedule.app",
+      "package": "com.iharu.dailyschedule",
       "tabletOnly": true,
       "edgeToEdgeEnabled": true
     },
