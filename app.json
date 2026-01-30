@@ -21,7 +21,10 @@
       "requireFullScreen": false,
       "deviceFamily": [
         "ipad"
-      ]
+      ],
+      "infoPlist": {
+        "NSUserTrackingUsageDescription": "사용자에게 최적화된 광고를 제공하기 위해 기기 식별 정보를 사용합니다."
+      }
     },
     "android": {
       "adaptiveIcon": {
