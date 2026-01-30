@@ -1,4 +1,4 @@
-package com.dailyschedule.app
+package com.iharu.app
 
 import android.app.Application
 import android.content.res.Configuration

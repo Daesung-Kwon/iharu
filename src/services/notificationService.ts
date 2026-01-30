@@ -18,6 +18,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -153,9 +155,8 @@ export async function scheduleActivityNotification(
           },
         },
         trigger: {
-          type: 'date',
           date: notificationTime,
-        },
+        } as Notifications.NotificationTriggerInput,
       });
 
       if (Device.isDevice) {

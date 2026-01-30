@@ -1,4 +1,4 @@
-package com.dailyschedule.app
+package com.iharu.app
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

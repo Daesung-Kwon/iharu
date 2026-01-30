@@ -100,6 +100,7 @@ export default function ProfileScreen() {
       const fileName = `i하루-백업-${timestamp}.json`;
 
       // documentDirectory 사용 (사용자가 접근 가능한 위치)
+      // @ts-ignore
       const directory = FileSystem.documentDirectory || FileSystem.cacheDirectory;
 
       if (!directory) {
@@ -116,6 +117,7 @@ export default function ProfileScreen() {
 
       // 파일 저장
       await FileSystem.writeAsStringAsync(fileUri, jsonString, {
+        // @ts-ignore
         encoding: FileSystem.EncodingType.UTF8,
       });
 
@@ -189,6 +191,7 @@ export default function ProfileScreen() {
 
                 // 파일 읽기
                 const fileContent = await FileSystem.readAsStringAsync(fileUri, {
+                  // @ts-ignore
                   encoding: FileSystem.EncodingType.UTF8,
                 });
 
