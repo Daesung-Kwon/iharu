@@ -30,7 +30,10 @@
       },
       "package": "com.iharu.app",
       "tabletOnly": true,
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "com.google.android.gms.permission.AD_ID"
+      ]
     },
     "plugins": [
       [

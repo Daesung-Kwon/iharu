@@ -6,6 +6,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
+import { requestTrackingPermissionsAsync } from 'expo-tracking-transparency';
 import { Text, TextProps } from 'react-native';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { ActivityProvider } from './src/contexts/ActivityContext';
@@ -40,14 +41,21 @@ export default function App() {
 
     // Initialize Google Mobile Ads SDK (안드로이드 크래시 방지를 위해 useEffect 내부에서 초기화)
     useEffect(() => {
-        mobileAds()
-            .initialize()
-            .then(adapterStatuses => {
-                console.log('📱 Google Mobile Ads SDK initialized:', adapterStatuses);
-            })
-            .catch(error => {
-                console.warn('⚠️ Google Mobile Ads SDK initialization failed:', error);
-            });
+        (async () => {
+            const { status } = await requestTrackingPermissionsAsync();
+            if (status === 'granted') {
+                console.log('✅ Tracking permission granted');
+            }
+            
+            mobileAds()
+                .initialize()
+                .then(adapterStatuses => {
+                    console.log('📱 Google Mobile Ads SDK initialized:', adapterStatuses);
+                })
+                .catch(error => {
+                    console.warn('⚠️ Google Mobile Ads SDK initialization failed:', error);
+                });
+        })();
     }, []);
 
     useEffect(() => {
