@@ -9,7 +9,7 @@ interface AdBannerProps {
 const adUnitId = __DEV__
     ? TestIds.BANNER
     : Platform.OS === 'ios'
-        ? 'ca-app-pub-xxxxxxxxxxxxxxxx/xxxxxxxxxx' // iOS 실제 ID (추후 교체)
+        ? 'ca-app-pub-9978285135642181/1013048669' // iOS 실제 ID
         : 'ca-app-pub-9978285135642181/1379385338'; // Android 실제 ID
 
 // 실제 ID가 설정되지 않은 경우 테스트 ID 사용 (Preview 빌드 등에서 테스트 가능하도록)
