@@ -18,12 +18,14 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.dailyschedule.app",
+      "buildNumber": "7",
       "requireFullScreen": false,
       "deviceFamily": [
         "ipad"
       ],
       "infoPlist": {
-        "NSUserTrackingUsageDescription": "사용자에게 최적화된 광고를 제공하기 위해 기기 식별 정보를 사용합니다."
+        "NSUserTrackingUsageDescription": "사용자에게 최적화된 광고를 제공하기 위해 기기 식별 정보를 사용합니다.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -40,6 +42,17 @@
     },
     "plugins": [
       [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.1",
+            "deviceFamily": [
+              2
+            ]
+          }
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
@@ -51,7 +64,8 @@
         "react-native-google-mobile-ads",
         {
           "androidAppId": "ca-app-pub-9978285135642181~1318901506",
-          "iosAppId": "ca-app-pub-9978285135642181~7551710314"
+          "iosAppId": "ca-app-pub-9978285135642181~7551710314",
+          "userTrackingUsageDescription": "사용자에게 최적화된 광고를 제공하기 위해 기기 식별 정보를 사용합니다."
         }
       ]
     ],

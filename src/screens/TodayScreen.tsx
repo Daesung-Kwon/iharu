@@ -7,6 +7,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert, useWindowDimensions, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import mobileAds from 'react-native-google-mobile-ads';
+import * as TrackingTransparency from 'expo-tracking-transparency';
 import { useSchedule } from '../contexts/ScheduleContext';
 import { AdBanner } from '../components/AdBanner';
 import TodayScheduleItem from '../components/TodayScheduleItem';
@@ -59,7 +61,21 @@ export default function TodayScreen() {
 
   // 앱 시작 시 알림 권한 요청 및 설정 로드
   useEffect(() => {
-    const initializeNotifications = async () => {
+    const initializeApp = async () => {
+      // 광고 초기화 및 권한 요청
+      try {
+        await mobileAds().initialize();
+        if (Platform.OS === 'ios') {
+          // iOS 시스템 안정화 및 알림 팝업과의 충돌 방지를 위해 지연 호출
+          setTimeout(async () => {
+            const { status } = await TrackingTransparency.requestTrackingPermissionsAsync();
+            console.log('Tracking status:', status);
+          }, 2000);
+        }
+      } catch (e) {
+        console.error('Ads initialization failed', e);
+      }
+
       // 알림 권한 요청
       await requestNotificationPermissions();
 
@@ -74,7 +90,7 @@ export default function TodayScreen() {
       }
     };
 
-    initializeNotifications();
+    initializeApp();
   }, []);
 
   // 오늘 일정이 변경될 때만 알림 재스케줄링 (알림 설정 변경은 handleToggleNotification에서 개별 처리)

@@ -40,13 +40,19 @@
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>GADApplicationIdentifier</key>
-    <string>ca-app-pub-3940256099942544~1458002511</string>
+    <string>ca-app-pub-9978285135642181~7551710314</string>
+    <key>NSUserTrackingUsageDescription</key>
+    <string>사용자에게 최적화된 광고를 제공하기 위해 기기 식별 정보를 사용합니다.</string>
     <key>GADDelayAppMeasurementInit</key>
     <false/>
     <key>LSMinimumSystemVersion</key>
     <string>12.0</string>
     <key>LSRequiresIPhoneOS</key>
-    <true/>
+    <false/>
+    <key>UIDeviceFamily</key>
+    <array>
+      <integer>2</integer>
+    </array>
     <key>NSAppTransportSecurity</key>
     <dict>
       <key>NSAllowsArbitraryLoads</key>
