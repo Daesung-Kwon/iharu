@@ -6,9 +6,9 @@
     <title>i하루 - 우리 아이 하루 일정 관리</title>
     <style>
         :root {
-            --primary-color: #FFB347; /* Warm Orange/Yellow tone suitable for kids app */
+            --primary-color: #FFB347;
             --text-color: #333;
-            --bg-color: #FFF8E7; /* Soft creamy background */
+            --bg-color: #FFF8E7;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -24,7 +24,7 @@
             text-align: center;
         }
         .container {
-            max-width: 800px;
+            max-width: 900px;
             padding: 2rem;
             animation: fadeIn 1s ease-out;
         }
@@ -44,18 +44,34 @@
             height: 150px;
             border-radius: 30px;
             box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-            margin-bottom: 2rem;
-            background-color: white; /* Placeholder if image missing */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 3rem;
+            margin: 0 auto 2rem;
+            overflow: hidden;
         }
-        .buttons {
+        .app-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .download-section {
             display: flex;
-            gap: 1rem;
+            gap: 3rem;
             justify-content: center;
             flex-wrap: wrap;
+            margin: 3rem 0;
+        }
+        .download-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        .qr-code {
+            width: 180px;
+            height: 180px;
+            background: white;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         .btn {
             background-color: var(--primary-color);
@@ -66,27 +82,53 @@
             font-weight: bold;
             transition: transform 0.2s, box-shadow 0.2s;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: inline-block;
         }
         .btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        .btn.disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .btn.disabled:hover {
+            transform: none;
+        }
+        .store-badge {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+        .status {
+            font-size: 0.9rem;
+            color: #999;
         }
         .footer {
             margin-top: 3rem;
             font-size: 0.9rem;
             color: #999;
         }
+        .footer a {
+            color: #999;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <!-- Assuming icon.png exists in parent assets, but for static site referencing relative path might be tricky if not copied. 
-             We'll use a text placeholder or simple styling for now. -->
-        <div class="app-icon">📅</div> 
+        <div class="app-icon">
+            <img src="icon.png" alt="i하루 앱 아이콘">
+        </div>
         
         <h1>i하루</h1>
         <p>
@@ -94,16 +136,59 @@
             스스로 계획하고 실천하는 습관을 길러줍니다.
         </p>
         
-        <div class="buttons">
-            <span class="btn">App Store에서 다운로드 (준비중)</span>
-            <span class="btn">Google Play에서 다운로드 (준비중)</span>
+        <div class="download-section">
+            <!-- iOS App Store -->
+            <div class="download-box">
+                <div class="store-badge">🍎 App Store</div>
+                <canvas id="qr-ios" class="qr-code"></canvas>
+                <a href="https://apps.apple.com/kr/app/i하루/id6758513674" target="_blank" class="btn">
+                    App Store에서 다운로드
+                </a>
+            </div>
+            
+            <!-- Android Google Play -->
+            <div class="download-box">
+                <div class="store-badge">🤖 Google Play</div>
+                <canvas id="qr-android" class="qr-code"></canvas>
+                <span class="btn disabled">출시 준비중</span>
+                <p class="status">곧 만나요!</p>
+            </div>
         </div>
 
         <div class="footer">
-            <p>Contact: daesung.kwon@gmail.com</p> <!-- Derived from github owner assumption or leaving generic -->
+            <p>Contact: daesung.kwon@gmail.com</p>
             <p>&copy; 2026 i하루. All rights reserved.</p>
-            <p><a href="privacy.html" style="color:#999;">개인정보처리방침</a></p>
+            <p><a href="privacy.html">개인정보처리방침</a></p>
         </div>
     </div>
+
+    <script>
+        // Generate QR codes
+        QRCode.toCanvas(
+            document.getElementById('qr-ios'),
+            'https://apps.apple.com/kr/app/i하루/id6758513674',
+            {
+                width: 180,
+                margin: 1,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            }
+        );
+
+        QRCode.toCanvas(
+            document.getElementById('qr-android'),
+            'https://play.google.com/store/apps/details?id=com.iharu.app',
+            {
+                width: 180,
+                margin: 1,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            }
+        );
+    </script>
 </body>
 </html>
