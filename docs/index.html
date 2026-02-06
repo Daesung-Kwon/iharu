@@ -164,7 +164,6 @@
             }
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 
 <body>
@@ -184,7 +183,7 @@
             <div class="download-box">
                 <div class="store-badge">🍎 App Store</div>
                 <div class="qr-code">
-                    <div id="qr-ios"></div>
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://apps.apple.com/kr/app/i하루/id6758513674" alt="App Store QR Code">
                 </div>
                 <a href="https://apps.apple.com/kr/app/i하루/id6758513674" target="_blank" class="btn">
                     App Store에서 다운로드
@@ -195,7 +194,7 @@
             <div class="download-box">
                 <div class="store-badge">🤖 Google Play</div>
                 <div class="qr-code">
-                    <div id="qr-android"></div>
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://play.google.com/store/apps/details?id=com.iharu.app" alt="Google Play QR Code">
                 </div>
                 <span class="btn disabled">출시 준비중</span>
                 <p class="status">곧 만나요!</p>
@@ -204,33 +203,10 @@
 
         <div class="footer">
             <p>Contact: i.haru.dev@gmail.com</p>
-            <p>&copy; 2026 i하루. All rights reserved.</p>
+            <p>&copy; 2026 daon_daddy i하루. All rights reserved.</p>
             <p><a href="privacy.html">개인정보처리방침</a></p>
         </div>
     </div>
-
-    <script>
-        // Generate QR codes using QRCode.js
-        window.addEventListener('DOMContentLoaded', function() {
-            new QRCode(document.getElementById('qr-ios'), {
-                text: 'https://apps.apple.com/kr/app/i하루/id6758513674',
-                width: 180,
-                height: 180,
-                colorDark: '#000000',
-                colorLight: '#ffffff',
-                correctLevel: QRCode.CorrectLevel.H
-            });
-
-            new QRCode(document.getElementById('qr-android'), {
-                text: 'https://play.google.com/store/apps/details?id=com.iharu.app',
-                width: 180,
-                height: 180,
-                colorDark: '#000000',
-                colorLight: '#ffffff',
-                correctLevel: QRCode.CorrectLevel.H
-            });
-        });
-    </script>
 </body>
 
 </html>
