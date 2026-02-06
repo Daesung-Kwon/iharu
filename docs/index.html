@@ -1,17 +1,26 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>i하루 - 우리 아이 하루 일정 관리</title>
     <style>
+        @font-face {
+            font-family: 'BMJUA';
+            src: url('fonts/BMJUA_ttf.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
         :root {
             --primary-color: #FFB347;
             --text-color: #333;
             --bg-color: #FFF8E7;
         }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: 'BMJUA', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             margin: 0;
             padding: 0;
             background-color: var(--bg-color);
@@ -23,35 +32,41 @@
             min-height: 100vh;
             text-align: center;
         }
+
         .container {
             max-width: 900px;
             padding: 2rem;
             animation: fadeIn 1s ease-out;
         }
+
         h1 {
             font-size: 3rem;
             margin-bottom: 1rem;
             color: #FF8C00;
         }
+
         p {
             font-size: 1.2rem;
             line-height: 1.6;
             margin-bottom: 2rem;
             color: #666;
         }
+
         .app-icon {
             width: 150px;
             height: 150px;
             border-radius: 30px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
             margin: 0 auto 2rem;
             overflow: hidden;
         }
+
         .app-icon img {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
+
         .download-section {
             display: flex;
             gap: 3rem;
@@ -59,20 +74,31 @@
             flex-wrap: wrap;
             margin: 3rem 0;
         }
+
         .download-box {
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 1rem;
         }
+
         .qr-code {
-            width: 180px;
-            height: 180px;
+            width: 210px;
+            height: 210px;
             background: white;
             padding: 15px;
             border-radius: 15px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
+
+        .qr-code img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
         .btn {
             background-color: var(--primary-color);
             color: white;
@@ -81,66 +107,85 @@
             text-decoration: none;
             font-weight: bold;
             transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             display: inline-block;
         }
+
         .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
         }
+
         .btn.disabled {
             background-color: #ccc;
             cursor: not-allowed;
         }
+
         .btn.disabled:hover {
             transform: none;
         }
+
         .store-badge {
             font-size: 1.1rem;
             font-weight: bold;
             margin-bottom: 0.5rem;
             color: #333;
         }
+
         .status {
             font-size: 0.9rem;
             color: #999;
         }
+
         .footer {
             margin-top: 3rem;
             font-size: 0.9rem;
             color: #999;
         }
+
         .footer a {
             color: #999;
             text-decoration: none;
         }
+
         .footer a:hover {
             text-decoration: underline;
         }
+
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
+
 <body>
     <div class="container">
         <div class="app-icon">
             <img src="icon.png" alt="i하루 앱 아이콘">
         </div>
-        
+
         <h1>i하루</h1>
         <p>
             우리 아이의 하루 일정을 쉽고 재미있게 관리하세요.<br>
             스스로 계획하고 실천하는 습관을 길러줍니다.
         </p>
-        
+
         <div class="download-section">
             <!-- iOS App Store -->
             <div class="download-box">
                 <div class="store-badge">🍎 App Store</div>
-                <canvas id="qr-ios" class="qr-code"></canvas>
+                <div class="qr-code">
+                    <div id="qr-ios"></div>
+                </div>
                 <a href="https://apps.apple.com/kr/app/i하루/id6758513674" target="_blank" class="btn">
                     App Store에서 다운로드
                 </a>
@@ -149,46 +194,43 @@
             <!-- Android Google Play -->
             <div class="download-box">
                 <div class="store-badge">🤖 Google Play</div>
-                <canvas id="qr-android" class="qr-code"></canvas>
+                <div class="qr-code">
+                    <div id="qr-android"></div>
+                </div>
                 <span class="btn disabled">출시 준비중</span>
                 <p class="status">곧 만나요!</p>
             </div>
         </div>
 
         <div class="footer">
-            <p>Contact: daesung.kwon@gmail.com</p>
+            <p>Contact: i.haru.dev@gmail.com</p>
             <p>&copy; 2026 i하루. All rights reserved.</p>
             <p><a href="privacy.html">개인정보처리방침</a></p>
         </div>
     </div>
 
     <script>
-        // Generate QR codes
-        QRCode.toCanvas(
-            document.getElementById('qr-ios'),
-            'https://apps.apple.com/kr/app/i하루/id6758513674',
-            {
+        // Generate QR codes using QRCode.js
+        window.addEventListener('DOMContentLoaded', function() {
+            new QRCode(document.getElementById('qr-ios'), {
+                text: 'https://apps.apple.com/kr/app/i하루/id6758513674',
                 width: 180,
-                margin: 1,
-                color: {
-                    dark: '#000000',
-                    light: '#FFFFFF'
-                }
-            }
-        );
+                height: 180,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
 
-        QRCode.toCanvas(
-            document.getElementById('qr-android'),
-            'https://play.google.com/store/apps/details?id=com.iharu.app',
-            {
+            new QRCode(document.getElementById('qr-android'), {
+                text: 'https://play.google.com/store/apps/details?id=com.iharu.app',
                 width: 180,
-                margin: 1,
-                color: {
-                    dark: '#000000',
-                    light: '#FFFFFF'
-                }
-            }
-        );
+                height: 180,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        });
     </script>
 </body>
+
 </html>
