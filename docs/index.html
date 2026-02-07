@@ -4,7 +4,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>i하루 - 우리 아이 하루 일정 관리</title>
+    <title>i하루 - 스스로 계획하는 우리 아이 습관 친구</title>
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://iharu.app/">
+    <meta property="og:title" content="i하루 - 우리 아이 첫 일정 관리 앱">
+    <meta property="og:description" content="스스로 계획하고 실천하는 습관! 아이가 좋아하는 스티커와 디자인으로 재밌게 하루를 관리해요.">
+    <meta property="og:image" content="https://daesung-kwon.github.io/iharu/images/gallery_1.png">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://iharu.app/">
+    <meta property="twitter:title" content="i하루 - 우리 아이 첫 일정 관리 앱">
+    <meta property="twitter:description" content="스스로 계획하고 실천하는 습관! 아이가 좋아하는 스티커와 디자인으로 재밌게 하루를 관리해요.">
+    <meta property="twitter:image" content="https://daesung-kwon.github.io/iharu/images/gallery_1.png">
+
     <style>
         @font-face {
             font-family: 'BMJUA';
@@ -15,8 +30,15 @@
 
         :root {
             --primary-color: #FFB347;
-            --text-color: #333;
-            --bg-color: #FFF8E7;
+            --secondary-color: #FF8C00;
+            --accent-color: #FF6B6B;
+            --text-color: #4A4A4A;
+            --bg-color: #FFF9F0;
+            --card-bg: #FFFFFF;
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         body {
@@ -25,40 +47,40 @@
             padding: 0;
             background-color: var(--bg-color);
             color: var(--text-color);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            text-align: center;
+            line-height: 1.6;
+            overflow-x: hidden;
         }
 
         .container {
-            max-width: 900px;
+            max-width: 1200px;
+            margin: 0 auto;
             padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Hero Section */
+        .hero {
+            text-align: center;
+            padding: 4rem 1rem 2rem;
             animation: fadeIn 1s ease-out;
-        }
-
-        h1 {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            color: #FF8C00;
-        }
-
-        p {
-            font-size: 1.2rem;
-            line-height: 1.6;
-            margin-bottom: 2rem;
-            color: #666;
+            max-width: 800px;
         }
 
         .app-icon {
-            width: 150px;
-            height: 150px;
-            border-radius: 30px;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-            margin: 0 auto 2rem;
+            width: 140px;
+            height: 140px;
+            border-radius: 35px;
+            box-shadow: 0 15px 35px rgba(255, 179, 71, 0.4);
+            margin-bottom: 2rem;
             overflow: hidden;
+            display: inline-block;
+            transition: transform 0.3s ease;
+        }
+
+        .app-icon:hover {
+            transform: scale(1.05) rotate(5deg);
         }
 
         .app-icon img {
@@ -67,28 +89,125 @@
             object-fit: cover;
         }
 
+        h1 {
+            font-size: 3.5rem;
+            margin: 0 0 1rem;
+            color: var(--secondary-color);
+            text-shadow: 2px 2px 0px #FFF, 4px 4px 0px rgba(0, 0, 0, 0.05);
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            font-size: 1.5rem;
+            color: #7A7A7A;
+            margin-bottom: 2.5rem;
+            font-weight: normal;
+        }
+
+        .highlight {
+            color: var(--accent-color);
+            position: relative;
+            display: inline-block;
+        }
+
+        .highlight::after {
+            content: '';
+            position: absolute;
+            bottom: 5px;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            background-color: rgba(255, 107, 107, 0.2);
+            z-index: -1;
+            transform: rotate(-1deg);
+        }
+
+        /* Screenshot Gallery */
+        .gallery-section {
+            width: 100%;
+            margin: 3rem 0;
+            position: relative;
+        }
+
+        .gallery-container {
+            display: flex;
+            gap: 20px;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            padding: 20px 0;
+            -webkit-overflow-scrolling: touch;
+            /* smooth scrolling on iOS */
+            justify-content: flex-start;
+            /* Align internal items to start */
+        }
+
+        .gallery-container::-webkit-scrollbar {
+            height: 8px;
+            /* Custom scrollbar height */
+        }
+
+        .gallery-container::-webkit-scrollbar-thumb {
+            background-color: #ccc;
+            border-radius: 4px;
+        }
+
+        .gallery-container::-webkit-scrollbar-track {
+            background-color: transparent;
+        }
+
+        .screenshot-card {
+            width: 280px;
+            /* Flex shrink must be 0 to prevent items from squishing */
+            flex: 0 0 auto;
+            scroll-snap-align: center;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            background: var(--card-bg);
+            border: 8px solid var(--card-bg);
+            transition: transform 0.4s ease, box-shadow 0.4s ease;
+        }
+
+        .screenshot-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.15);
+            z-index: 10;
+        }
+
+        .screenshot-card img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 12px;
+        }
+
+        /* Download Section */
         .download-section {
             display: flex;
             gap: 3rem;
             justify-content: center;
             flex-wrap: wrap;
-            margin: 3rem 0;
+            margin: 4rem 0 2rem;
+            background: #fff;
+            padding: 3rem;
+            border-radius: 40px;
+            box-shadow: 0 10px 30px rgba(230, 200, 160, 0.3);
         }
 
         .download-box {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 1rem;
+            gap: 1.5rem;
         }
 
         .qr-code {
-            width: 210px;
-            height: 210px;
+            width: 180px;
+            height: 180px;
             background: white;
-            padding: 15px;
-            border-radius: 15px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 10px;
+            border-radius: 20px;
+            border: 2px solid #EEE;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -97,28 +216,33 @@
         .qr-code img {
             max-width: 100%;
             max-height: 100%;
+            border-radius: 10px;
         }
 
         .btn {
-            background-color: var(--primary-color);
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
             color: white;
-            padding: 1rem 2rem;
+            padding: 1rem 2.5rem;
             border-radius: 50px;
             text-decoration: none;
-            font-weight: bold;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            display: inline-block;
+            font-size: 1.1rem;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            box-shadow: 0 10px 20px rgba(255, 140, 0, 0.3);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 15px 30px rgba(255, 140, 0, 0.4);
         }
 
         .btn.disabled {
-            background-color: #ccc;
+            background: #E0E0E0;
+            box-shadow: none;
             cursor: not-allowed;
+            color: #999;
         }
 
         .btn.disabled:hover {
@@ -126,29 +250,41 @@
         }
 
         .store-badge {
-            font-size: 1.1rem;
-            font-weight: bold;
-            margin-bottom: 0.5rem;
+            font-size: 1.3rem;
             color: #333;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         .status {
             font-size: 0.9rem;
             color: #999;
+            background: #F5F5F5;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
         }
 
+        /* Footer */
         .footer {
-            margin-top: 3rem;
+            margin-top: 4rem;
+            text-align: center;
+            color: #888;
             font-size: 0.9rem;
-            color: #999;
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+            padding-top: 2rem;
+            width: 100%;
         }
 
         .footer a {
-            color: #999;
+            color: #888;
             text-decoration: none;
+            margin: 0 10px;
+            font-weight: bold;
         }
 
         .footer a:hover {
+            color: var(--secondary-color);
             text-decoration: underline;
         }
 
@@ -163,50 +299,299 @@
                 transform: translateY(0);
             }
         }
+
+        /* Lightbox Modal */
+        .lightbox {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .lightbox.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lightbox-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+            animation: zoomIn 0.3s ease;
+        }
+
+        .lightbox-content img {
+            width: 100%;
+            height: auto;
+            max-height: 90vh;
+            object-fit: contain;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: -50px;
+            right: 0;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.1);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .lightbox-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: rotate(90deg);
+        }
+
+        .lightbox-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            font-size: 50px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.1);
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            user-select: none;
+        }
+
+        .lightbox-nav:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .lightbox-prev {
+            left: 20px;
+        }
+
+        .lightbox-next {
+            right: 20px;
+        }
+
+        .screenshot-card {
+            cursor: pointer;
+        }
+
+        @keyframes zoomIn {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            .subtitle {
+                font-size: 1.1rem;
+            }
+
+            .download-section {
+                flex-direction: column;
+                gap: 4rem;
+                padding: 2rem;
+            }
+
+            .gallery-container {
+                gap: 1rem;
+            }
+
+            .screenshot-card {
+                width: 80%;
+                max-width: 320px;
+            }
+
+            .lightbox-close {
+                top: 10px;
+                right: 10px;
+                font-size: 30px;
+                width: 40px;
+                height: 40px;
+            }
+
+            .lightbox-nav {
+                font-size: 30px;
+                width: 45px;
+                height: 45px;
+            }
+
+            .lightbox-prev {
+                left: 10px;
+            }
+
+            .lightbox-next {
+                right: 10px;
+            }
+        }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <div class="app-icon">
-            <img src="icon.png" alt="i하루 앱 아이콘">
+        <!-- Hero Section -->
+        <div class="hero">
+            <div class="app-icon">
+                <img src="icon.png" alt="i하루 앱 아이콘">
+            </div>
+            <h1>i하루</h1>
+            <p class="subtitle">
+                우리 아이 <span class="highlight">첫 일정 관리</span>, 즐겁게 시작하세요!<br>
+                스스로 계획하고 성취하는 힘을 길러줍니다.
+            </p>
         </div>
 
-        <h1>i하루</h1>
-        <p>
-            우리 아이의 하루 일정을 쉽고 재미있게 관리하세요.<br>
-            스스로 계획하고 실천하는 습관을 길러줍니다.
-        </p>
+        <!-- Screenshots Section -->
+        <div class="gallery-section">
+            <div class="gallery-container">
+                <div class="screenshot-card" onclick="openLightbox(0)">
+                    <img src="images/gallery_1.png" alt="오늘의 일정 화면">
+                </div>
+                <div class="screenshot-card" onclick="openLightbox(1)">
+                    <img src="images/gallery_2.png" alt="활동 관리 화면">
+                </div>
+                <div class="screenshot-card" onclick="openLightbox(2)">
+                    <img src="images/gallery_3.png" alt="칭찬 배지 화면">
+                </div>
+                <div class="screenshot-card" onclick="openLightbox(3)">
+                    <img src="images/gallery_4.png" alt="아이콘 선택 화면">
+                </div>
+            </div>
+        </div>
 
+        <!-- Lightbox Modal -->
+        <div id="lightbox" class="lightbox" onclick="closeLightbox(event)">
+            <span class="lightbox-close" onclick="closeLightbox(event)">&times;</span>
+            <span class="lightbox-nav lightbox-prev" onclick="changeImage(-1, event)">&#10094;</span>
+            <div class="lightbox-content">
+                <img id="lightbox-img" src="" alt="Screenshot">
+            </div>
+            <span class="lightbox-nav lightbox-next" onclick="changeImage(1, event)">&#10095;</span>
+        </div>
+
+        <!-- Download Section -->
         <div class="download-section">
             <!-- iOS App Store -->
             <div class="download-box">
                 <div class="store-badge">🍎 App Store</div>
                 <div class="qr-code">
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://apps.apple.com/kr/app/i하루/id6758513674" alt="App Store QR Code">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://apps.apple.com/kr/app/i하루/id6758513674"
+                        alt="App Store QR Code">
                 </div>
                 <a href="https://apps.apple.com/kr/app/i하루/id6758513674" target="_blank" class="btn">
-                    App Store에서 다운로드
+                    App Store 다운로드
                 </a>
+                <p class="status"
+                    style="color: var(--secondary-color); font-weight: bold; background: rgba(255, 140, 0, 0.1);">
+                    ✨ 지금 바로 시작하세요!
+                </p>
             </div>
-            
+
             <!-- Android Google Play -->
             <div class="download-box">
                 <div class="store-badge">🤖 Google Play</div>
                 <div class="qr-code">
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://play.google.com/store/apps/details?id=com.iharu.app" alt="Google Play QR Code">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://play.google.com/store/apps/details?id=com.iharu.app"
+                        alt="Google Play QR Code">
                 </div>
-                <span class="btn disabled">출시 준비중</span>
-                <p class="status">곧 만나요!</p>
+                <span class="btn disabled">출시 준비 중</span>
+                <p class="status">조금만 기다려주세요!</p>
             </div>
         </div>
 
         <div class="footer">
-            <p>Contact: i.haru.dev@gmail.com</p>
+            <p><strong>i하루</strong> - 아이들의 행복한 하루를 응원합니다.</p>
+            <p>Contact: <a href="mailto:i.haru.dev@gmail.com">i.haru.dev@gmail.com</a></p>
             <p>&copy; 2026 daon_daddy i하루. All rights reserved.</p>
-            <p><a href="privacy.html">개인정보처리방침</a></p>
+            <p style="margin-top: 10px;"><a href="privacy.html">개인정보처리방침</a></p>
         </div>
     </div>
+
+    <script>
+        // Lightbox functionality
+        const images = [
+            'images/gallery_1.png',
+            'images/gallery_2.png',
+            'images/gallery_3.png',
+            'images/gallery_4.png'
+        ];
+        let currentImageIndex = 0;
+
+        function openLightbox(index) {
+            currentImageIndex = index;
+            const lightbox = document.getElementById('lightbox');
+            const lightboxImg = document.getElementById('lightbox-img');
+            lightboxImg.src = images[currentImageIndex];
+            lightbox.classList.add('active');
+            document.body.style.overflow = 'hidden'; // Prevent scrolling
+        }
+
+        function closeLightbox(event) {
+            if (event.target.id === 'lightbox' || event.target.classList.contains('lightbox-close')) {
+                const lightbox = document.getElementById('lightbox');
+                lightbox.classList.remove('active');
+                document.body.style.overflow = 'auto'; // Enable scrolling
+            }
+        }
+
+        function changeImage(direction, event) {
+            event.stopPropagation(); // Prevent closing lightbox
+            currentImageIndex += direction;
+            
+            // Loop around
+            if (currentImageIndex >= images.length) {
+                currentImageIndex = 0;
+            } else if (currentImageIndex < 0) {
+                currentImageIndex = images.length - 1;
+            }
+            
+            const lightboxImg = document.getElementById('lightbox-img');
+            lightboxImg.src = images[currentImageIndex];
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(event) {
+            const lightbox = document.getElementById('lightbox');
+            if (lightbox.classList.contains('active')) {
+                if (event.key === 'Escape') {
+                    lightbox.classList.remove('active');
+                    document.body.style.overflow = 'auto';
+                } else if (event.key === 'ArrowLeft') {
+                    changeImage(-1, event);
+                } else if (event.key === 'ArrowRight') {
+                    changeImage(1, event);
+                }
+            }
+        });
+    </script>
 </body>
 
 </html>
