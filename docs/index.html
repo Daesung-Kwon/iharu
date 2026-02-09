@@ -399,6 +399,7 @@
                 opacity: 0;
                 transform: scale(0.8);
             }
+
             to {
                 opacity: 1;
                 transform: scale(1);
@@ -522,8 +523,13 @@
                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://play.google.com/store/apps/details?id=com.iharu.app"
                         alt="Google Play QR Code">
                 </div>
-                <span class="btn disabled">출시 준비 중</span>
-                <p class="status">조금만 기다려주세요!</p>
+                <a href="https://play.google.com/store/apps/details?id=com.iharu.app" target="_blank" class="btn">
+                    Google Play 다운로드
+                </a>
+                <p class="status"
+                    style="color: var(--secondary-color); font-weight: bold; background: rgba(255, 140, 0, 0.1);">
+                    ✨ 비공개 테스트 중!
+                </p>
             </div>
         </div>
 
@@ -565,20 +571,20 @@
         function changeImage(direction, event) {
             event.stopPropagation(); // Prevent closing lightbox
             currentImageIndex += direction;
-            
+
             // Loop around
             if (currentImageIndex >= images.length) {
                 currentImageIndex = 0;
             } else if (currentImageIndex < 0) {
                 currentImageIndex = images.length - 1;
             }
-            
+
             const lightboxImg = document.getElementById('lightbox-img');
             lightboxImg.src = images[currentImageIndex];
         }
 
         // Keyboard navigation
-        document.addEventListener('keydown', function(event) {
+        document.addEventListener('keydown', function (event) {
             const lightbox = document.getElementById('lightbox');
             if (lightbox.classList.contains('active')) {
                 if (event.key === 'Escape') {
