@@ -403,8 +403,9 @@ i하루는 아이들이 스스로 하루 일과를 계획하고 관리할 수 �
 - 예: "일정관리,일과표,스케줄,아이,아동,태블릿,계획,타임라인"
 
 #### 지원 URL (필수)
-- 개인정보처리방침: `https://yourwebsite.com/privacy`
-- 마케팅 URL (선택): `https://yourwebsite.com`
+- 개인정보처리방침: `https://daesung-kwon.github.io/iharu/privacy.html`
+- 마케팅 URL (AdMob 앱 인증): `https://daesung-kwon.github.io/iharu/`
+  - app-ads.txt: `https://daesung-kwon.github.io/iharu/app-ads.txt` (배포 완료)
 
 #### 프로모션 텍스트 (선택)
 - 최대 170자

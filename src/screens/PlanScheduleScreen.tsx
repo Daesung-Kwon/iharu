@@ -40,7 +40,7 @@ export default function PlanScheduleScreen() {
     removeAllScheduleItems,
     checkTimeConflict
   } = useSchedule();
-  const [viewMode, setViewMode] = useState<'summary' | 'timeline'>('summary');
+  const [viewMode, setViewMode] = useState<'summary' | 'timeline'>('timeline');
   const [draggingActivity, setDraggingActivity] = useState<Activity | null>(null);
 
   const currentSchedule = getScheduleForDate(selectedDate);
