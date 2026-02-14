@@ -8,7 +8,7 @@ import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Activity } from '../types';
-import { ActivityEmojis } from '../constants/emojis';
+import ActivityIcon from './ActivityIcon';
 import { ActivityMaterialColors } from '../constants/materialDesign';
 
 // Soft Pop 3D 디자인 색상 팔레트
@@ -36,7 +36,6 @@ export default function DraggableActivityCard({
     onPress,
     isDragging = false
 }: DraggableActivityCardProps) {
-    const emoji = ActivityEmojis[activity.emojiKey] || activity.emojiKey;
     const colorScheme = ActivityMaterialColors[activity.colorKey];
 
     const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -132,7 +131,11 @@ export default function DraggableActivityCard({
                             />
                         </View>
                         <View style={styles.emojiContainer}>
-                            <Text style={styles.emoji}>{emoji}</Text>
+                            <ActivityIcon
+                                activity={activity}
+                                size={36}
+                                color={SoftPopColors.text}
+                            />
                         </View>
                     </View>
 
@@ -199,9 +202,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: SoftPopColors.background,
         borderRadius: 16,
-    },
-    emoji: {
-        fontSize: 36,
     },
     infoContainer: {
         flex: 1,

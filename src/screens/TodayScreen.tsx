@@ -17,7 +17,7 @@ import HorizontalDatePicker from '../components/HorizontalDatePicker';
 import ClapAnimation from '../components/ClapAnimation';
 import { getItemStatus, getNextActivity, getCurrentActivity, getMinutesUntil, formatRemainingTime } from '../utils/timeUtils';
 import { calculateDayStats, isToday, isPast, isFuture } from '../utils/statsUtils';
-import { ActivityEmojis } from '../constants/emojis';
+import ActivityIcon from '../components/ActivityIcon';
 
 // Soft Pop 3D 디자인 색상 팔레트
 const SoftPopColors = {
@@ -446,9 +446,13 @@ export default function TodayScreen() {
                   <Text style={styles.currentActivityTitle}>지금 할 시간!</Text>
                 </View>
                 <View style={styles.currentActivityContent}>
-                  <Text style={styles.currentActivityEmoji}>
-                    {ActivityEmojis[currentActivity.activity?.emojiKey || ''] || '📌'}
-                  </Text>
+                  <View style={styles.currentActivityIconWrapper}>
+                    <ActivityIcon
+                      activity={currentActivity.activity}
+                      size={52}
+                      color={SoftPopColors.primary}
+                    />
+                  </View>
                   <View style={styles.currentActivityInfo}>
                     <Text style={styles.currentActivityName}>
                       {currentActivity.activity?.name}
@@ -476,9 +480,13 @@ export default function TodayScreen() {
                   </Text>
                 </View>
                 <View style={styles.nextActivityContent}>
-                  <Text style={styles.nextActivityEmoji}>
-                    {ActivityEmojis[nextActivity.activity?.emojiKey || ''] || '📌'}
-                  </Text>
+                  <View style={styles.nextActivityIconWrapper}>
+                    <ActivityIcon
+                      activity={nextActivity.activity}
+                      size={28}
+                      color={SoftPopColors.text}
+                    />
+                  </View>
                   <Text style={styles.nextActivityName}>
                     {nextActivity.activity?.name}
                   </Text>
@@ -894,8 +902,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 20,
   },
-  currentActivityEmoji: {
-    fontSize: 52,
+  currentActivityIconWrapper: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   currentActivityInfo: {
     flex: 1,
@@ -954,8 +963,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  nextActivityEmoji: {
-    fontSize: 28,
+  nextActivityIconWrapper: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   nextActivityName: {
     fontSize: 18,

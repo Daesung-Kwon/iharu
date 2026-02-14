@@ -8,7 +8,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Activity } from '../types';
-import { ActivityEmojis } from '../constants/emojis';
+import ActivityIcon from './ActivityIcon';
 import { ActivityMaterialColors } from '../constants/materialDesign';
 
 // Soft Pop 3D 디자인 색상 팔레트
@@ -26,22 +26,31 @@ interface ActivityCardProps {
   activity: Activity;
   onEdit: () => void;
   onDelete: () => void;
+  /** 동적 그리드용 카드 너비 (미지정 시 180) */
+  width?: number;
 }
 
-export default function ActivityCard({ activity, onEdit, onDelete }: ActivityCardProps) {
-  const emoji = ActivityEmojis[activity.emojiKey] || activity.emojiKey;
+const CARD_MIN_WIDTH = 120;
+
+export default function ActivityCard({ activity, onEdit, onDelete, width }: ActivityCardProps) {
   const colorScheme = ActivityMaterialColors[activity.colorKey];
+  const cardWidth = width !== undefined ? Math.max(width, CARD_MIN_WIDTH) : undefined;
 
   return (
     <View
       style={[
         styles.card,
-        { backgroundColor: colorScheme.surface }
+        { backgroundColor: colorScheme.surface },
+        cardWidth !== undefined && { width: cardWidth }
       ]}
     >
-      {/* Emoji Icon - 배경 완전히 투명 */}
+      {/* Emoji/Icon - 배경 완전히 투명 */}
       <View style={styles.emojiContainer}>
-        <Text style={styles.emoji}>{emoji}</Text>
+        <ActivityIcon
+          activity={activity}
+          size={48}
+          color={SoftPopColors.text}
+        />
       </View>
 
       {/* Activity Info - 배경 완전히 투명 */}
@@ -111,7 +120,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 20,
     elevation: 10,
-    marginBottom: 20,
+    // marginBottom은 그리드 gap으로 처리
     // flex-col items-center justify-between
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -127,9 +136,6 @@ const styles = StyleSheet.create({
     // 배경 제거 - bg-transparent
     backgroundColor: 'transparent',
     width: '100%',
-  },
-  emoji: {
-    fontSize: 52,
   },
   infoContainer: {
     flex: 1,

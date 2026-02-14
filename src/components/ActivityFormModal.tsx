@@ -19,7 +19,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Activity, ActivityColor, ActivityCategory } from '../types';
-import { ActivityEmojis, EmojiList } from '../constants/emojis';
+import { ActivityEmojis, EmojiList, EmojiToMaterialIcon } from '../constants/emojis';
 import { ActivityMaterialColors } from '../constants/materialDesign';
 
 // Soft Pop 3D 디자인 색상 팔레트
@@ -43,15 +43,15 @@ const COLOR_OPTIONS: ActivityColor[] = [
   'purple', 'blue', 'pink', 'yellow', 'green', 'orange', 'red', 'teal'
 ];
 
-const CATEGORY_OPTIONS: { key: ActivityCategory; label: string }[] = [
-  { key: 'study', label: '공부' },
-  { key: 'play', label: '놀이' },
-  { key: 'reading', label: '독서' },
-  { key: 'exercise', label: '운동' },
-  { key: 'meal', label: '식사' },
-  { key: 'rest', label: '휴식' },
-  { key: 'art', label: '미술' },
-  { key: 'music', label: '음악' },
+const CATEGORY_OPTIONS: { key: ActivityCategory; label: string; icon: string }[] = [
+  { key: 'study', label: '공부', icon: 'school' },
+  { key: 'play', label: '놀이', icon: 'sports-esports' },
+  { key: 'reading', label: '독서', icon: 'menu-book' },
+  { key: 'exercise', label: '운동', icon: 'directions-run' },
+  { key: 'meal', label: '식사', icon: 'restaurant' },
+  { key: 'rest', label: '휴식', icon: 'self-improvement' },
+  { key: 'art', label: '미술', icon: 'palette' },
+  { key: 'music', label: '음악', icon: 'music-note' },
 ];
 
 const DURATION_OPTIONS = [10, 20, 30, 40, 50, 60, 80, 90, 120];
@@ -70,6 +70,7 @@ export default function ActivityFormModal({
   const [selectedColor, setSelectedColor] = useState<ActivityColor>('blue');
   const [selectedCategory, setSelectedCategory] = useState<ActivityCategory>('study');
   const [duration, setDuration] = useState(30);
+  const [iconPickerMode, setIconPickerMode] = useState<'emoji' | 'icon'>('emoji');
 
   useEffect(() => {
     if (activity) {
@@ -78,6 +79,7 @@ export default function ActivityFormModal({
       setSelectedColor(activity.colorKey);
       setSelectedCategory(activity.category);
       setDuration(activity.durationMinutes);
+      setIconPickerMode(activity.displayAsIcon ? 'icon' : 'emoji');
     } else {
       // 초기화
       setName('');
@@ -85,6 +87,7 @@ export default function ActivityFormModal({
       setSelectedColor('blue');
       setSelectedCategory('study');
       setDuration(30);
+      setIconPickerMode('emoji');
     }
   }, [activity, visible]);
 
@@ -99,6 +102,7 @@ export default function ActivityFormModal({
       childProfileId: activity?.childProfileId || null,
       name: name.trim(),
       emojiKey: selectedEmoji,
+      displayAsIcon: iconPickerMode === 'icon',
       colorKey: selectedColor,
       category: selectedCategory,
       durationMinutes: duration,
@@ -157,14 +161,35 @@ export default function ActivityFormModal({
               />
             </View>
 
-            {/* Emoji Selection */}
+            {/* Emoji / Icon Selection (확장) */}
             <View style={styles.section}>
-              <Text style={styles.label}>이모지</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.emojiScrollView}
-              >
+              <View style={styles.emojiSectionHeader}>
+                <Text style={styles.label}>아이콘</Text>
+                <View style={styles.iconModeTabs}>
+                  <Pressable
+                    style={[styles.iconModeTab, iconPickerMode === 'emoji' && styles.iconModeTabActive]}
+                    onPress={() => setIconPickerMode('emoji')}
+                  >
+                    <Text style={[styles.iconModeTabText, iconPickerMode === 'emoji' && styles.iconModeTabTextActive]}>
+                      이모지
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.iconModeTab, iconPickerMode === 'icon' && styles.iconModeTabActive]}
+                    onPress={() => setIconPickerMode('icon')}
+                  >
+                    <MaterialIcons
+                      name="category"
+                      size={18}
+                      color={iconPickerMode === 'icon' ? SoftPopColors.white : SoftPopColors.textSecondary}
+                    />
+                    <Text style={[styles.iconModeTabText, iconPickerMode === 'icon' && styles.iconModeTabTextActive]}>
+                      아이콘
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+              <View style={styles.emojiGrid}>
                 {EmojiList.map(({ key, emoji }) => (
                   <Pressable
                     key={key}
@@ -175,10 +200,18 @@ export default function ActivityFormModal({
                     ]}
                     onPress={() => setSelectedEmoji(key)}
                   >
-                    <Text style={styles.emojiText}>{emoji}</Text>
+                    {iconPickerMode === 'emoji' ? (
+                      <Text style={styles.emojiText}>{emoji}</Text>
+                    ) : (
+                      <MaterialIcons
+                        name={(EmojiToMaterialIcon[key] || 'circle') as React.ComponentProps<typeof MaterialIcons>['name']}
+                        size={32}
+                        color={selectedEmoji === key ? SoftPopColors.primary : SoftPopColors.text}
+                      />
+                    )}
                   </Pressable>
                 ))}
-              </ScrollView>
+              </View>
             </View>
 
             {/* Color Selection */}
@@ -211,11 +244,11 @@ export default function ActivityFormModal({
               </View>
             </View>
 
-            {/* Category Selection */}
+            {/* Category Selection (확장 - 아이콘 포함) */}
             <View style={styles.section}>
               <Text style={styles.label}>카테고리</Text>
               <View style={styles.categoryGrid}>
-                {CATEGORY_OPTIONS.map(({ key, label }) => (
+                {CATEGORY_OPTIONS.map(({ key, label, icon }) => (
                   <Pressable
                     key={key}
                     style={({ pressed }) => [
@@ -225,6 +258,11 @@ export default function ActivityFormModal({
                     ]}
                     onPress={() => setSelectedCategory(key)}
                   >
+                    <MaterialIcons
+                      name={icon as React.ComponentProps<typeof MaterialIcons>['name']}
+                      size={20}
+                      color={selectedCategory === key ? SoftPopColors.white : SoftPopColors.textSecondary}
+                    />
                     <Text
                       style={[
                         styles.categoryText,
@@ -398,17 +436,51 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  emojiScrollView: {
-    marginTop: 12,
+  emojiSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  iconModeTabs: {
+    flexDirection: 'row',
+    backgroundColor: SoftPopColors.background,
+    borderRadius: 16,
+    padding: 4,
+    gap: 4,
+  },
+  iconModeTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+    gap: 6,
+  },
+  iconModeTabActive: {
+    backgroundColor: SoftPopColors.primary,
+  },
+  iconModeTabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: SoftPopColors.textSecondary,
+    fontFamily: 'BMJUA',
+  },
+  iconModeTabTextActive: {
+    color: SoftPopColors.white,
+  },
+  emojiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
   },
   emojiOption: {
-    width: 64,
-    height: 64,
+    width: 56,
+    height: 56,
     borderRadius: 20,
     backgroundColor: SoftPopColors.background,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
     borderWidth: 3,
     borderColor: 'transparent',
     // Soft shadow
@@ -431,7 +503,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.95 }],
   },
   emojiText: {
-    fontSize: 36,
+    fontSize: 32,
   },
   colorGrid: {
     flexDirection: 'row',
@@ -472,8 +544,11 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   categoryOption: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
     borderRadius: 20,
     backgroundColor: SoftPopColors.background,
     borderWidth: 3,

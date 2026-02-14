@@ -37,6 +37,12 @@ export default function ActivitiesScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
 
+  // 반응형 그리드: 세로 4열, 가로 6열
+  const CONTENT_PADDING = 32 * 2;
+  const GAP = 20;
+  const columns = isLandscape ? 6 : 4;
+  const cardWidth = (width - CONTENT_PADDING - GAP * (columns - 1)) / columns;
+
   const handleAddActivity = () => {
     setEditingActivity(null);
     setModalVisible(true);
@@ -129,6 +135,7 @@ export default function ActivitiesScreen() {
                 activity={activity}
                 onEdit={() => handleEditActivity(activity.id)}
                 onDelete={() => handleDeleteActivity(activity.id)}
+                width={cardWidth}
               />
             ))}
           </View>

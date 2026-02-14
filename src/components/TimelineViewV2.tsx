@@ -8,7 +8,7 @@ import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { TIMELINE_CONFIG } from '../constants/config';
 import { ScheduleItem, Activity } from '../types';
-import { ActivityEmojis } from '../constants/emojis';
+import ActivityIcon from './ActivityIcon';
 import { ActivityMaterialColors } from '../constants/materialDesign';
 
 // Soft Pop 3D 디자인 색상 팔레트
@@ -163,7 +163,6 @@ export default function TimelineViewV2({
 
         // 이 시간에 시작하는 일정이 있으면 블록으로 표시
         if (scheduleItem) {
-          const emoji = ActivityEmojis[scheduleItem.activity?.emojiKey || ''] || '📌';
           const colorScheme = ActivityMaterialColors[scheduleItem.activity?.colorKey || 'blue'];
           const blockHeight = calculateItemHeight(scheduleItem);
           // timeSlot의 높이는 활동 블록의 높이와 동일하게 설정
@@ -197,7 +196,13 @@ export default function TimelineViewV2({
                   }
                 ]}>
                   <View style={styles.scheduleBlockHeader}>
-                    <Text style={styles.scheduleEmoji}>{emoji}</Text>
+                    <View style={styles.scheduleEmojiWrapper}>
+                      <ActivityIcon
+                        activity={scheduleItem.activity}
+                        size={32}
+                        color={SoftPopColors.text}
+                      />
+                    </View>
                     <View style={styles.scheduleInfo}>
                       <Text style={styles.scheduleName}>
                         {scheduleItem.activity?.name || '활동'}
@@ -374,8 +379,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  scheduleEmoji: {
-    fontSize: 36,
+  scheduleEmojiWrapper: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scheduleInfo: {
     flex: 1,

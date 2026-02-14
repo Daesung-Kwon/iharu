@@ -8,7 +8,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { ScheduleItem } from '../types';
-import { ActivityEmojis } from '../constants/emojis';
+import ActivityIcon from './ActivityIcon';
 import { ActivityMaterialColors } from '../constants/materialDesign';
 
 // Soft Pop 3D 디자인 색상 팔레트
@@ -38,7 +38,6 @@ export default function ScheduleItemCard({
   const activity = scheduleItem.activity;
   if (!activity) return null;
 
-  const emoji = ActivityEmojis[activity.emojiKey] || activity.emojiKey;
   const colorScheme = ActivityMaterialColors[activity.colorKey];
   const [isPressed, setIsPressed] = useState(false);
 
@@ -60,9 +59,13 @@ export default function ScheduleItemCard({
       onPressOut={() => setIsPressed(false)}
     >
       <View style={styles.content}>
-        {/* Left: Emoji */}
+        {/* Left: Emoji/Icon */}
         <View style={styles.emojiContainer}>
-          <Text style={styles.emoji}>{emoji}</Text>
+          <ActivityIcon
+            activity={activity}
+            size={compact ? 32 : 40}
+            color={SoftPopColors.text}
+          />
         </View>
 
         {/* Center: Info */}
@@ -158,9 +161,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: SoftPopColors.background,
     borderRadius: 16,
-  },
-  emoji: {
-    fontSize: 36,
   },
   infoContainer: {
     flex: 1,

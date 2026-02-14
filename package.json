@@ -60,5 +60,8 @@
     "korean"
   ],
   "author": "Daesung Kwon",
-  "license": "MIT"
+  "license": "MIT",
+  "overrides": {
+    "expo-dev-menu": "7.0.18"
+  }
 }

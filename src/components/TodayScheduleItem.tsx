@@ -8,7 +8,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { ScheduleItem } from '../types';
-import { ActivityEmojis } from '../constants/emojis';
+import ActivityIcon from './ActivityIcon';
 import { ActivityMaterialColors } from '../constants/materialDesign';
 
 // Soft Pop 3D 디자인 색상 팔레트
@@ -41,7 +41,6 @@ export default function TodayScheduleItem({
   const activity = scheduleItem.activity;
   if (!activity) return null;
 
-  const emoji = ActivityEmojis[activity.emojiKey] || activity.emojiKey;
   const colorScheme = ActivityMaterialColors[activity.colorKey];
 
   const formatTime = (time: string) => {
@@ -141,8 +140,14 @@ export default function TodayScheduleItem({
 
       {/* Center: Info */}
       <View style={styles.infoContainer}>
-        {/* Emoji */}
-        <Text style={styles.emoji}>{emoji}</Text>
+        {/* Emoji/Icon */}
+        <View style={styles.emojiWrapper}>
+          <ActivityIcon
+            activity={activity}
+            size={44}
+            color={SoftPopColors.text}
+          />
+        </View>
 
         <View style={styles.textInfo}>
           {/* Name */}
@@ -268,8 +273,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 16,
   },
-  emoji: {
-    fontSize: 44,
+  emojiWrapper: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   textInfo: {
     flex: 1,
