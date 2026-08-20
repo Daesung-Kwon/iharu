@@ -8,8 +8,6 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Alert, useWindowDimensio
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import mobileAds from 'react-native-google-mobile-ads';
-import * as TrackingTransparency from 'expo-tracking-transparency';
 import { useSchedule } from '../contexts/ScheduleContext';
 import { AdBanner } from '../components/AdBanner';
 import TodayScheduleItem from '../components/TodayScheduleItem';
@@ -75,18 +73,6 @@ export default function TodayScreen() {
 
   useEffect(() => {
     const initializeApp = async () => {
-      try {
-        await mobileAds().initialize();
-        if (Platform.OS === 'ios') {
-          setTimeout(async () => {
-            const { status } = await TrackingTransparency.requestTrackingPermissionsAsync();
-            console.log('Tracking status:', status);
-          }, 2000);
-        }
-      } catch (e) {
-        console.error('Ads initialization failed', e);
-      }
-
       const savedSettings = await loadNotificationSettings();
       setNotifications(savedSettings);
     };

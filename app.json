@@ -24,7 +24,7 @@
         "ipad"
       ],
       "infoPlist": {
-        "NSUserTrackingUsageDescription": "사용자에게 최적화된 광고를 제공하기 위해 기기 식별 정보를 사용합니다.",
+        "NSUserTrackingUsageDescription": "이 앱은 맞춤형 광고를 위한 추적을 사용하지 않습니다. 표시되는 광고는 비맞춤형입니다.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -65,7 +65,8 @@
         {
           "androidAppId": "ca-app-pub-9978285135642181~1318901506",
           "iosAppId": "ca-app-pub-9978285135642181~7551710314",
-          "userTrackingUsageDescription": "사용자에게 최적화된 광고를 제공하기 위해 기기 식별 정보를 사용합니다."
+          "delayAppMeasurementInit": true,
+          "userTrackingUsageDescription": "이 앱은 맞춤형 광고를 위한 추적을 사용하지 않습니다. 표시되는 광고는 비맞춤형입니다."
         }
       ]
     ],
