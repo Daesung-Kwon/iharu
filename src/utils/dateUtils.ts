@@ -5,28 +5,42 @@ export const toLocalDateString = (date: Date): string => {
   return format(date, 'yyyy-MM-dd');
 };
 
+const addOneLocalDay = (dateString: string): string => {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return toLocalDateString(new Date(year, month - 1, day + 1));
+};
+
+/** KST-morning UTC keys (createdAt hour ≥ 15) that are not already on createdAt's local day. */
+const isUtcSlicedMorningRow = (schedule: { date: string; createdAt: string }): boolean => {
+  if (!schedule.createdAt) {
+    return false;
+  }
+  const created = new Date(schedule.createdAt);
+  if (Number.isNaN(created.getTime()) || created.getUTCHours() < 15) {
+    return false;
+  }
+  return schedule.date !== toLocalDateString(created);
+};
+
 /**
- * Rewrite leftover UTC-sliced morning keys so they match the local calendar day.
- * Idempotent: after a rewrite, date no longer equals createdAt's UTC prefix.
+ * Move leftover KST-morning UTC keys one local day forward.
+ * Occupied dates are rows that will not migrate; migrants are not treated as occupants.
  */
 export const migrateUtcSlicedScheduleDates = <T extends { date: string; createdAt: string }>(
   schedules: T[]
 ): T[] => {
-  const occupied = new Set(schedules.map(schedule => schedule.date));
+  const occupied = new Set(
+    schedules.filter(schedule => !isUtcSlicedMorningRow(schedule)).map(schedule => schedule.date)
+  );
   let changed = false;
   const next = schedules.map(schedule => {
-    if (!schedule.createdAt || schedule.date !== schedule.createdAt.slice(0, 10)) {
+    if (!isUtcSlicedMorningRow(schedule)) {
       return schedule;
     }
-    const created = new Date(schedule.createdAt);
-    if (Number.isNaN(created.getTime()) || created.getUTCHours() < 15) {
+    const localDate = addOneLocalDay(schedule.date);
+    if (occupied.has(localDate)) {
       return schedule;
     }
-    const localDate = toLocalDateString(created);
-    if (localDate === schedule.date || occupied.has(localDate)) {
-      return schedule;
-    }
-    occupied.delete(schedule.date);
     occupied.add(localDate);
     changed = true;
     return { ...schedule, date: localDate };

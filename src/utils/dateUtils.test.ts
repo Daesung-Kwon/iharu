@@ -76,4 +76,23 @@ describe('migrateUtcSlicedScheduleDates', () => {
     assert.equal(migrated[0].date, '2026-08-19');
     assert.equal(migrated, schedules);
   });
+
+  it('shifts consecutive morning UTC keys in chronological order', () => {
+    const schedules = [
+      { date: '2026-08-19', createdAt: '2026-08-19T16:00:00.000Z' },
+      { date: '2026-08-20', createdAt: '2026-08-20T16:00:00.000Z' },
+    ];
+    const migrated = migrateUtcSlicedScheduleDates(schedules);
+    assert.deepEqual(migrated.map(schedule => schedule.date), ['2026-08-20', '2026-08-21']);
+  });
+
+  it('shifts a future-day morning UTC key one local day forward', () => {
+    const schedules = [{
+      date: '2026-08-24',
+      createdAt: '2026-08-19T22:00:00.000Z',
+    }];
+    const migrated = migrateUtcSlicedScheduleDates(schedules);
+    assert.equal(migrated[0].date, '2026-08-25');
+    assert.equal(migrated[0].createdAt, '2026-08-19T22:00:00.000Z');
+  });
 });

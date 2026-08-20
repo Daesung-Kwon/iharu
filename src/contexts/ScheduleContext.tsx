@@ -9,6 +9,7 @@ import { Schedule, ScheduleItem, Activity } from '../types';
 import { migrateUtcSlicedScheduleDates, toLocalDateString } from '../utils/dateUtils';
 
 const STORAGE_KEY = '@daily_schedule_schedules';
+const UTC_DATE_MIGRATION_KEY = '@daily_schedule_utc_date_keys_migrated';
 
 interface ScheduleContextType {
   // State
@@ -42,14 +43,23 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const loadSchedules = async () => {
       try {
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
+        const alreadyMigrated = await AsyncStorage.getItem(UTC_DATE_MIGRATION_KEY);
         if (stored) {
           const parsed: Schedule[] = JSON.parse(stored);
-          const migrated = migrateUtcSlicedScheduleDates(parsed);
-          console.log('Schedules loaded from storage:', migrated.length);
-          setSchedules(migrated);
-          if (migrated !== parsed) {
-            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+          if (alreadyMigrated === '1') {
+            console.log('Schedules loaded from storage:', parsed.length);
+            setSchedules(parsed);
+          } else {
+            const migrated = migrateUtcSlicedScheduleDates(parsed);
+            console.log('Schedules loaded from storage:', migrated.length);
+            setSchedules(migrated);
+            if (migrated !== parsed) {
+              await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+            }
+            await AsyncStorage.setItem(UTC_DATE_MIGRATION_KEY, '1');
           }
+        } else if (alreadyMigrated !== '1') {
+          await AsyncStorage.setItem(UTC_DATE_MIGRATION_KEY, '1');
         }
       } catch (error) {
         console.error('Failed to load schedules:', error);
