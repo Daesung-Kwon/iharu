@@ -1,6 +1,11 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { toLocalDateString, migrateUtcSlicedScheduleDates } from './dateUtils';
+import {
+  toLocalDateString,
+  migrateUtcSlicedScheduleDates,
+  combineLocalDateAndTime,
+  getActivityNotificationTime,
+} from './dateUtils';
 import { isToday, isPast, isFuture } from './statsUtils';
 
 describe('toLocalDateString', () => {
@@ -14,6 +19,38 @@ describe('toLocalDateString', () => {
   it('returns the same calendar date at 23:00', () => {
     const date = new Date(2026, 7, 20, 23, 0, 0);
     assert.equal(toLocalDateString(date), '2026-08-20');
+  });
+});
+
+describe('combineLocalDateAndTime / getActivityNotificationTime', () => {
+  it('combines YYYY-MM-DD and HH:MM into a local Date', () => {
+    const result = combineLocalDateAndTime('2026-08-20', '09:30');
+    assert.equal(result.getFullYear(), 2026);
+    assert.equal(result.getMonth(), 7);
+    assert.equal(result.getDate(), 20);
+    assert.equal(result.getHours(), 9);
+    assert.equal(result.getMinutes(), 30);
+  });
+
+  it('uses the local calendar date from a Date argument, not UTC', () => {
+    const date = new Date(2026, 7, 20, 1, 0, 0);
+    const result = combineLocalDateAndTime(date, '08:00');
+    assert.equal(toLocalDateString(result), '2026-08-20');
+    assert.equal(result.getHours(), 8);
+  });
+
+  it('schedules 5 minutes before startTime on that calendar day', () => {
+    const result = getActivityNotificationTime('2026-08-25', '09:00');
+    assert.equal(toLocalDateString(result), '2026-08-25');
+    assert.equal(result.getHours(), 8);
+    assert.equal(result.getMinutes(), 55);
+  });
+
+  it('does not fall back to today when given a future YYYY-MM-DD', () => {
+    const result = getActivityNotificationTime('2026-12-01', '07:10');
+    assert.equal(toLocalDateString(result), '2026-12-01');
+    assert.equal(result.getHours(), 7);
+    assert.equal(result.getMinutes(), 5);
   });
 });
 

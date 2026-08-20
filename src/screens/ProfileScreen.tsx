@@ -14,7 +14,14 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { AdBanner } from '../components/AdBanner';
 import { exportAllData, importAllData, clearAllData } from '../services/storage';
-import { requestNotificationPermissions, loadNotificationSettings, saveNotificationSettings } from '../services/notificationService';
+import {
+  requestNotificationPermissions,
+  loadNotificationsMasterEnabled,
+  saveNotificationsMasterEnabled,
+  loadNotificationSettings,
+  cancelAllNotifications,
+  rescheduleUpcomingNotifications,
+} from '../services/notificationService';
 import { useActivity } from '../contexts/ActivityContext';
 import { useSchedule } from '../contexts/ScheduleContext';
 import { toLocalDateString } from '../utils/dateUtils';
@@ -38,7 +45,7 @@ export default function ProfileScreen() {
   const isLandscape = width > height;
   const insets = useSafeAreaInsets();
   const { resetActivities } = useActivity();
-  const { resetSchedules } = useSchedule();
+  const { resetSchedules, schedules } = useSchedule();
   const [notificationEnabled, setNotificationEnabled] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
@@ -47,17 +54,16 @@ export default function ProfileScreen() {
   const appVersion = Constants.expoConfig?.version || '1.0.0';
   const appName = Constants.expoConfig?.name || 'i하루';
 
-  // 알림 설정 로드
+  // 알림 마스터 설정 로드 (권한은 요청하지 않음)
   React.useEffect(() => {
     const loadSettings = async () => {
-      const hasPermission = await requestNotificationPermissions();
-      const settings = await loadNotificationSettings();
-      setNotificationEnabled(hasPermission && Object.keys(settings).length > 0);
+      const enabled = await loadNotificationsMasterEnabled();
+      setNotificationEnabled(enabled);
     };
     loadSettings();
   }, []);
 
-  // 알림 설정 토글
+  // 알림 마스터 토글 — per-item 맵은 유지
   const handleNotificationToggle = async (value: boolean) => {
     if (value) {
       const hasPermission = await requestNotificationPermissions();
@@ -65,10 +71,16 @@ export default function ProfileScreen() {
         Alert.alert('알림 권한 필요', '알림을 사용하려면 알림 권한이 필요합니다.');
         return;
       }
+      setNotificationEnabled(true);
+      await saveNotificationsMasterEnabled(true);
+      const settings = await loadNotificationSettings();
+      await rescheduleUpcomingNotifications(schedules, settings);
+      return;
     }
-    setNotificationEnabled(value);
-    // 알림 설정 저장 (빈 객체로 저장하면 모든 알림 비활성화)
-    await saveNotificationSettings(value ? {} : {});
+
+    setNotificationEnabled(false);
+    await saveNotificationsMasterEnabled(false);
+    await cancelAllNotifications();
   };
 
   // 데이터 백업

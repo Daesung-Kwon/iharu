@@ -10,6 +10,13 @@ import { migrateUtcSlicedScheduleDates, toLocalDateString } from '../utils/dateU
 
 const STORAGE_KEY = '@daily_schedule_schedules';
 
+const createScheduleItemId = (): string =>
+  `item-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+interface CopyScheduleOptions {
+  overwrite?: boolean;
+}
+
 interface ScheduleContextType {
   // State
   schedules: Schedule[];
@@ -25,7 +32,7 @@ interface ScheduleContextType {
   removeScheduleItem: (itemId: string) => void;
   removeAllScheduleItems: (date: Date) => void;
   checkTimeConflict: (date: Date, startTime: string, endTime: string, excludeItemId?: string) => boolean;
-  copyScheduleToDate: (sourceDate: Date, targetDate: Date) => boolean;
+  copyScheduleToDate: (sourceDate: Date, targetDate: Date, options?: CopyScheduleOptions) => boolean;
   resetSchedules: () => void; // 데이터 초기화용
 }
 
@@ -130,7 +137,7 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     const newItem: ScheduleItem = {
-      id: `item-${Date.now()}`,
+      id: createScheduleItemId(),
       scheduleId: `schedule-${dateString}`,
       activityId: activity.id,
       activity,
@@ -202,44 +209,57 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     );
   }, []);
 
-  const copyScheduleToDate = useCallback((sourceDate: Date, targetDate: Date): boolean => {
+  const copyScheduleToDate = useCallback((
+    sourceDate: Date,
+    targetDate: Date,
+    options?: CopyScheduleOptions
+  ): boolean => {
     const sourceDateString = toLocalDateString(sourceDate);
     const targetDateString = toLocalDateString(targetDate);
+    const overwrite = options?.overwrite === true;
 
     const sourceSchedule = schedules.find(s => s.date === sourceDateString);
     if (!sourceSchedule || sourceSchedule.items.length === 0) {
       return false;
     }
 
-    // 타겟 날짜에 이미 일정이 있는지 확인
     const targetSchedule = schedules.find(s => s.date === targetDateString);
-    if (targetSchedule && targetSchedule.items.length > 0) {
-      // 이미 일정이 있으면 덮어쓸지 물어봐야 함 (Alert은 컴포넌트에서 처리)
+    if (targetSchedule && targetSchedule.items.length > 0 && !overwrite) {
       return false;
     }
 
-    // 일정 복사 (모든 항목을 planned 상태로)
+    const now = new Date().toISOString();
+    const targetId = targetSchedule?.id ?? `schedule-${targetDateString}`;
     const copiedItems: ScheduleItem[] = sourceSchedule.items.map(item => ({
       ...item,
-      id: `item-${Date.now()}-${Math.random()}`,
-      scheduleId: `schedule-${targetDateString}`,
-      status: 'planned', // 복사된 일정은 모두 planned로 초기화
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      id: createScheduleItemId(),
+      scheduleId: targetId,
+      status: 'planned',
+      createdAt: now,
+      updatedAt: now,
     }));
 
-    const newSchedule: Schedule = {
-      id: `schedule-${targetDateString}`,
-      userId: sourceSchedule.userId,
-      childProfileId: sourceSchedule.childProfileId,
-      date: targetDateString,
-      dateKind: 'local',
-      items: copiedItems,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    setSchedules(prev => {
+      if (targetSchedule) {
+        return prev.map(schedule =>
+          schedule.date === targetDateString
+            ? { ...schedule, items: copiedItems, dateKind: 'local', updatedAt: now }
+            : schedule
+        );
+      }
 
-    setSchedules(prev => [...prev, newSchedule]);
+      const newSchedule: Schedule = {
+        id: targetId,
+        userId: sourceSchedule.userId,
+        childProfileId: sourceSchedule.childProfileId,
+        date: targetDateString,
+        dateKind: 'local',
+        items: copiedItems,
+        createdAt: now,
+        updatedAt: now,
+      };
+      return [...prev, newSchedule];
+    });
     return true;
   }, [schedules]);
 

@@ -82,6 +82,7 @@ export const clearAllData = async (): Promise<boolean> => {
       KEYS.SETTINGS,
       KEYS.LAST_SYNC,
       '@daily_schedule_notifications', // 알림 설정도 삭제
+      '@settings.notificationsEnabled',
     ]);
     
     console.log('All data cleared');

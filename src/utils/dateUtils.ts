@@ -5,6 +5,33 @@ export const toLocalDateString = (date: Date): string => {
   return format(date, 'yyyy-MM-dd');
 };
 
+/** Parse YYYY-MM-DD as a local calendar date (not UTC). */
+export const parseLocalDateString = (dateString: string): Date => {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+/** Combine a local date (Date or YYYY-MM-DD) with HH:MM into a local Date. */
+export const combineLocalDateAndTime = (date: Date | string, timeHHmm: string): Date => {
+  const base = typeof date === 'string'
+    ? parseLocalDateString(date)
+    : new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const [hours, minutes] = timeHHmm.split(':').map(Number);
+  base.setHours(hours, minutes, 0, 0);
+  return base;
+};
+
+/** Activity notification time: schedule date + startTime − leadMinutes. */
+export const getActivityNotificationTime = (
+  scheduleDate: Date | string,
+  startTime: string,
+  leadMinutes = 5
+): Date => {
+  const time = combineLocalDateAndTime(scheduleDate, startTime);
+  time.setMinutes(time.getMinutes() - leadMinutes);
+  return time;
+};
+
 const addOneLocalDay = (dateString: string): string => {
   const [year, month, day] = dateString.split('-').map(Number);
   return toLocalDateString(new Date(year, month - 1, day + 1));

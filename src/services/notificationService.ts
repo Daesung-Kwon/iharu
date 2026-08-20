@@ -7,10 +7,31 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ScheduleItem } from '../types';
+import { Schedule, ScheduleItem } from '../types';
+import { getActivityNotificationTime, toLocalDateString } from '../utils/dateUtils';
 
 const NOTIFICATION_SETTINGS_KEY = '@daily_schedule_notifications';
+const NOTIFICATIONS_MASTER_KEY = '@settings.notificationsEnabled';
 const NOTIFICATION_PREFIX = 'activity-';
+const ANDROID_CHANNEL_ID = 'activity_reminders';
+const UPCOMING_DAYS = 7;
+
+async function ensureAndroidChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  try {
+    await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
+      name: '활동 알림',
+      description: '일정 시작 전 알림',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF6B6B',
+      sound: 'default',
+      enableVibrate: true,
+    });
+  } catch (e) {
+    console.warn('Android 알림 채널 설정 실패:', e);
+  }
+}
 
 // 알림 수신 시 동작 설정
 Notifications.setNotificationHandler({
@@ -25,6 +46,19 @@ Notifications.setNotificationHandler({
 
 export interface NotificationSettings {
   [itemId: string]: boolean; // itemId -> enabled
+}
+
+/**
+ * 알림 권한 상태 확인 (요청하지 않음)
+ */
+export async function getNotificationPermissionStatus(): Promise<'granted' | 'denied' | 'undetermined'> {
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    return status;
+  } catch (error) {
+    console.error('알림 권한 확인 실패:', error);
+    return 'undetermined';
+  }
 }
 
 /**
@@ -57,16 +91,7 @@ export async function requestNotificationPermissions(): Promise<boolean> {
       return false;
     }
 
-    // Android 알림 채널 설정
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: '활동 알림',
-        importance: Notifications.AndroidImportance.HIGH,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF231F7C',
-        sound: 'default',
-      });
-    }
+    await ensureAndroidChannel();
 
     if (isRealDevice) {
       console.log('✅ 알림 권한 허용됨');
@@ -108,15 +133,44 @@ export async function saveNotificationSettings(settings: NotificationSettings): 
 }
 
 /**
+ * 마스터 알림 스위치. 키가 없으면 true (기존 per-item 설정을 막지 않음).
+ */
+export async function loadNotificationsMasterEnabled(): Promise<boolean> {
+  try {
+    const stored = await AsyncStorage.getItem(NOTIFICATIONS_MASTER_KEY);
+    if (stored === null) {
+      return true;
+    }
+    return stored === 'true';
+  } catch (error) {
+    console.error('알림 마스터 설정 로드 실패:', error);
+    return true;
+  }
+}
+
+export async function saveNotificationsMasterEnabled(enabled: boolean): Promise<void> {
+  try {
+    await AsyncStorage.setItem(NOTIFICATIONS_MASTER_KEY, enabled ? 'true' : 'false');
+  } catch (error) {
+    console.error('알림 마스터 설정 저장 실패:', error);
+  }
+}
+
+/**
  * 특정 활동의 알림 스케줄링
- * 활동 시작 5분 전에 알림 예약
+ * 해당 일정 날짜의 시작 5분 전에 알림 예약
  */
 export async function scheduleActivityNotification(
   scheduleItem: ScheduleItem,
-  enabled: boolean
+  enabled: boolean,
+  scheduleDate: Date | string
 ): Promise<void> {
   try {
     const notificationId = `${NOTIFICATION_PREFIX}${scheduleItem.id}`;
+
+    if (enabled) {
+      await ensureAndroidChannel();
+    }
 
     // 기존 알림 취소
     await Notifications.cancelScheduledNotificationAsync(notificationId);
@@ -126,14 +180,12 @@ export async function scheduleActivityNotification(
       return;
     }
 
-    // 활동 시간 파싱 (오늘 날짜 기준)
-    const [startHours, startMinutes] = scheduleItem.startTime.split(':').map(Number);
-    const today = new Date();
-    const notificationTime = new Date(today);
-    notificationTime.setHours(startHours, startMinutes, 0, 0);
+    const masterEnabled = await loadNotificationsMasterEnabled();
+    if (!masterEnabled) {
+      return;
+    }
 
-    // 5분 전으로 설정
-    notificationTime.setMinutes(notificationTime.getMinutes() - 5);
+    const notificationTime = getActivityNotificationTime(scheduleDate, scheduleItem.startTime);
 
     // 과거 시간이면 스케줄링하지 않음
     if (notificationTime.getTime() <= Date.now()) {
@@ -155,14 +207,16 @@ export async function scheduleActivityNotification(
           },
         },
         trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
           date: notificationTime,
-        } as Notifications.NotificationTriggerInput,
+          ...(Platform.OS === 'android' && { channelId: ANDROID_CHANNEL_ID }),
+        },
       });
 
       if (Device.isDevice) {
-        console.log(`✅ 알림 스케줄링: ${scheduleItem.activity?.name} at ${notificationTime.toLocaleTimeString()}`);
+        console.log(`✅ 알림 스케줄링: ${scheduleItem.activity?.name} at ${notificationTime.toLocaleString()}`);
       } else {
-        console.log(`✅ 스케줄링 시도: ${scheduleItem.activity?.name} at ${notificationTime.toLocaleTimeString()} (시뮬레이터: 실제 알림은 수신 안 됨)`);
+        console.log(`✅ 스케줄링 시도: ${scheduleItem.activity?.name} at ${notificationTime.toLocaleString()} (시뮬레이터: 실제 알림은 수신 안 됨)`);
       }
     } catch (scheduleError) {
       // 시뮬레이터에서는 스케줄링이 실패할 수 있음 (무시)
@@ -178,27 +232,45 @@ export async function scheduleActivityNotification(
 }
 
 /**
- * 오늘의 모든 활동 알림 스케줄링
+ * 오늘부터 N일간의 활성 알림을 재스케줄
  */
-export async function scheduleTodayNotifications(
-  scheduleItems: ScheduleItem[],
-  settings: NotificationSettings
+export async function rescheduleUpcomingNotifications(
+  schedules: Schedule[],
+  settings: NotificationSettings,
+  daysAhead = UPCOMING_DAYS
 ): Promise<void> {
   try {
-    // 오늘 날짜 확인
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const masterEnabled = await loadNotificationsMasterEnabled();
+    if (!masterEnabled) {
+      await cancelAllNotifications();
+      return;
+    }
 
-    for (const item of scheduleItems) {
-      const enabled = settings[item.id] || false;
-      if (enabled) {
-        await scheduleActivityNotification(item, true);
+    const permStatus = await getNotificationPermissionStatus();
+    if (permStatus !== 'granted') {
+      return;
+    }
+
+    await cancelAllNotifications();
+    await ensureAndroidChannel();
+
+    const today = new Date();
+    const start = toLocalDateString(today);
+    const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysAhead);
+    const end = toLocalDateString(endDate);
+
+    for (const schedule of schedules) {
+      if (schedule.date < start || schedule.date > end) continue;
+      for (const item of schedule.items) {
+        if (settings[item.id]) {
+          await scheduleActivityNotification(item, true, schedule.date);
+        }
       }
     }
 
-    console.log(`✅ 오늘 알림 ${scheduleItems.filter(item => settings[item.id]).length}개 스케줄링 완료`);
+    console.log('✅ 다가오는 일정 알림 재스케줄링 완료');
   } catch (error) {
-    console.error('오늘 알림 스케줄링 실패:', error);
+    console.error('다가오는 알림 재스케줄링 실패:', error);
   }
 }
 
@@ -240,11 +312,14 @@ export async function getScheduledNotifications(): Promise<Notifications.Notific
 }
 
 export default {
+  getNotificationPermissionStatus,
   requestNotificationPermissions,
   loadNotificationSettings,
   saveNotificationSettings,
+  loadNotificationsMasterEnabled,
+  saveNotificationsMasterEnabled,
   scheduleActivityNotification,
-  scheduleTodayNotifications,
+  rescheduleUpcomingNotifications,
   cancelAllNotifications,
   cancelActivityNotification,
   getScheduledNotifications,

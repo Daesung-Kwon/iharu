@@ -3,8 +3,9 @@
  * Soft Pop 3D (Claymorphism) 디자인 적용
  */
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, useWindowDimensions, Platform } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, useWindowDimensions, Platform, Linking, AppState } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import mobileAds from 'react-native-google-mobile-ads';
@@ -19,6 +20,7 @@ import { getItemStatus, getNextActivity, getCurrentActivity, getMinutesUntil, fo
 import { calculateDayStats, isToday, isPast, isFuture } from '../utils/statsUtils';
 import { toLocalDateString } from '../utils/dateUtils';
 import ActivityIcon from '../components/ActivityIcon';
+import Toast from '../components/Toast';
 
 // Soft Pop 3D 디자인 색상 팔레트
 const SoftPopColors = {
@@ -32,11 +34,12 @@ const SoftPopColors = {
   error: '#FF6B6B',
 };
 import {
+  getNotificationPermissionStatus,
   requestNotificationPermissions,
   loadNotificationSettings,
   saveNotificationSettings,
   scheduleActivityNotification,
-  scheduleTodayNotifications,
+  rescheduleUpcomingNotifications,
   cancelActivityNotification,
 } from '../services/notificationService';
 
@@ -44,8 +47,14 @@ export default function TodayScreen() {
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const insets = useSafeAreaInsets();
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const { getScheduleForDate, updateScheduleItem, schedules, copyScheduleToDate } = useSchedule();
+  const {
+    selectedDate,
+    setSelectedDate,
+    getScheduleForDate,
+    updateScheduleItem,
+    schedules,
+    copyScheduleToDate,
+  } = useSchedule();
   const selectedSchedule = getScheduleForDate(selectedDate);
   const scheduleItems = selectedSchedule?.items || [];
   const [showCelebration, setShowCelebration] = useState(false);
@@ -53,21 +62,23 @@ export default function TodayScreen() {
   const [showClapAnimation, setShowClapAnimation] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [notifications, setNotifications] = useState<Record<string, boolean>>({});
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastVisible, setToastVisible] = useState(false);
 
   const selectedDateString = toLocalDateString(selectedDate);
   const isViewingToday = isToday(selectedDateString);
   const isViewingPast = isPast(selectedDateString);
   const isViewingFuture = isFuture(selectedDateString);
   const dayStats = calculateDayStats(selectedSchedule);
+  const schedulesRef = useRef(schedules);
+  schedulesRef.current = schedules;
 
-  // 앱 시작 시 알림 권한 요청 및 설정 로드
+  // 앱 시작 시 알림 권한 확인 및 설정 로드 (권한 요청은 첫 토글 시점에)
   useEffect(() => {
     const initializeApp = async () => {
-      // 광고 초기화 및 권한 요청
       try {
         await mobileAds().initialize();
         if (Platform.OS === 'ios') {
-          // iOS 시스템 안정화 및 알림 팝업과의 충돌 방지를 위해 지연 호출
           setTimeout(async () => {
             const { status } = await TrackingTransparency.requestTrackingPermissionsAsync();
             console.log('Tracking status:', status);
@@ -77,34 +88,35 @@ export default function TodayScreen() {
         console.error('Ads initialization failed', e);
       }
 
-      // 알림 권한 요청
-      await requestNotificationPermissions();
-
-      // 저장된 알림 설정 로드
       const savedSettings = await loadNotificationSettings();
       setNotifications(savedSettings);
-
-      // 오늘 일정 알림 스케줄링
-      const todaySchedule = getScheduleForDate(new Date());
-      if (todaySchedule && todaySchedule.items.length > 0) {
-        await scheduleTodayNotifications(todaySchedule.items, savedSettings);
-      }
     };
 
     initializeApp();
   }, []);
 
-  // 오늘 일정이 변경될 때만 알림 재스케줄링 (알림 설정 변경은 handleToggleNotification에서 개별 처리)
+  const rescheduleNotifications = useCallback(async () => {
+    const permStatus = await getNotificationPermissionStatus();
+    if (permStatus !== 'granted') return;
+    const savedSettings = await loadNotificationSettings();
+    setNotifications(savedSettings);
+    await rescheduleUpcomingNotifications(schedulesRef.current, savedSettings);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      rescheduleNotifications();
+    }, [rescheduleNotifications])
+  );
+
   useEffect(() => {
-    if (!isViewingToday || scheduleItems.length === 0) return;
-
-    const scheduleNotifications = async () => {
-      await scheduleTodayNotifications(scheduleItems, notifications);
-    };
-
-    scheduleNotifications();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isViewingToday, scheduleItems.length]); // notifications 제거 - 개별 토글에서 처리
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        rescheduleNotifications();
+      }
+    });
+    return () => sub.remove();
+  }, [rescheduleNotifications]);
 
   // 매분 현재 시간 업데이트
   useEffect(() => {
@@ -174,11 +186,35 @@ export default function TodayScreen() {
     }
   };
 
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setToastVisible(true);
+  };
+
   const handleToggleNotification = async (itemId: string) => {
     const item = scheduleItems.find(i => i.id === itemId);
     if (!item) return;
 
     const newEnabled = !notifications[itemId];
+
+    // 알림 ON: 먼저 권한 확인/요청
+    if (newEnabled) {
+      const permStatus = await getNotificationPermissionStatus();
+      if (permStatus !== 'granted') {
+        const granted = await requestNotificationPermissions();
+        if (!granted) {
+          Alert.alert(
+            '알림 권한 필요',
+            '알림을 사용하려면 설정에서 권한을 허용해주세요.',
+            [
+              { text: '취소', style: 'cancel' },
+              { text: '설정 열기', onPress: () => Linking.openSettings() },
+            ]
+          );
+          return;
+        }
+      }
+    }
 
     // 상태 업데이트
     const updatedNotifications = {
@@ -186,17 +222,14 @@ export default function TodayScreen() {
       [itemId]: newEnabled,
     };
     setNotifications(updatedNotifications);
-
-    // AsyncStorage에 저장
     await saveNotificationSettings(updatedNotifications);
 
-    // 알림 스케줄링/취소
-    if (isViewingToday) {
-      if (newEnabled) {
-        await scheduleActivityNotification(item, true);
-      } else {
-        await cancelActivityNotification(itemId);
-      }
+    if (newEnabled) {
+      await scheduleActivityNotification(item, true, selectedDate);
+      showToast(`${item.activity?.name || '활동'} 5분 전에 알림을 보내드릴게요`);
+    } else {
+      await cancelActivityNotification(itemId);
+      showToast('알림이 해제되었어요');
     }
   };
 
@@ -224,10 +257,11 @@ export default function TodayScreen() {
           {
             text: '삭제하고 복사',
             style: 'destructive',
-            onPress: () => {
-              // 기존 일정 삭제 후 복사
-              const success = copyScheduleToDate(selectedDate, today);
+            onPress: async () => {
+              const oldItemIds = todaySchedule.items.map(item => item.id);
+              const success = copyScheduleToDate(selectedDate, today, { overwrite: true });
               if (success) {
+                await Promise.all(oldItemIds.map(id => cancelActivityNotification(id)));
                 setSelectedDate(today);
                 Alert.alert('완료', '일정을 오늘로 복사했습니다.');
               } else {
@@ -554,7 +588,7 @@ export default function TodayScreen() {
                       handleToggleComplete(item.id);
                     }
                   }}
-                  onToggleNotification={isViewingToday ? () => handleToggleNotification(item.id) : undefined}
+                  onToggleNotification={(isViewingToday || isViewingFuture) ? () => handleToggleNotification(item.id) : undefined}
                   notificationEnabled={notifications[item.id] || false}
                 />
               );
@@ -594,6 +628,12 @@ export default function TodayScreen() {
         onAnimationFinish={() => {
           setShowClapAnimation(false);
         }}
+      />
+
+      <Toast
+        message={toastMessage}
+        visible={toastVisible}
+        onHide={() => setToastVisible(false)}
       />
     </SafeAreaView>
   );
