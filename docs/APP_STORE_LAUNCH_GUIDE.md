@@ -182,7 +182,7 @@ eas build:configure
 
 ### 3.2 App Store 스크린샷 (필수)
 
-유니버설 전환 후 **iPhone 6.7" / 6.1"** 샷이 추가로 필요하다. 기존 iPad 샷은 유지한다. 촬영 체크리스트: [MOBILE_EXPANSION.md](./MOBILE_EXPANSION.md).
+유니버설 전환 후 **iPhone 6.9"**(필수 ASC 슬롯; 6.7" 1290×2796도 허용)와 **6.1"** 샷이 추가로 필요하다. 기존 iPad 샷은 유지한다. 촬영 체크리스트: [MOBILE_EXPANSION.md](./MOBILE_EXPANSION.md).
 
 #### iPad Pro 12.9인치 (3세대 이후)
 - [ ] 최소 1개, 최대 10개

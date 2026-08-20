@@ -56,8 +56,8 @@ npm install -g expo-cli
 ### 1.3 확인 사항
 
 - [ ] 앱 이름: "i하루"
-- [ ] Package Name: `com.dailyschedule.app`
-- [ ] 버전: 1.0.0
+- [ ] Package Name: `com.iharu.app`
+- [ ] 버전: 1.1.0
 - [ ] 타겟 기기: Android 스마트폰 + 태블릿 (유니버설)
 - [ ] 최소 Android 버전 확인 필요
 
