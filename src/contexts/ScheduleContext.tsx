@@ -6,7 +6,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Schedule, ScheduleItem, Activity } from '../types';
-import { toLocalDateString } from '../utils/dateUtils';
+import { migrateUtcSlicedScheduleDates, toLocalDateString } from '../utils/dateUtils';
 
 const STORAGE_KEY = '@daily_schedule_schedules';
 
@@ -43,9 +43,13 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       try {
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
         if (stored) {
-          const parsed = JSON.parse(stored);
-          console.log('Schedules loaded from storage:', parsed.length);
-          setSchedules(parsed);
+          const parsed: Schedule[] = JSON.parse(stored);
+          const migrated = migrateUtcSlicedScheduleDates(parsed);
+          console.log('Schedules loaded from storage:', migrated.length);
+          setSchedules(migrated);
+          if (migrated !== parsed) {
+            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+          }
         }
       } catch (error) {
         console.error('Failed to load schedules:', error);

@@ -1,12 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { toLocalDateString } from './dateUtils';
+import { toLocalDateString, migrateUtcSlicedScheduleDates } from './dateUtils';
 import { isToday, isPast, isFuture } from './statsUtils';
 
 describe('toLocalDateString', () => {
-  it('returns local calendar date at 01:00', () => {
+  it('returns local calendar date at 01:00, not the UTC ISO date', () => {
     const date = new Date(2026, 7, 20, 1, 0, 0);
-    assert.equal(toLocalDateString(date), '2026-08-20');
+    const local = toLocalDateString(date);
+    assert.equal(local, '2026-08-20');
+    assert.notEqual(local, date.toISOString().split('T')[0]);
   });
 
   it('returns the same calendar date at 23:00', () => {
@@ -34,5 +36,44 @@ describe('isToday/isPast/isFuture', () => {
     assert.equal(isToday(tomorrowString), false);
     assert.equal(isPast(tomorrowString), false);
     assert.equal(isFuture(tomorrowString), true);
+  });
+});
+
+describe('migrateUtcSlicedScheduleDates', () => {
+  it('rewrites a KST-morning UTC key to the local calendar day', () => {
+    const schedules = [{
+      date: '2026-08-19',
+      createdAt: '2026-08-19T16:00:00.000Z',
+    }];
+    const migrated = migrateUtcSlicedScheduleDates(schedules);
+    assert.equal(migrated[0].date, '2026-08-20');
+    assert.equal(migrated[0].createdAt, '2026-08-19T16:00:00.000Z');
+  });
+
+  it('is idempotent after the date has been rewritten', () => {
+    const schedules = [{
+      date: '2026-08-20',
+      createdAt: '2026-08-19T16:00:00.000Z',
+    }];
+    const migrated = migrateUtcSlicedScheduleDates(schedules);
+    assert.equal(migrated, schedules);
+  });
+
+  it('leaves afternoon UTC-aligned dates unchanged', () => {
+    const schedules = [{
+      date: '2026-08-20',
+      createdAt: '2026-08-20T05:00:00.000Z',
+    }];
+    assert.equal(migrateUtcSlicedScheduleDates(schedules), schedules);
+  });
+
+  it('skips when the local date is already occupied', () => {
+    const schedules = [
+      { date: '2026-08-19', createdAt: '2026-08-19T16:00:00.000Z' },
+      { date: '2026-08-20', createdAt: '2026-08-20T05:00:00.000Z' },
+    ];
+    const migrated = migrateUtcSlicedScheduleDates(schedules);
+    assert.equal(migrated[0].date, '2026-08-19');
+    assert.equal(migrated, schedules);
   });
 });
