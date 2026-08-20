@@ -1,5 +1,8 @@
 import { format } from 'date-fns';
 
+/** Load-path guard so future morning keys are not +1 on every cold start. */
+export const UTC_DATE_MIGRATION_KEY = '@daily_schedule_utc_date_keys_migrated';
+
 /** Local YYYY-MM-DD — UTC ISO slicing maps KST 00:00–08:59 to yesterday. */
 export const toLocalDateString = (date: Date): string => {
   return format(date, 'yyyy-MM-dd');

@@ -6,10 +6,9 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Schedule, ScheduleItem, Activity } from '../types';
-import { migrateUtcSlicedScheduleDates, toLocalDateString } from '../utils/dateUtils';
+import { migrateUtcSlicedScheduleDates, toLocalDateString, UTC_DATE_MIGRATION_KEY } from '../utils/dateUtils';
 
 const STORAGE_KEY = '@daily_schedule_schedules';
-const UTC_DATE_MIGRATION_KEY = '@daily_schedule_utc_date_keys_migrated';
 
 interface ScheduleContextType {
   // State
