@@ -7,9 +7,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Activity } from '../types';
 import { DEFAULT_ACTIVITIES } from '../constants/defaultActivities';
-
-const STORAGE_KEY = '@daily_schedule_activities';
-const DELETED_DEFAULTS_KEY = '@daily_schedule_deleted_defaults';
+import { KEYS } from '../services/storage';
 
 interface ActivityContextType {
   // State
@@ -22,6 +20,7 @@ interface ActivityContextType {
   deleteActivity: (activityId: string) => void;
   getActivityById: (activityId: string) => Activity | undefined;
   resetActivities: () => void; // 데이터 초기화용
+  reloadFromStorage: () => Promise<void>;
 }
 
 const ActivityContext = createContext<ActivityContextType | undefined>(undefined);
@@ -59,41 +58,45 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return [...filteredDefaults, ...customActivities];
   }, [defaultActivities, customActivities, deletedDefaultIds]);
 
-  // AsyncStorage에서 커스텀 활동 및 삭제된 기본 활동 로드
+  const reloadFromStorage = useCallback(async () => {
+    try {
+      const stored = await AsyncStorage.getItem(KEYS.ACTIVITIES);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        console.log('Activities loaded from storage:', parsed.length);
+        setCustomActivities(parsed);
+      } else {
+        setCustomActivities([]);
+      }
+
+      const deletedStored = await AsyncStorage.getItem(KEYS.DELETED_DEFAULTS);
+      if (deletedStored) {
+        const deletedIds = JSON.parse(deletedStored);
+        console.log('Deleted default activities loaded:', deletedIds.length);
+        setDeletedDefaultIds(new Set(deletedIds));
+      } else {
+        setDeletedDefaultIds(new Set());
+      }
+    } catch (error) {
+      console.error('Failed to load activities:', error);
+    }
+  }, []);
+
   useEffect(() => {
     const loadActivities = async () => {
-      try {
-        // 커스텀 활동 로드
-        const stored = await AsyncStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          console.log('Activities loaded from storage:', parsed.length);
-          setCustomActivities(parsed);
-        }
-        
-        // 삭제된 기본 활동 ID 로드
-        const deletedStored = await AsyncStorage.getItem(DELETED_DEFAULTS_KEY);
-        if (deletedStored) {
-          const deletedIds = JSON.parse(deletedStored);
-          console.log('Deleted default activities loaded:', deletedIds.length);
-          setDeletedDefaultIds(new Set(deletedIds));
-        }
-      } catch (error) {
-        console.error('Failed to load activities:', error);
-      } finally {
-        setIsLoaded(true);
-      }
+      await reloadFromStorage();
+      setIsLoaded(true);
     };
 
     loadActivities();
-  }, []);
+  }, [reloadFromStorage]);
 
   // 커스텀 활동 변경 시 AsyncStorage에 저장
   useEffect(() => {
     if (isLoaded) {
       const saveActivities = async () => {
         try {
-          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(customActivities));
+          await AsyncStorage.setItem(KEYS.ACTIVITIES, JSON.stringify(customActivities));
           console.log('Activities saved to storage:', customActivities.length);
         } catch (error) {
           console.error('Failed to save activities:', error);
@@ -109,7 +112,7 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (isLoaded) {
       const saveDeletedDefaults = async () => {
         try {
-          await AsyncStorage.setItem(DELETED_DEFAULTS_KEY, JSON.stringify(Array.from(deletedDefaultIds)));
+          await AsyncStorage.setItem(KEYS.DELETED_DEFAULTS, JSON.stringify(Array.from(deletedDefaultIds)));
           console.log('Deleted default activities saved:', deletedDefaultIds.size);
         } catch (error) {
           console.error('Failed to save deleted default activities:', error);
@@ -213,6 +216,8 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const resetActivities = useCallback(() => {
     setCustomActivities([]);
+    setDeletedDefaultIds(new Set());
+    void AsyncStorage.setItem(KEYS.DELETED_DEFAULTS, JSON.stringify([]));
   }, []);
 
   return (
@@ -225,6 +230,7 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         deleteActivity,
         getActivityById,
         resetActivities,
+        reloadFromStorage,
       }}
     >
       {children}

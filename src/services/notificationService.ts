@@ -9,9 +9,8 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Schedule, ScheduleItem } from '../types';
 import { getActivityNotificationTime } from '../utils/dateUtils';
+import { KEYS } from './storage';
 
-const NOTIFICATION_SETTINGS_KEY = '@daily_schedule_notifications';
-const NOTIFICATIONS_MASTER_KEY = '@settings.notificationsEnabled';
 const NOTIFICATION_PREFIX = 'activity-';
 const ANDROID_CHANNEL_ID = 'activity_reminders';
 
@@ -116,7 +115,7 @@ export async function requestNotificationPermissions(): Promise<boolean> {
  */
 export async function loadNotificationSettings(): Promise<NotificationSettings> {
   try {
-    const stored = await AsyncStorage.getItem(NOTIFICATION_SETTINGS_KEY);
+    const stored = await AsyncStorage.getItem(KEYS.NOTIFICATIONS);
     if (stored) {
       return JSON.parse(stored);
     }
@@ -132,7 +131,7 @@ export async function loadNotificationSettings(): Promise<NotificationSettings> 
  */
 export async function saveNotificationSettings(settings: NotificationSettings): Promise<void> {
   try {
-    await AsyncStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(settings));
+    await AsyncStorage.setItem(KEYS.NOTIFICATIONS, JSON.stringify(settings));
   } catch (error) {
     console.error('알림 설정 저장 실패:', error);
   }
@@ -143,7 +142,7 @@ export async function saveNotificationSettings(settings: NotificationSettings): 
  */
 export async function loadNotificationsMasterEnabled(): Promise<boolean> {
   try {
-    const stored = await AsyncStorage.getItem(NOTIFICATIONS_MASTER_KEY);
+    const stored = await AsyncStorage.getItem(KEYS.NOTIFICATIONS_ENABLED);
     if (stored === null) {
       return true;
     }
@@ -156,7 +155,7 @@ export async function loadNotificationsMasterEnabled(): Promise<boolean> {
 
 export async function saveNotificationsMasterEnabled(enabled: boolean): Promise<void> {
   try {
-    await AsyncStorage.setItem(NOTIFICATIONS_MASTER_KEY, enabled ? 'true' : 'false');
+    await AsyncStorage.setItem(KEYS.NOTIFICATIONS_ENABLED, enabled ? 'true' : 'false');
   } catch (error) {
     console.error('알림 마스터 설정 저장 실패:', error);
   }

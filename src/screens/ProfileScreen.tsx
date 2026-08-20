@@ -13,7 +13,7 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { AdBanner } from '../components/AdBanner';
-import { exportAllData, importAllData, clearAllData } from '../services/storage';
+import { exportAllData, importAllData, clearAllData, parseBackupData } from '../services/storage';
 import {
   requestNotificationPermissions,
   loadNotificationsMasterEnabled,
@@ -44,8 +44,8 @@ export default function ProfileScreen() {
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const insets = useSafeAreaInsets();
-  const { resetActivities } = useActivity();
-  const { resetSchedules, schedules } = useSchedule();
+  const { resetActivities, reloadFromStorage: reloadActivities } = useActivity();
+  const { resetSchedules, schedules, reloadFromStorage: reloadSchedules } = useSchedule();
   const [notificationEnabled, setNotificationEnabled] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
@@ -206,23 +206,25 @@ export default function ProfileScreen() {
                   encoding: FileSystem.EncodingType.UTF8,
                 });
 
-                // JSON 파싱
-                const data = JSON.parse(fileContent);
-
-                // 데이터 검증
-                if (!data.version || !Array.isArray(data.activities) || !Array.isArray(data.schedules)) {
+                const data = parseBackupData(fileContent);
+                if (!data) {
                   Alert.alert('복원 실패', '유효하지 않은 백업 파일입니다.');
                   return;
                 }
 
-                // 데이터 복원
                 const success = await importAllData(data);
                 if (success) {
-                  // Context는 자동으로 AsyncStorage에서 다시 로드됨
-                  // 하지만 즉시 반영을 위해 앱 재시작 권장
+                  await Promise.all([reloadActivities(), reloadSchedules()]);
+                  const enabled = await loadNotificationsMasterEnabled();
+                  setNotificationEnabled(enabled);
+                  if (enabled) {
+                    await rescheduleUpcomingNotifications(data.schedules, data.notificationSettings);
+                  } else {
+                    await cancelAllNotifications();
+                  }
                   Alert.alert(
                     '복원 완료',
-                    '데이터가 복원되었습니다.\n\n변경사항을 확인하려면 앱을 재시작해주세요.',
+                    '데이터가 복원되었습니다.',
                     [{ text: '확인' }]
                   );
                 } else {
@@ -255,9 +257,10 @@ export default function ProfileScreen() {
           onPress: async () => {
             try {
               await clearAllData();
-              // Context 초기화
               resetActivities();
               resetSchedules();
+              setNotificationEnabled(await loadNotificationsMasterEnabled());
+              await cancelAllNotifications();
               Alert.alert('완료', '모든 데이터가 삭제되었습니다.');
             } catch (error) {
               console.error('Reset error:', error);

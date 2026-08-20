@@ -5,7 +5,7 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, useWindowDimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, useWindowDimensions, Platform, Alert } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useActivity } from '../contexts/ActivityContext';
@@ -67,7 +67,19 @@ export default function ActivitiesScreen() {
   };
 
   const handleDeleteActivity = (activityId: string) => {
-    deleteActivity(activityId);
+    const activity = activities.find(item => item.id === activityId);
+    Alert.alert(
+      '활동 삭제',
+      activity ? `"${activity.name}" 활동을 삭제할까요?` : '이 활동을 삭제할까요?',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: () => deleteActivity(activityId),
+        },
+      ]
+    );
   };
 
   return (

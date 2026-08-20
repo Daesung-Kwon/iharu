@@ -8,8 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Schedule, ScheduleItem, Activity } from '../types';
 import { migrateUtcSlicedScheduleDates, toLocalDateString } from '../utils/dateUtils';
 import { cancelActivityNotification, clearItemNotifications } from '../services/notificationService';
-
-const STORAGE_KEY = '@daily_schedule_schedules';
+import { KEYS } from '../services/storage';
 
 const createScheduleItemId = (): string =>
   `item-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -35,6 +34,7 @@ interface ScheduleContextType {
   checkTimeConflict: (date: Date, startTime: string, endTime: string, excludeItemId?: string) => boolean;
   copyScheduleToDate: (sourceDate: Date, targetDate: Date, options?: CopyScheduleOptions) => boolean;
   resetSchedules: () => void; // 데이터 초기화용
+  reloadFromStorage: () => Promise<void>;
 }
 
 const ScheduleContext = createContext<ScheduleContextType | undefined>(undefined);
@@ -45,36 +45,40 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [selectedChildProfileId, setSelectedChildProfileId] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // AsyncStorage에서 일정 로드
+  const reloadFromStorage = useCallback(async () => {
+    try {
+      const stored = await AsyncStorage.getItem(KEYS.SCHEDULES);
+      if (stored) {
+        const parsed: Schedule[] = JSON.parse(stored);
+        const migrated = migrateUtcSlicedScheduleDates(parsed);
+        console.log('Schedules loaded from storage:', migrated.length);
+        setSchedules(migrated);
+        if (migrated !== parsed) {
+          await AsyncStorage.setItem(KEYS.SCHEDULES, JSON.stringify(migrated));
+        }
+      } else {
+        setSchedules([]);
+      }
+    } catch (error) {
+      console.error('Failed to load schedules:', error);
+    }
+  }, []);
+
   useEffect(() => {
     const loadSchedules = async () => {
-      try {
-        const stored = await AsyncStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          const parsed: Schedule[] = JSON.parse(stored);
-          const migrated = migrateUtcSlicedScheduleDates(parsed);
-          console.log('Schedules loaded from storage:', migrated.length);
-          setSchedules(migrated);
-          if (migrated !== parsed) {
-            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load schedules:', error);
-      } finally {
-        setIsLoaded(true);
-      }
+      await reloadFromStorage();
+      setIsLoaded(true);
     };
 
     loadSchedules();
-  }, []);
+  }, [reloadFromStorage]);
 
   // 일정 변경 시 AsyncStorage에 저장
   useEffect(() => {
     if (isLoaded) {
       const saveSchedules = async () => {
         try {
-          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(schedules));
+          await AsyncStorage.setItem(KEYS.SCHEDULES, JSON.stringify(schedules));
           console.log('Schedules saved to storage:', schedules.length);
         } catch (error) {
           console.error('Failed to save schedules:', error);
@@ -296,6 +300,7 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         checkTimeConflict,
         copyScheduleToDate,
         resetSchedules,
+        reloadFromStorage,
       }}
     >
       {children}
