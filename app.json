@@ -2,7 +2,7 @@
   "expo": {
     "name": "i하루",
     "slug": "daily-schedule-app",
-    "version": "1.0.2",
+    "version": "1.1.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -21,11 +21,22 @@
       "buildNumber": "8",
       "requireFullScreen": false,
       "deviceFamily": [
+        "iphone",
         "ipad"
       ],
       "infoPlist": {
         "NSUserTrackingUsageDescription": "이 앱은 맞춤형 광고를 위한 추적을 사용하지 않습니다. 표시되는 광고는 비맞춤형입니다.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UISupportedInterfaceOrientations": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationPortraitUpsideDown"
+        ],
+        "UISupportedInterfaceOrientations~ipad": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationPortraitUpsideDown",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ]
       }
     },
     "android": {
@@ -34,7 +45,6 @@
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.iharu.app",
-      "tabletOnly": true,
       "edgeToEdgeEnabled": true,
       "permissions": [
         "com.google.android.gms.permission.AD_ID"
@@ -47,6 +57,7 @@
           "ios": {
             "deploymentTarget": "15.1",
             "deviceFamily": [
+              1,
               2
             ]
           }

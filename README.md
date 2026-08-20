@@ -1,6 +1,6 @@
 # i하루 (iHaru) 📅
 
-> 아이들이 스스로 하루 일과를 계획하고 관리할 수 있는 태블릿 전용 앱
+> 아이들이 스스로 하루 일과를 계획하고 관리할 수 있는 스마트폰 + 태블릿 유니버설 앱
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![React Native](https://img.shields.io/badge/React%20Native-0.81.5-blue.svg)](https://reactnative.dev/)
@@ -10,11 +10,11 @@
 
 ## 🌟 프로젝트 소개
 
-**i하루**는 아이들이 하루 일과를 시각적으로 계획하고, 완료한 일정을 체크하면서 성취감을 느낄 수 있도록 설계된 태블릿 전용 앱입니다.
+**i하루**는 아이들이 하루 일과를 시각적으로 계획하고, 완료한 일정을 체크하면서 성취감을 느낄 수 있도록 설계된 스마트폰 + 태블릿 유니버설 앱입니다.
 
 ### 주요 특징
 
-- 📱 **태블릿 전용**: iPad 및 Android 태블릿에 최적화
+- 📱 **스마트폰 + 태블릿**: iPhone, iPad, Android 폰/태블릿 유니버설 앱
 - 🎨 **직관적인 UI**: 길게 눌러 선택 후 시간을 탭하여 쉬운 일정 관리
 - 🎯 **시각적 타임라인**: 하루 일과를 한눈에 파악
 - 🔔 **스마트 알림**: 활동 시작 전 알림으로 시간 관리 지원
@@ -161,9 +161,9 @@ iharu/
 
 ## 📱 플랫폼 지원
 
-- ✅ **iOS**: iPad (모든 세대)
-- ✅ **Android**: 태블릿 (7인치 이상)
-- ❌ **스마트폰**: 지원하지 않음 (태블릿 전용)
+- ✅ **iOS**: iPhone + iPad (유니버설)
+- ✅ **Android**: 스마트폰 + 태블릿
+- compact 레이아웃: 짧은 변 < 768 — 자세한 전략은 [docs/MOBILE_EXPANSION.md](./docs/MOBILE_EXPANSION.md)
 
 ---
 

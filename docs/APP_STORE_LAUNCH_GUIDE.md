@@ -1,6 +1,6 @@
 # i하루 앱 - App Store 런칭 가이드
 
-> iPad 전용 앱을 App Store에 배포하기 위한 완전한 체크리스트와 가이드
+> 스마트폰 + 태블릿 유니버설 앱을 App Store에 배포하기 위한 완전한 체크리스트와 가이드
 
 ---
 
@@ -59,7 +59,7 @@ sudo gem install cocoapods
 - [ ] 앱 이름: "i하루"
 - [ ] Bundle Identifier: `com.dailyschedule.app`
 - [ ] 버전: 1.0.0
-- [ ] 타겟 기기: iPad 전용
+- [ ] 타겟 기기: iPhone + iPad (유니버설)
 - [ ] 최소 iOS 버전 확인 필요
 
 ---
@@ -71,7 +71,7 @@ sudo gem install cocoapods
 현재 설정 확인:
 - ✅ 앱 이름: "i하루"
 - ✅ Bundle Identifier: "com.dailyschedule.app"
-- ✅ iPad 전용: `"deviceFamily": ["ipad"]`
+- ✅ 유니버설: `"deviceFamily": ["iphone", "ipad"]`
 - ⚠️ EAS projectId: **설정 필요**
 
 ### 2.2 EAS 프로젝트 초기화
@@ -102,7 +102,7 @@ eas init
       "supportsTablet": true,
       "bundleIdentifier": "com.dailyschedule.app",
       "requireFullScreen": false,
-      "deviceFamily": ["ipad"],
+      "deviceFamily": ["iphone", "ipad"],
       "buildNumber": "1",
       "infoPlist": {
         "NSUserNotificationsUsageDescription": "일정 알림을 받기 위해 알림 권한이 필요합니다.",
@@ -181,6 +181,8 @@ eas build:configure
   - 또는 배경색만 사용 가능: `#FFF8E7`
 
 ### 3.2 App Store 스크린샷 (필수)
+
+유니버설 전환 후 **iPhone 6.7" / 6.1"** 샷이 추가로 필요하다. 기존 iPad 샷은 유지한다. 촬영 체크리스트: [MOBILE_EXPANSION.md](./MOBILE_EXPANSION.md).
 
 #### iPad Pro 12.9인치 (3세대 이후)
 - [ ] 최소 1개, 최대 10개
@@ -379,7 +381,7 @@ eas submit --platform ios --id BUILD_ID
 최대 4000자, 주요 내용 포함:
 
 ```
-i하루는 아이들이 스스로 하루 일과를 계획하고 관리할 수 있는 iPad 전용 앱입니다.
+i하루는 아이들이 스스로 하루 일과를 계획하고 관리할 수 있는 스마트폰 + 태블릿 유니버설 앱입니다.
 
 주요 기능:
 • 활동 관리: 자주 하는 활동을 저장하고 재사용
@@ -451,8 +453,9 @@ i하루는 아이들이 스스로 하루 일과를 계획하고 관리할 수 �
 #### 참고사항 (선택)
 심사 담당자에게 전달할 정보:
 ```
-이 앱은 iPad 전용입니다.
-모든 데이터는 로컬 디바이스에만 저장되며, 
+기존 iPad 앱을 유니버설(iPhone + iPad)로 확장한 업데이트입니다.
+로컬 데이터와 번들 ID(com.dailyschedule.app)는 그대로입니다.
+모든 데이터는 로컬 디바이스에만 저장되며,
 서버와의 통신은 하지 않습니다.
 ```
 
