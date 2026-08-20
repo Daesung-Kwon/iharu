@@ -5,34 +5,40 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, useWindowDimensions, Platform, Alert } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useActivity } from '../contexts/ActivityContext';
 import ActivityCard from '../components/ActivityCard';
 import ActivityFormModal from '../components/ActivityFormModal';
 import { Activity } from '../types';
 import { SoftPopColors } from '../constants/theme';
+import { useLayout } from '../hooks/useLayout';
+
+const ACTIVITY_CARD_MIN_WIDTH = 140;
 
 export default function ActivitiesScreen() {
-  const { width, height } = useWindowDimensions();
-  const isLandscape = width > height;
-  const insets = useSafeAreaInsets();
+  const {
+    width,
+    isCompact,
+    isLandscape,
+    space,
+    titleSize,
+    activityColumns,
+    tabBarOffset,
+    contentPad,
+  } = useLayout();
   const { activities, addActivity, updateActivity, deleteActivity } = useActivity();
-
-  const TAB_BAR_HEIGHT = 68;
-  const bottomPadding = Platform.OS === 'android'
-    ? TAB_BAR_HEIGHT + Math.max(insets.bottom, 16) + 8
-    : TAB_BAR_HEIGHT + Math.max(insets.bottom, 10);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
 
-  // 반응형 그리드: 세로 4열, 가로 6열
-  const CONTENT_PADDING = 32 * 2;
-  const GAP = 20;
-  const columns = isLandscape ? 6 : 4;
-  const cardWidth = (width - CONTENT_PADDING - GAP * (columns - 1)) / columns;
+  const GAP = isCompact ? 12 : 20;
+  const contentPadding = space * 2;
+  const cardWidth = Math.max(
+    ACTIVITY_CARD_MIN_WIDTH,
+    (width - contentPadding - GAP * (activityColumns - 1)) / activityColumns,
+  );
 
   const handleAddActivity = () => {
     setEditingActivity(null);
@@ -83,28 +89,38 @@ export default function ActivitiesScreen() {
           : ['top'] // iOS는 기존 유지
       }
     >
-      {/* Header Section */}
-      <View style={styles.header}>
+      <View style={[
+        styles.header,
+        {
+          padding: space,
+          paddingBottom: isCompact ? 12 : 20,
+          marginHorizontal: space,
+          marginTop: space,
+        },
+      ]}>
         <View style={styles.headerText}>
-          <Text style={styles.title}>활동 관리</Text>
+          <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleSize + 8 }]}>
+            활동 관리
+          </Text>
           <Text style={styles.subtitle}>자주 하는 활동들을 저장해두세요</Text>
         </View>
-        {/* FAB (Floating Action Button) - Soft Pop 3D */}
-        <Pressable
-          style={({ pressed }) => [
-            styles.fab,
-            pressed && styles.fabPressed
-          ]}
-          onPress={handleAddActivity}
-          accessibilityLabel="새 활동 추가"
-          accessibilityRole="button"
-        >
-          <MaterialIcons
-            name="add"
-            size={28}
-            color={SoftPopColors.white}
-          />
-        </Pressable>
+        {!isCompact && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.fab,
+              pressed && styles.fabPressed
+            ]}
+            onPress={handleAddActivity}
+            accessibilityLabel="새 활동 추가"
+            accessibilityRole="button"
+          >
+            <MaterialIcons
+              name="add"
+              size={28}
+              color={SoftPopColors.white}
+            />
+          </Pressable>
+        )}
       </View>
 
       <ScrollView
@@ -112,8 +128,8 @@ export default function ActivitiesScreen() {
         contentContainerStyle={[
           styles.content,
           {
-            // 동적 계산: 탭바 높이 + SafeArea bottom (OS별)
-            paddingBottom: bottomPadding,
+            padding: space,
+            paddingBottom: contentPad + (isCompact ? 80 : 0),
           }
         ]}
         showsVerticalScrollIndicator={false}
@@ -131,7 +147,7 @@ export default function ActivitiesScreen() {
             </Text>
           </View>
         ) : (
-          <View style={styles.activityGrid}>
+          <View style={[styles.activityGrid, { gap: GAP }]}>
             {activities.map((activity) => (
               <ActivityCard
                 key={activity.id}
@@ -145,7 +161,27 @@ export default function ActivitiesScreen() {
         )}
       </ScrollView>
 
-      {/* Activity Form Modal */}
+      {isCompact && (
+        <Pressable
+          // Thumb-zone: header FAB is out of reach on phones
+          style={({ pressed }) => [
+            styles.fab,
+            styles.fabCompact,
+            { right: space, bottom: tabBarOffset + 12 },
+            pressed && styles.fabPressed
+          ]}
+          onPress={handleAddActivity}
+          accessibilityLabel="새 활동 추가"
+          accessibilityRole="button"
+        >
+          <MaterialIcons
+            name="add"
+            size={28}
+            color={SoftPopColors.white}
+          />
+        </Pressable>
+      )}
+
       <ActivityFormModal
         visible={modalVisible}
         activity={editingActivity}
@@ -175,7 +211,6 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     backgroundColor: SoftPopColors.white,
     borderRadius: 24,
-    margin: 32,
     marginBottom: 12,
     borderWidth: 2,
     borderColor: SoftPopColors.white,
@@ -225,12 +260,15 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 5,
   },
+  fabCompact: {
+    position: 'absolute',
+    zIndex: 20,
+  },
   scrollView: {
     flex: 1,
   },
   content: {
     padding: 32,
-    // paddingBottom은 동적으로 계산 (contentContainerStyle에서)
   },
   activityGrid: {
     flexDirection: 'row',

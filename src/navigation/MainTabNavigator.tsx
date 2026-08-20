@@ -16,6 +16,7 @@ import PlanScheduleScreen from '../screens/PlanScheduleScreen';
 import ActivitiesScreen from '../screens/ActivitiesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { SoftPopColors } from '../constants/theme';
+import { TAB_BAR_HEIGHT, useLayout } from '../hooks/useLayout';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -40,11 +41,11 @@ const CustomTabBarButton = ({ children, onPress, accessibilityState, style }: an
 
 export const MainTabNavigator: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const { isCompact } = useLayout();
 
-  // Android 시스템 네비게이션 바 높이 고려 (iOS는 기존 유지)
   const tabBarPaddingBottom = Platform.OS === 'ios'
-    ? Math.max(insets.bottom, 10) // iOS 기존 로직 유지
-    : Math.max(insets.bottom, 16); // Android만 개선
+    ? Math.max(insets.bottom, 10)
+    : Math.max(insets.bottom, 16);
 
   return (
     <Tab.Navigator
@@ -60,9 +61,9 @@ export const MainTabNavigator: React.FC = () => {
           bottom: 0,
           paddingBottom: tabBarPaddingBottom,
           paddingTop: 0,
-          height: 68 + (Platform.OS === 'ios'
-            ? Math.max(insets.bottom - 8, 0) // iOS 기존 로직 유지
-            : Math.max(insets.bottom, 0) // Android만 개선
+          height: TAB_BAR_HEIGHT + (Platform.OS === 'ios'
+            ? Math.max(insets.bottom - 8, 0)
+            : Math.max(insets.bottom, 0)
           ),
           backgroundColor: 'transparent', // 뒤 배경이 비치도록 투명 처리
           borderTopWidth: 0,
@@ -100,9 +101,10 @@ export const MainTabNavigator: React.FC = () => {
             style={[
               tabBarStyles.tabBarBackground,
               {
+                marginHorizontal: isCompact ? 8 : 16,
                 marginBottom: Platform.OS === 'ios'
-                  ? Math.max(insets.bottom, 12) // iOS 기존 로직 유지
-                  : Math.max(insets.bottom, 16), // Android만 개선
+                  ? Math.max(insets.bottom, 12)
+                  : Math.max(insets.bottom, 16),
               },
             ]}
           />

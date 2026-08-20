@@ -18,6 +18,7 @@ interface TimelineViewV2Props {
   onRemoveItem?: (itemId: string) => void;
   draggingActivity?: Activity | null;
   initialScrollTime?: string; // 초기 스크롤 위치 시간 (기본: 09:00)
+  contentPaddingBottom?: number;
 }
 
 export default function TimelineViewV2({
@@ -25,7 +26,8 @@ export default function TimelineViewV2({
   onTimeSlotPress,
   onRemoveItem,
   draggingActivity,
-  initialScrollTime = '09:00'
+  initialScrollTime = '09:00',
+  contentPaddingBottom,
 }: TimelineViewV2Props) {
   const scrollViewRef = useRef<ScrollView>(null);
   // 30분 단위로 타임라인 슬롯 생성 (00:00 ~ 23:30)
@@ -143,7 +145,10 @@ export default function TimelineViewV2({
     <ScrollView
       ref={scrollViewRef}
       style={styles.container}
-      contentContainerStyle={styles.contentContainer}
+      contentContainerStyle={[
+        styles.contentContainer,
+        contentPaddingBottom !== undefined && { paddingBottom: contentPaddingBottom },
+      ]}
       showsVerticalScrollIndicator={true}
     >
       {timeSlots.map((time, index) => {

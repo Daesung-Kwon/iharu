@@ -4,7 +4,7 @@
  */
 
 import React, { useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { MaterialColors, Typography, Spacing, Elevation, Shape } from '../constants/materialDesign';
 import { Schedule } from '../types';
 import { calculateDayStats } from '../utils/statsUtils';
@@ -15,6 +15,7 @@ interface HorizontalDatePickerProps {
   onDateSelect: (date: Date) => void;
   schedules: Schedule[]; // 모든 일정 데이터
   daysToShow?: number; // 표시할 날짜 수 (기본: 30일)
+  cardWidth?: number;
 }
 
 export default function HorizontalDatePicker({
@@ -22,8 +23,10 @@ export default function HorizontalDatePicker({
   onDateSelect,
   schedules,
   daysToShow = 30,
+  cardWidth = 80,
 }: HorizontalDatePickerProps) {
   const scrollViewRef = useRef<ScrollView>(null);
+  const { width: screenWidth } = useWindowDimensions();
   const today = new Date();
   
   // 과거 30일 + 오늘 + 미래 90일 (총 121일)
@@ -48,14 +51,12 @@ export default function HorizontalDatePicker({
     return schedules.find(s => s.date === dateString) || null;
   };
 
-  // 날짜 카드 너비
-  const CARD_WIDTH = 80;
+  const CARD_WIDTH = cardWidth;
   const CARD_MARGIN = 8;
 
   // 선택된 날짜로 자동 스크롤
   useEffect(() => {
     if (selectedIndex !== -1 && scrollViewRef.current) {
-      const screenWidth = Dimensions.get('window').width;
       const targetX = selectedIndex * (CARD_WIDTH + CARD_MARGIN * 2) - screenWidth / 2 + CARD_WIDTH / 2;
       
       setTimeout(() => {
@@ -65,7 +66,7 @@ export default function HorizontalDatePicker({
         });
       }, 100);
     }
-  }, [selectedDate]);
+  }, [selectedDate, CARD_WIDTH, screenWidth, selectedIndex]);
 
   const isToday = (date: Date): boolean => {
     return toLocalDateString(date) === toLocalDateString(today);
@@ -122,6 +123,8 @@ export default function HorizontalDatePicker({
         <TouchableOpacity
           style={[
             styles.dateCard,
+            { width: CARD_WIDTH },
+            CARD_WIDTH <= 56 && styles.dateCardCompact,
             selected && styles.dateCardSelected,
             todayDate && styles.dateCardToday,
             !selected && isSaturday && styles.dateCardSaturday,
@@ -272,6 +275,10 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
     borderWidth: 2,
     borderColor: 'transparent',
+  },
+  dateCardCompact: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: 4,
   },
   dateCardSelected: {
     backgroundColor: MaterialColors.primary[500],

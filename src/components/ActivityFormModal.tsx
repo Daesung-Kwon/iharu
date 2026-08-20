@@ -22,6 +22,7 @@ import { Activity, ActivityColor, ActivityCategory } from '../types';
 import { ActivityEmojis, EmojiList, EmojiToMaterialIcon } from '../constants/emojis';
 import { ActivityMaterialColors } from '../constants/materialDesign';
 import { SoftPopColors } from '../constants/theme';
+import { useLayout } from '../hooks/useLayout';
 
 interface ActivityFormModalProps {
   visible: boolean;
@@ -54,7 +55,9 @@ export default function ActivityFormModal({
   onSubmit,
 }: ActivityFormModalProps) {
   const insets = useSafeAreaInsets();
+  const { isCompact, space } = useLayout();
   const isEditMode = !!activity;
+  const emojiSize = isCompact ? 48 : 56;
 
   const [name, setName] = useState('');
   const [selectedEmoji, setSelectedEmoji] = useState('homework');
@@ -112,8 +115,7 @@ export default function ActivityFormModal({
     >
       <View style={styles.overlay}>
         <View style={styles.modalContainer}>
-          {/* Header */}
-          <View style={styles.header}>
+          <View style={[styles.header, { padding: space }]}>
             <Text style={styles.title}>
               {isEditMode ? '활동 수정' : '새 활동 추가'}
             </Text>
@@ -134,11 +136,11 @@ export default function ActivityFormModal({
           </View>
 
           <ScrollView
-            style={styles.content}
+            style={[styles.content, { padding: space }]}
             showsVerticalScrollIndicator={false}
           >
             {/* Activity Name */}
-            <View style={styles.section}>
+            <View style={[styles.section, isCompact && styles.sectionCompact]}>
               <Text style={styles.label}>활동 이름</Text>
               <TextInput
                 style={styles.textInput}
@@ -153,7 +155,7 @@ export default function ActivityFormModal({
             </View>
 
             {/* Emoji / Icon Selection (확장) */}
-            <View style={styles.section}>
+            <View style={[styles.section, isCompact && styles.sectionCompact]}>
               <View style={styles.emojiSectionHeader}>
                 <Text style={styles.label}>아이콘</Text>
                 <View style={styles.iconModeTabs}>
@@ -180,23 +182,24 @@ export default function ActivityFormModal({
                   </Pressable>
                 </View>
               </View>
-              <View style={styles.emojiGrid}>
+              <View style={[styles.emojiGrid, isCompact && styles.emojiGridCompact]}>
                 {EmojiList.map(({ key, emoji }) => (
                   <Pressable
                     key={key}
                     style={({ pressed }) => [
                       styles.emojiOption,
+                      { width: emojiSize, height: emojiSize },
                       selectedEmoji === key && styles.emojiOptionSelected,
                       pressed && styles.emojiOptionPressed
                     ]}
                     onPress={() => setSelectedEmoji(key)}
                   >
                     {iconPickerMode === 'emoji' ? (
-                      <Text style={styles.emojiText}>{emoji}</Text>
+                      <Text style={[styles.emojiText, isCompact && styles.emojiTextCompact]}>{emoji}</Text>
                     ) : (
                       <MaterialIcons
                         name={(EmojiToMaterialIcon[key] || 'circle') as React.ComponentProps<typeof MaterialIcons>['name']}
-                        size={32}
+                        size={isCompact ? 26 : 32}
                         color={selectedEmoji === key ? SoftPopColors.primary : SoftPopColors.text}
                       />
                     )}
@@ -206,7 +209,7 @@ export default function ActivityFormModal({
             </View>
 
             {/* Color Selection */}
-            <View style={styles.section}>
+            <View style={[styles.section, isCompact && styles.sectionCompact]}>
               <Text style={styles.label}>색상</Text>
               <View style={styles.colorGrid}>
                 {COLOR_OPTIONS.map((color) => {
@@ -217,6 +220,7 @@ export default function ActivityFormModal({
                       style={({ pressed }) => [
                         styles.colorOption,
                         { backgroundColor: colorScheme.main },
+                        isCompact && styles.colorOptionCompact,
                         selectedColor === color && styles.colorOptionSelected,
                         pressed && styles.colorOptionPressed
                       ]}
@@ -236,7 +240,7 @@ export default function ActivityFormModal({
             </View>
 
             {/* Category Selection (확장 - 아이콘 포함) */}
-            <View style={styles.section}>
+            <View style={[styles.section, isCompact && styles.sectionCompact]}>
               <Text style={styles.label}>카테고리</Text>
               <View style={styles.categoryGrid}>
                 {CATEGORY_OPTIONS.map(({ key, label, icon }) => (
@@ -268,7 +272,7 @@ export default function ActivityFormModal({
             </View>
 
             {/* Duration Selection */}
-            <View style={styles.section}>
+            <View style={[styles.section, isCompact && styles.sectionCompact]}>
               <Text style={styles.label}>소요 시간 (분)</Text>
               <View style={styles.durationGrid}>
                 {DURATION_OPTIONS.map((minutes) => (
@@ -298,6 +302,7 @@ export default function ActivityFormModal({
           {/* Footer Buttons */}
           <View style={[
             styles.footer,
+            { padding: space },
             Platform.OS === 'android' && {
               marginBottom: Math.max(insets.bottom, 16),
             }
@@ -393,6 +398,9 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 32,
   },
+  sectionCompact: {
+    marginBottom: 20,
+  },
   label: {
     fontSize: 18,
     fontWeight: Platform.OS === 'android' ? 'normal' : '600',
@@ -465,6 +473,9 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 12,
   },
+  emojiGridCompact: {
+    gap: 8,
+  },
   emojiOption: {
     width: 56,
     height: 56,
@@ -495,6 +506,14 @@ const styles = StyleSheet.create({
   },
   emojiText: {
     fontSize: 32,
+  },
+  emojiTextCompact: {
+    fontSize: 26,
+  },
+  colorOptionCompact: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   colorGrid: {
     flexDirection: 'row',

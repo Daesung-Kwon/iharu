@@ -4,9 +4,9 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, useWindowDimensions, Platform, Linking, AppState } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Platform, Linking, AppState } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSchedule } from '../contexts/ScheduleContext';
 import { AdBanner } from '../components/AdBanner';
@@ -20,6 +20,7 @@ import { toLocalDateString } from '../utils/dateUtils';
 import ActivityIcon from '../components/ActivityIcon';
 import Toast from '../components/Toast';
 import { SoftPopColors } from '../constants/theme';
+import { useLayout } from '../hooks/useLayout';
 import {
   getNotificationPermissionStatus,
   requestNotificationPermissions,
@@ -31,9 +32,15 @@ import {
 } from '../services/notificationService';
 
 export default function TodayScreen() {
-  const { width, height } = useWindowDimensions();
-  const isLandscape = width > height;
-  const insets = useSafeAreaInsets();
+  const {
+    isCompact,
+    isLandscape,
+    space,
+    titleSize,
+    dateCardWidth,
+    adBannerBottom,
+    contentPadWithAd,
+  } = useLayout();
   const {
     selectedDate,
     setSelectedDate,
@@ -297,27 +304,16 @@ export default function TodayScreen() {
         style={styles.scrollView}
         contentContainerStyle={[
           styles.content,
-          isLandscape && styles.contentLandscape,
-          {
-            // 동적 계산: 탭바 높이 + SafeArea bottom (OS별)
-            paddingBottom: (() => {
-              const TAB_BAR_HEIGHT = 68;
-              const AD_HEIGHT = 60; // Approximate ad height
-              const tabBarHeight = Platform.OS === 'android'
-                ? TAB_BAR_HEIGHT + Math.max(insets.bottom, 16) + 8
-                : TAB_BAR_HEIGHT + Math.max(insets.bottom, 10);
-              return tabBarHeight + AD_HEIGHT + 20; // Extra padding
-            })(),
-          }
+          { padding: space, paddingBottom: contentPadWithAd },
         ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header Section */}
-        <View style={styles.header}>
+        <View style={[styles.header, { padding: space, paddingBottom: isCompact ? 12 : 20 }]}>
           <View style={styles.headerContent}>
             <View style={styles.headerTop}>
               <View style={styles.headerTitleContainer}>
-                <Text style={styles.title}>
+                <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleSize + 8 }]}>
                   {isViewingToday ? '오늘의 일정' : '일정 이력'}
                 </Text>
                 <Text style={styles.selectedDateText}>
@@ -359,13 +355,14 @@ export default function TodayScreen() {
               selectedDate={selectedDate}
               onDateSelect={handleDateSelect}
               schedules={schedules}
+              cardWidth={dateCardWidth}
             />
           </View>
         </View>
 
         {/* Progress Card with Stats */}
         {scheduleItems.length > 0 && (
-          <View style={styles.progressCard}>
+          <View style={[styles.progressCard, { padding: space }]}>
             <View style={styles.progressCardHeader}>
               <Text style={styles.progressCardIcon}>
                 {isViewingPast ? '📊' : '⭐'}
@@ -589,9 +586,7 @@ export default function TodayScreen() {
       <AdBanner
         style={{
           position: 'absolute',
-          bottom: Platform.OS === 'android'
-            ? 68 + Math.max(insets.bottom, 16) + 8
-            : 68 + Math.max(insets.bottom, 10),
+          bottom: adBannerBottom,
           width: '100%',
           zIndex: 100,
           elevation: 10,
@@ -637,7 +632,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 32,
-    // paddingBottom은 동적으로 계산 (contentContainerStyle에서)
   },
   header: {
     padding: 32,
@@ -873,9 +867,6 @@ const styles = StyleSheet.create({
   },
   containerLandscape: {
     flexDirection: 'row',
-  },
-  contentLandscape: {
-    paddingHorizontal: 32,
   },
   emptyEmoji: {
     fontSize: 64,

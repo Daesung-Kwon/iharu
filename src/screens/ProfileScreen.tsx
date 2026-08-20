@@ -5,8 +5,8 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Switch, useWindowDimensions, Image, Platform } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Switch, Image, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import * as Sharing from 'expo-sharing';
@@ -29,11 +29,10 @@ import TermsModal from '../components/TermsModal';
 import PrivacyModal from '../components/PrivacyModal';
 import LicenseModal from '../components/LicenseModal';
 import { SoftPopColors } from '../constants/theme';
+import { useLayout } from '../hooks/useLayout';
 
 export default function ProfileScreen() {
-  const { width, height } = useWindowDimensions();
-  const isLandscape = width > height;
-  const insets = useSafeAreaInsets();
+  const { isCompact, isLandscape, space, adBannerBottom, contentPadWithAd } = useLayout();
   const { resetActivities, reloadFromStorage: reloadActivities } = useActivity();
   const { resetSchedules, schedules, reloadFromStorage: reloadSchedules } = useSchedule();
   const [notificationEnabled, setNotificationEnabled] = useState(false);
@@ -290,22 +289,12 @@ export default function ProfileScreen() {
         style={styles.scrollView}
         contentContainerStyle={[
           styles.content,
-          {
-            // 동적 계산: 탭바 높이 + SafeArea bottom (OS별)
-            paddingBottom: (() => {
-              const TAB_BAR_HEIGHT = 68;
-              const AD_HEIGHT = 60;
-              const tabBarHeight = Platform.OS === 'android'
-                ? TAB_BAR_HEIGHT + Math.max(insets.bottom, 16) + 8
-                : TAB_BAR_HEIGHT + Math.max(insets.bottom, 10);
-              return tabBarHeight + AD_HEIGHT + 20;
-            })(),
-          }
+          { padding: space, paddingBottom: contentPadWithAd },
         ]}
         showsVerticalScrollIndicator={false}
       >
         {/* 앱 정보 카드 */}
-        <View style={styles.appInfoCard}>
+        <View style={[styles.appInfoCard, isCompact && styles.appInfoCardCompact]}>
           <View style={styles.avatarContainer}>
             <Image
               source={require('../../assets/icon.png')}
@@ -318,7 +307,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* 설정 섹션 */}
-        <View style={styles.section}>
+        <View style={[styles.section, isCompact && styles.sectionCompact]}>
           <Text style={styles.sectionTitle}>설정</Text>
 
           {/* 알림 설정 */}
@@ -339,7 +328,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* 데이터 관리 섹션 */}
-        <View style={styles.section}>
+        <View style={[styles.section, isCompact && styles.sectionCompact]}>
           <Text style={styles.sectionTitle}>데이터 관리</Text>
 
           <Pressable
@@ -405,7 +394,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* 정보 섹션 */}
-        <View style={styles.section}>
+        <View style={[styles.section, isCompact && styles.sectionCompact]}>
           <Text style={styles.sectionTitle}>정보</Text>
 
           <Pressable
@@ -474,9 +463,7 @@ export default function ProfileScreen() {
       <AdBanner
         style={{
           position: 'absolute',
-          bottom: Platform.OS === 'android'
-            ? 68 + Math.max(insets.bottom, 16) + 8
-            : 68 + Math.max(insets.bottom, 10),
+          bottom: adBannerBottom,
           width: '100%',
         }}
       />
@@ -515,7 +502,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 32,
-    // paddingBottom은 동적으로 계산 (contentContainerStyle에서)
   },
   appInfoCard: {
     backgroundColor: SoftPopColors.white,
@@ -531,6 +517,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
+  },
+  appInfoCardCompact: {
+    padding: 24,
+    marginBottom: 16,
   },
   avatarContainer: {
     marginBottom: 20,
@@ -581,6 +571,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
+  },
+  sectionCompact: {
+    padding: 16,
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 20,

@@ -20,7 +20,7 @@ interface ActivityCardProps {
   width?: number;
 }
 
-const CARD_MIN_WIDTH = 120;
+const CARD_MIN_WIDTH = 140;
 
 export default function ActivityCard({ activity, onEdit, onDelete, width }: ActivityCardProps) {
   const colorScheme = ActivityMaterialColors[activity.colorKey];
