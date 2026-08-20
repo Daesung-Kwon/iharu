@@ -9,6 +9,7 @@ import { MaterialColors, Typography, Spacing, Elevation, Shape } from '../consta
 import { ChildFriendlyShape } from '../constants/childFriendlyColors';
 import { Schedule } from '../types';
 import { calculateDayStats } from '../utils/statsUtils';
+import { toLocalDateString } from '../utils/dateUtils';
 
 interface HorizontalDatePickerProps {
   selectedDate: Date;
@@ -39,12 +40,12 @@ export default function HorizontalDatePicker({
 
   // 선택된 날짜의 인덱스
   const selectedIndex = dates.findIndex(
-    date => date.toISOString().split('T')[0] === selectedDate.toISOString().split('T')[0]
+    date => toLocalDateString(date) === toLocalDateString(selectedDate)
   );
 
   // 특정 날짜의 일정 정보 가져오기
   const getScheduleForDate = (date: Date): Schedule | null => {
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = toLocalDateString(date);
     return schedules.find(s => s.date === dateString) || null;
   };
 
@@ -68,11 +69,11 @@ export default function HorizontalDatePicker({
   }, [selectedDate]);
 
   const isToday = (date: Date): boolean => {
-    return date.toISOString().split('T')[0] === today.toISOString().split('T')[0];
+    return toLocalDateString(date) === toLocalDateString(today);
   };
 
   const isSelected = (date: Date): boolean => {
-    return date.toISOString().split('T')[0] === selectedDate.toISOString().split('T')[0];
+    return toLocalDateString(date) === toLocalDateString(selectedDate);
   };
 
   const renderDateCard = (date: Date, index: number) => {

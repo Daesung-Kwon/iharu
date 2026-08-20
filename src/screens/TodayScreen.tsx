@@ -17,6 +17,7 @@ import HorizontalDatePicker from '../components/HorizontalDatePicker';
 import ClapAnimation from '../components/ClapAnimation';
 import { getItemStatus, getNextActivity, getCurrentActivity, getMinutesUntil, formatRemainingTime } from '../utils/timeUtils';
 import { calculateDayStats, isToday, isPast, isFuture } from '../utils/statsUtils';
+import { toLocalDateString } from '../utils/dateUtils';
 import ActivityIcon from '../components/ActivityIcon';
 
 // Soft Pop 3D 디자인 색상 팔레트
@@ -53,7 +54,7 @@ export default function TodayScreen() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [notifications, setNotifications] = useState<Record<string, boolean>>({});
 
-  const selectedDateString = selectedDate.toISOString().split('T')[0];
+  const selectedDateString = toLocalDateString(selectedDate);
   const isViewingToday = isToday(selectedDateString);
   const isViewingPast = isPast(selectedDateString);
   const isViewingFuture = isFuture(selectedDateString);

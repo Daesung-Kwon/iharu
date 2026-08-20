@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Schedule, ScheduleItem, Activity } from '../types';
+import { toLocalDateString } from '../utils/dateUtils';
 
 const STORAGE_KEY = '@daily_schedule_schedules';
 
@@ -73,7 +74,7 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [schedules, isLoaded]);
 
   const getScheduleForDate = useCallback((date: Date): Schedule | null => {
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = toLocalDateString(date);
     return schedules.find(s => s.date === dateString) || null;
   }, [schedules]);
 
@@ -84,7 +85,7 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     endTime: string,
     excludeItemId?: string
   ): boolean => {
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = toLocalDateString(date);
     const schedule = schedules.find(s => s.date === dateString);
     if (!schedule) return false;
 
@@ -111,7 +112,7 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     activity: Activity,
     startTime: string
   ) => {
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = toLocalDateString(date);
     const [hours, minutes] = startTime.split(':').map(Number);
     const startMinutes = hours * 60 + minutes;
     const endMinutes = startMinutes + activity.durationMinutes;
@@ -186,7 +187,7 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const removeAllScheduleItems = useCallback((date: Date) => {
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = toLocalDateString(date);
     setSchedules(prev =>
       prev.map(schedule =>
         schedule.date === dateString
@@ -197,8 +198,8 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const copyScheduleToDate = useCallback((sourceDate: Date, targetDate: Date): boolean => {
-    const sourceDateString = sourceDate.toISOString().split('T')[0];
-    const targetDateString = targetDate.toISOString().split('T')[0];
+    const sourceDateString = toLocalDateString(sourceDate);
+    const targetDateString = toLocalDateString(targetDate);
 
     const sourceSchedule = schedules.find(s => s.date === sourceDateString);
     if (!sourceSchedule || sourceSchedule.items.length === 0) {

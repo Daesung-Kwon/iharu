@@ -17,6 +17,7 @@ import { exportAllData, importAllData, clearAllData } from '../services/storage'
 import { requestNotificationPermissions, loadNotificationSettings, saveNotificationSettings } from '../services/notificationService';
 import { useActivity } from '../contexts/ActivityContext';
 import { useSchedule } from '../contexts/ScheduleContext';
+import { toLocalDateString } from '../utils/dateUtils';
 import TermsModal from '../components/TermsModal';
 import PrivacyModal from '../components/PrivacyModal';
 import LicenseModal from '../components/LicenseModal';
@@ -96,7 +97,7 @@ export default function ProfileScreen() {
       });
 
       const jsonString = JSON.stringify(data, null, 2);
-      const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
+      const timestamp = toLocalDateString(new Date()).replace(/-/g, '');
       const fileName = `i하루-백업-${timestamp}.json`;
 
       // documentDirectory 사용 (사용자가 접근 가능한 위치)
