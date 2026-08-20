@@ -94,8 +94,17 @@ export default function ProfileScreen() {
 
       const activityCount = data.activities.length;
       const scheduleCount = data.schedules.length;
+      const hasDeletedDefaults = data.deletedDefaultIds.length > 0;
+      const hasNotificationSettings = Object.keys(data.notificationSettings).length > 0;
+      const hasNonDefaultMaster = data.notificationsEnabled === false;
 
-      if (activityCount === 0 && scheduleCount === 0) {
+      if (
+        activityCount === 0
+        && scheduleCount === 0
+        && !hasDeletedDefaults
+        && !hasNotificationSettings
+        && !hasNonDefaultMaster
+      ) {
         Alert.alert('백업할 데이터 없음', '저장된 활동이나 일정이 없습니다.');
         return;
       }
@@ -214,13 +223,18 @@ export default function ProfileScreen() {
 
                 const success = await importAllData(data);
                 if (success) {
-                  await Promise.all([reloadActivities(), reloadSchedules()]);
+                  const [, restoredSchedules] = await Promise.all([
+                    reloadActivities(),
+                    reloadSchedules(),
+                  ]);
                   const enabled = await loadNotificationsMasterEnabled();
                   setNotificationEnabled(enabled);
+                  await cancelAllNotifications();
                   if (enabled) {
-                    await rescheduleUpcomingNotifications(data.schedules, data.notificationSettings);
-                  } else {
-                    await cancelAllNotifications();
+                    await rescheduleUpcomingNotifications(
+                      restoredSchedules,
+                      data.notificationSettings
+                    );
                   }
                   Alert.alert(
                     '복원 완료',

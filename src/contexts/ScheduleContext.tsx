@@ -34,7 +34,7 @@ interface ScheduleContextType {
   checkTimeConflict: (date: Date, startTime: string, endTime: string, excludeItemId?: string) => boolean;
   copyScheduleToDate: (sourceDate: Date, targetDate: Date, options?: CopyScheduleOptions) => boolean;
   resetSchedules: () => void; // 데이터 초기화용
-  reloadFromStorage: () => Promise<void>;
+  reloadFromStorage: () => Promise<Schedule[]>;
 }
 
 const ScheduleContext = createContext<ScheduleContextType | undefined>(undefined);
@@ -45,7 +45,7 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [selectedChildProfileId, setSelectedChildProfileId] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  const reloadFromStorage = useCallback(async () => {
+  const reloadFromStorage = useCallback(async (): Promise<Schedule[]> => {
     try {
       const stored = await AsyncStorage.getItem(KEYS.SCHEDULES);
       if (stored) {
@@ -56,11 +56,13 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (migrated !== parsed) {
           await AsyncStorage.setItem(KEYS.SCHEDULES, JSON.stringify(migrated));
         }
-      } else {
-        setSchedules([]);
+        return migrated;
       }
+      setSchedules([]);
+      return [];
     } catch (error) {
       console.error('Failed to load schedules:', error);
+      return [];
     }
   }, []);
 

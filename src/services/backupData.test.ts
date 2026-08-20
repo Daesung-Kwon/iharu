@@ -55,6 +55,24 @@ describe('isValidAppData', () => {
     assert.equal(isValidAppData({ ...validAppData, notificationsEnabled: 'true' }), false);
     assert.equal(isValidAppData({ ...validAppData, lastSync: 123 }), false);
   });
+
+  it('rejects garbage nested activities and schedules', () => {
+    assert.equal(isValidAppData({ ...validAppData, activities: [{}] }), false);
+    assert.equal(isValidAppData({ ...validAppData, activities: [null] }), false);
+    assert.equal(isValidAppData({ ...validAppData, activities: [{ id: 1, name: '숙제' }] }), false);
+    assert.equal(isValidAppData({ ...validAppData, activities: [{ name: '숙제' }] }), false);
+    assert.equal(isValidAppData({ ...validAppData, schedules: [{}] }), false);
+    assert.equal(isValidAppData({ ...validAppData, schedules: [null] }), false);
+    assert.equal(isValidAppData({ ...validAppData, schedules: [{ date: '2026-08-20' }] }), false);
+    assert.equal(isValidAppData({
+      ...validAppData,
+      schedules: [{ date: '2026-08-20', items: 'nope' }],
+    }), false);
+    assert.equal(isValidAppData({
+      ...validAppData,
+      schedules: [{ date: '2026-08-20', items: [null] }],
+    }), false);
+  });
 });
 
 describe('parseBackupData', () => {
@@ -108,6 +126,18 @@ describe('parseBackupData', () => {
       activities: [],
       schedules: [],
       notificationsEnabled: 'false',
+    }), null);
+    assert.equal(parseBackupData({
+      version: '1.0.0',
+      userId: 'user-1',
+      activities: [{ id: 'activity-1' }],
+      schedules: [],
+    }), null);
+    assert.equal(parseBackupData({
+      version: '1.0.0',
+      userId: 'user-1',
+      activities: [],
+      schedules: [{ id: 'schedule-1', date: '2026-08-20', items: [{}] }],
     }), null);
   });
 

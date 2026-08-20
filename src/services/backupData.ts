@@ -28,13 +28,30 @@ function isNotificationSettings(value: unknown): value is Record<string, boolean
   return Object.values(value).every(item => typeof item === 'boolean');
 }
 
+function isActivityEntry(value: unknown): boolean {
+  return isRecord(value)
+    && typeof value.id === 'string'
+    && typeof value.name === 'string';
+}
+
+function isScheduleItemEntry(value: unknown): boolean {
+  return isRecord(value) && typeof value.id === 'string';
+}
+
+function isScheduleEntry(value: unknown): boolean {
+  return isRecord(value)
+    && typeof value.date === 'string'
+    && Array.isArray(value.items)
+    && value.items.every(isScheduleItemEntry);
+}
+
 /** True only when every AppData field is present with the right JSON types. */
 export function isValidAppData(value: unknown): value is AppData {
   if (!isRecord(value)) return false;
   if (typeof value.version !== 'string' || value.version.length === 0) return false;
   if (typeof value.userId !== 'string') return false;
-  if (!Array.isArray(value.activities)) return false;
-  if (!Array.isArray(value.schedules)) return false;
+  if (!Array.isArray(value.activities) || !value.activities.every(isActivityEntry)) return false;
+  if (!Array.isArray(value.schedules) || !value.schedules.every(isScheduleEntry)) return false;
   if (!isStringArray(value.deletedDefaultIds)) return false;
   if (!isNotificationSettings(value.notificationSettings)) return false;
   if (typeof value.notificationsEnabled !== 'boolean') return false;
