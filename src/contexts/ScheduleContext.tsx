@@ -6,7 +6,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Schedule, ScheduleItem, Activity } from '../types';
-import { migrateUtcSlicedScheduleDates, toLocalDateString, UTC_DATE_MIGRATION_KEY } from '../utils/dateUtils';
+import { migrateUtcSlicedScheduleDates, toLocalDateString } from '../utils/dateUtils';
 
 const STORAGE_KEY = '@daily_schedule_schedules';
 
@@ -42,23 +42,14 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const loadSchedules = async () => {
       try {
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
-        const alreadyMigrated = await AsyncStorage.getItem(UTC_DATE_MIGRATION_KEY);
         if (stored) {
           const parsed: Schedule[] = JSON.parse(stored);
-          if (alreadyMigrated === '1') {
-            console.log('Schedules loaded from storage:', parsed.length);
-            setSchedules(parsed);
-          } else {
-            const migrated = migrateUtcSlicedScheduleDates(parsed);
-            console.log('Schedules loaded from storage:', migrated.length);
-            setSchedules(migrated);
-            if (migrated !== parsed) {
-              await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
-            }
-            await AsyncStorage.setItem(UTC_DATE_MIGRATION_KEY, '1');
+          const migrated = migrateUtcSlicedScheduleDates(parsed);
+          console.log('Schedules loaded from storage:', migrated.length);
+          setSchedules(migrated);
+          if (migrated !== parsed) {
+            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
           }
-        } else if (alreadyMigrated !== '1') {
-          await AsyncStorage.setItem(UTC_DATE_MIGRATION_KEY, '1');
         }
       } catch (error) {
         console.error('Failed to load schedules:', error);
@@ -165,6 +156,7 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           userId: 'current-user', // TODO: 실제 사용자 ID로 교체
           childProfileId: selectedChildProfileId || 'default',
           date: dateString,
+          dateKind: 'local',
           items: [newItem],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -241,6 +233,7 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       userId: sourceSchedule.userId,
       childProfileId: sourceSchedule.childProfileId,
       date: targetDateString,
+      dateKind: 'local',
       items: copiedItems,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

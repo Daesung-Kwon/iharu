@@ -47,13 +47,27 @@ describe('migrateUtcSlicedScheduleDates', () => {
     }];
     const migrated = migrateUtcSlicedScheduleDates(schedules);
     assert.equal(migrated[0].date, '2026-08-20');
+    assert.equal(migrated[0].dateKind, 'local');
     assert.equal(migrated[0].createdAt, '2026-08-19T16:00:00.000Z');
   });
 
-  it('is idempotent after the date has been rewritten', () => {
+  it('migrates an unmarked row once; a second pass is a no-op', () => {
     const schedules = [{
-      date: '2026-08-20',
+      date: '2026-08-19',
       createdAt: '2026-08-19T16:00:00.000Z',
+    }];
+    const once = migrateUtcSlicedScheduleDates(schedules);
+    assert.equal(once[0].date, '2026-08-20');
+    assert.equal(once[0].dateKind, 'local');
+    const twice = migrateUtcSlicedScheduleDates(once);
+    assert.equal(twice, once);
+  });
+
+  it('never shifts a row already marked dateKind local', () => {
+    const schedules = [{
+      date: '2026-08-25',
+      createdAt: '2026-08-19T22:00:00.000Z',
+      dateKind: 'local' as const,
     }];
     const migrated = migrateUtcSlicedScheduleDates(schedules);
     assert.equal(migrated, schedules);
@@ -84,6 +98,7 @@ describe('migrateUtcSlicedScheduleDates', () => {
     ];
     const migrated = migrateUtcSlicedScheduleDates(schedules);
     assert.deepEqual(migrated.map(schedule => schedule.date), ['2026-08-20', '2026-08-21']);
+    assert.deepEqual(migrated.map(schedule => schedule.dateKind), ['local', 'local']);
   });
 
   it('shifts a future-day morning UTC key one local day forward', () => {
@@ -93,6 +108,7 @@ describe('migrateUtcSlicedScheduleDates', () => {
     }];
     const migrated = migrateUtcSlicedScheduleDates(schedules);
     assert.equal(migrated[0].date, '2026-08-25');
+    assert.equal(migrated[0].dateKind, 'local');
     assert.equal(migrated[0].createdAt, '2026-08-19T22:00:00.000Z');
   });
 });

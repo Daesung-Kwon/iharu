@@ -6,7 +6,6 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Activity, Schedule } from '../types';
-import { UTC_DATE_MIGRATION_KEY } from '../utils/dateUtils';
 
 const KEYS = {
   APP_VERSION: '@app_version',
@@ -63,9 +62,7 @@ export const importAllData = async (data: AppData): Promise<boolean> => {
       AsyncStorage.setItem(KEYS.USER_ID, data.userId),
       AsyncStorage.setItem(KEYS.APP_VERSION, data.version),
     ]);
-    // Next cold start should migrate UTC-sliced keys in a pre-fix backup.
-    await AsyncStorage.removeItem(UTC_DATE_MIGRATION_KEY);
-
+    
     console.log('Data imported successfully');
     return true;
   } catch (error) {
@@ -85,7 +82,6 @@ export const clearAllData = async (): Promise<boolean> => {
       KEYS.SETTINGS,
       KEYS.LAST_SYNC,
       '@daily_schedule_notifications', // 알림 설정도 삭제
-      UTC_DATE_MIGRATION_KEY,
     ]);
     
     console.log('All data cleared');

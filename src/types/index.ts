@@ -63,6 +63,7 @@ export interface Schedule {
   userId: string;
   childProfileId: string;
   date: string; // "YYYY-MM-DD" 형식
+  dateKind?: 'local'; // set on new writes and after UTC-key migration
   items: ScheduleItem[];
   createdAt: string;
   updatedAt: string;

@@ -1,8 +1,5 @@
 import { format } from 'date-fns';
 
-/** Load-path guard so future morning keys are not +1 on every cold start. */
-export const UTC_DATE_MIGRATION_KEY = '@daily_schedule_utc_date_keys_migrated';
-
 /** Local YYYY-MM-DD — UTC ISO slicing maps KST 00:00–08:59 to yesterday. */
 export const toLocalDateString = (date: Date): string => {
   return format(date, 'yyyy-MM-dd');
@@ -13,9 +10,15 @@ const addOneLocalDay = (dateString: string): string => {
   return toLocalDateString(new Date(year, month - 1, day + 1));
 };
 
-/** KST-morning UTC keys (createdAt hour ≥ 15) that are not already on createdAt's local day. */
-const isUtcSlicedMorningRow = (schedule: { date: string; createdAt: string }): boolean => {
-  if (!schedule.createdAt) {
+type MigratableSchedule = {
+  date: string;
+  createdAt: string;
+  dateKind?: 'local';
+};
+
+/** Unmarked KST-morning UTC keys (createdAt hour ≥ 15) that are not already on createdAt's local day. */
+const isUtcSlicedMorningRow = (schedule: MigratableSchedule): boolean => {
+  if (schedule.dateKind === 'local' || !schedule.createdAt) {
     return false;
   }
   const created = new Date(schedule.createdAt);
@@ -27,11 +30,11 @@ const isUtcSlicedMorningRow = (schedule: { date: string; createdAt: string }): b
 
 /**
  * Move leftover KST-morning UTC keys one local day forward.
- * Occupied dates are rows that will not migrate; migrants are not treated as occupants.
+ * Occupancy leftovers stay unmarked; successful rewrites set dateKind local.
  */
-export const migrateUtcSlicedScheduleDates = <T extends { date: string; createdAt: string }>(
+export const migrateUtcSlicedScheduleDates = <T extends MigratableSchedule>(
   schedules: T[]
-): T[] => {
+): Array<T & { dateKind?: 'local' }> => {
   const occupied = new Set(
     schedules.filter(schedule => !isUtcSlicedMorningRow(schedule)).map(schedule => schedule.date)
   );
@@ -46,7 +49,7 @@ export const migrateUtcSlicedScheduleDates = <T extends { date: string; createdA
     }
     occupied.add(localDate);
     changed = true;
-    return { ...schedule, date: localDate };
+    return { ...schedule, date: localDate, dateKind: 'local' as const };
   });
   return changed ? next : schedules;
 };
