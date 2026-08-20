@@ -15,16 +15,7 @@ import TodayScreen from '../screens/TodayScreen';
 import PlanScheduleScreen from '../screens/PlanScheduleScreen';
 import ActivitiesScreen from '../screens/ActivitiesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-
-// Soft Pop 3D 디자인 색상 팔레트
-const SoftPopColors = {
-  background: '#FFF9F0', // Cream
-  primary: '#FF6B6B', // Soft Red
-  secondary: '#FFD93D', // Banana Yellow
-  text: '#2D3436', // Soft Black
-  textSecondary: '#636E72', // Soft Gray
-  white: '#FFFFFF',
-};
+import { SoftPopColors } from '../constants/theme';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 

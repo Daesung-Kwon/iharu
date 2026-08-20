@@ -6,7 +6,6 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { MaterialColors, Typography, Spacing, Elevation, Shape } from '../constants/materialDesign';
-import { ChildFriendlyShape } from '../constants/childFriendlyColors';
 import { Schedule } from '../types';
 import { calculateDayStats } from '../utils/statsUtils';
 import { toLocalDateString } from '../utils/dateUtils';
@@ -206,7 +205,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: MaterialColors.surface.default,
     paddingVertical: Spacing.md,
-    borderRadius: ChildFriendlyShape.medium,
+    borderRadius: Shape.extraLarge,
     overflow: 'hidden',
     ...Elevation[1],
   },

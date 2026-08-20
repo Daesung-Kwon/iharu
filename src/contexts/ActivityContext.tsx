@@ -45,8 +45,7 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const activities = React.useMemo(() => {
     const customIds = new Set(customActivities.map(a => {
       // 기본 활동에서 변환된 활동은 원본 기본 활동 ID를 추적
-      const originalId = (a as any).originalDefaultId || a.id;
-      return originalId;
+      return a.originalDefaultId || a.id;
     }));
     
     // 기본 활동 중 커스텀으로 변환되지 않고 삭제되지 않은 것만 포함
@@ -63,7 +62,9 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const stored = await AsyncStorage.getItem(KEYS.ACTIVITIES);
       if (stored) {
         const parsed = JSON.parse(stored);
-        console.log('Activities loaded from storage:', parsed.length);
+        if (__DEV__) {
+          console.log('Activities loaded from storage:', parsed.length);
+        }
         setCustomActivities(parsed);
       } else {
         setCustomActivities([]);
@@ -72,7 +73,9 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const deletedStored = await AsyncStorage.getItem(KEYS.DELETED_DEFAULTS);
       if (deletedStored) {
         const deletedIds = JSON.parse(deletedStored);
-        console.log('Deleted default activities loaded:', deletedIds.length);
+        if (__DEV__) {
+          console.log('Deleted default activities loaded:', deletedIds.length);
+        }
         setDeletedDefaultIds(new Set(deletedIds));
       } else {
         setDeletedDefaultIds(new Set());
@@ -97,7 +100,9 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const saveActivities = async () => {
         try {
           await AsyncStorage.setItem(KEYS.ACTIVITIES, JSON.stringify(customActivities));
-          console.log('Activities saved to storage:', customActivities.length);
+          if (__DEV__) {
+            console.log('Activities saved to storage:', customActivities.length);
+          }
         } catch (error) {
           console.error('Failed to save activities:', error);
         }
@@ -113,7 +118,9 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const saveDeletedDefaults = async () => {
         try {
           await AsyncStorage.setItem(KEYS.DELETED_DEFAULTS, JSON.stringify(Array.from(deletedDefaultIds)));
-          console.log('Deleted default activities saved:', deletedDefaultIds.size);
+          if (__DEV__) {
+            console.log('Deleted default activities saved:', deletedDefaultIds.size);
+          }
         } catch (error) {
           console.error('Failed to save deleted default activities:', error);
         }
@@ -145,7 +152,7 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (defaultActivity) {
         // 이미 커스텀 활동으로 변환된 것이 있는지 확인
         const existingCustom = customActivities.find(a => {
-          const originalId = (a as any).originalDefaultId || a.id;
+          const originalId = a.originalDefaultId || a.id;
           return originalId === activityId;
         });
         
@@ -153,7 +160,7 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           // 이미 변환된 활동이 있으면 업데이트
           setCustomActivities(prev =>
             prev.map(activity => {
-              const originalId = (activity as any).originalDefaultId || activity.id;
+              const originalId = activity.originalDefaultId || activity.id;
               return originalId === activityId
                 ? { ...activity, ...updates, updatedAt: new Date().toISOString() }
                 : activity;
@@ -161,7 +168,7 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           );
         } else {
           // 새로운 커스텀 활동으로 추가 (원본 기본 활동 ID 추적)
-          const updatedActivity: Activity & { originalDefaultId?: string } = {
+          const updatedActivity: Activity = {
             ...defaultActivity,
             ...updates,
             id: `activity-${Date.now()}-${Math.random()}`, // 새로운 ID 생성
@@ -195,7 +202,7 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // 해당 기본 활동에서 변환된 커스텀 활동도 함께 삭제
       setCustomActivities(prev => 
         prev.filter(activity => {
-          const originalId = (activity as any).originalDefaultId || activity.id;
+          const originalId = activity.originalDefaultId || activity.id;
           return originalId !== activityId;
         })
       );
@@ -203,7 +210,7 @@ export const ActivityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // 커스텀 활동 삭제
       setCustomActivities(prev => 
         prev.filter(activity => {
-          const originalId = (activity as any).originalDefaultId || activity.id;
+          const originalId = activity.originalDefaultId || activity.id;
           return activity.id !== activityId && originalId !== activityId;
         })
       );

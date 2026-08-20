@@ -19,18 +19,7 @@ import { calculateDayStats, isToday, isPast, isFuture } from '../utils/statsUtil
 import { toLocalDateString } from '../utils/dateUtils';
 import ActivityIcon from '../components/ActivityIcon';
 import Toast from '../components/Toast';
-
-// Soft Pop 3D 디자인 색상 팔레트
-const SoftPopColors = {
-  background: '#FFF9F0', // Cream
-  primary: '#FF6B6B', // Soft Red
-  secondary: '#FFD93D', // Banana Yellow
-  text: '#2D3436', // Soft Black
-  textSecondary: '#636E72', // Soft Gray
-  white: '#FFFFFF',
-  success: '#6BCB77',
-  error: '#FF6B6B',
-};
+import { SoftPopColors } from '../constants/theme';
 import {
   getNotificationPermissionStatus,
   requestNotificationPermissions,

@@ -34,6 +34,7 @@ export interface Activity {
   durationMinutes: number; // 10분 단위
   category: ActivityCategory;
   isDefault: boolean;
+  originalDefaultId?: string; // 기본 활동에서 변환된 커스텀 활동의 원본 ID
   createdAt: string;
   updatedAt: string;
 }

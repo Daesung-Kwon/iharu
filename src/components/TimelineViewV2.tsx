@@ -10,18 +10,7 @@ import { TIMELINE_CONFIG } from '../constants/config';
 import { ScheduleItem, Activity } from '../types';
 import ActivityIcon from './ActivityIcon';
 import { ActivityMaterialColors } from '../constants/materialDesign';
-
-// Soft Pop 3D 디자인 색상 팔레트
-const SoftPopColors = {
-  background: '#FFF9F0', // Cream
-  primary: '#FF6B6B', // Soft Red
-  secondary: '#FFD93D', // Banana Yellow
-  text: '#2D3436', // Soft Black
-  textSecondary: '#636E72', // Soft Gray
-  white: '#FFFFFF',
-  error: '#FF6B6B',
-  success: '#6BCB77',
-};
+import { SoftPopColors } from '../constants/theme';
 
 interface TimelineViewV2Props {
   scheduleItems: ScheduleItem[];

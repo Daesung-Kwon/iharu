@@ -3,10 +3,9 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
-import { Text, TextProps } from 'react-native';
+import { Text } from 'react-native';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { ActivityProvider } from './src/contexts/ActivityContext';
 import { ScheduleProvider } from './src/contexts/ScheduleContext';
@@ -17,15 +16,6 @@ import mobileAds, { MaxAdContentRating } from 'react-native-google-mobile-ads';
 // 스플래시 스크린을 유지하도록 설정
 SplashScreen.preventAutoHideAsync();
 
-
-const queryClient = new QueryClient({
-    defaultOptions: {
-        queries: {
-            retry: 1,
-            refetchOnWindowFocus: false,
-        },
-    },
-});
 
 export default function App() {
     // 주아체 폰트 로드
@@ -49,7 +39,9 @@ export default function App() {
                     tagForChildDirectedTreatment: true,
                 });
                 const adapterStatuses = await mobileAds().initialize();
-                console.log('📱 Google Mobile Ads SDK initialized:', adapterStatuses);
+                if (__DEV__) {
+                    console.log('📱 Google Mobile Ads SDK initialized:', adapterStatuses);
+                }
                 if (!cancelled) setAdsReady(true);
             } catch (error) {
                 console.warn('⚠️ Google Mobile Ads SDK initialization failed:', error);
@@ -64,7 +56,9 @@ export default function App() {
 
     useEffect(() => {
         if (fontsLoaded) {
-            console.log('✅ 주아체 폰트 로드 성공: BMJUA');
+            if (__DEV__) {
+                console.log('✅ 주아체 폰트 로드 성공: BMJUA');
+            }
             // 전역 Text 컴포넌트에 폰트 적용
             // @ts-ignore
             if (Text.defaultProps) {
@@ -73,8 +67,10 @@ export default function App() {
             }
             SplashScreen.hideAsync();
         } else if (fontError) {
-            console.warn('❌ 주아체 폰트 로드 실패:', fontError);
-            console.warn('시스템 기본 폰트를 사용합니다.');
+            if (__DEV__) {
+                console.warn('❌ 주아체 폰트 로드 실패:', fontError);
+                console.warn('시스템 기본 폰트를 사용합니다.');
+            }
             SplashScreen.hideAsync();
         }
     }, [fontsLoaded, fontError]);
@@ -85,31 +81,28 @@ export default function App() {
     }
 
     // 폰트 로드 에러가 있어도 앱은 계속 실행 (시스템 폰트 사용)
-    if (fontError) {
+    if (fontError && __DEV__) {
         console.warn('주아체 폰트 로드 실패:', fontError);
         console.warn('시스템 기본 폰트를 사용합니다. assets/fonts/BMJUA_ttf.ttf 파일을 확인하세요.');
     }
 
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
-            <QueryClientProvider client={queryClient}>
-                <SafeAreaProvider>
-                    <NavigationContainer>
-                        <AdsReadyProvider ready={adsReady}>
-                            <ActivityProvider>
-                                <ScheduleProvider>
-                                    <StatusBar style="auto" />
-                                    {adsConfigFinished && <AppNavigator />}
-                                    {(!isSplashFinished || !adsConfigFinished) && (
-                                        <CustomSplashScreen onFinish={() => setIsSplashFinished(true)} />
-                                    )}
-                                </ScheduleProvider>
-                            </ActivityProvider>
-                        </AdsReadyProvider>
-                    </NavigationContainer>
-                </SafeAreaProvider>
-            </QueryClientProvider>
+            <SafeAreaProvider>
+                <NavigationContainer>
+                    <AdsReadyProvider ready={adsReady}>
+                        <ActivityProvider>
+                            <ScheduleProvider>
+                                <StatusBar style="auto" />
+                                {adsConfigFinished && <AppNavigator />}
+                                {(!isSplashFinished || !adsConfigFinished) && (
+                                    <CustomSplashScreen onFinish={() => setIsSplashFinished(true)} />
+                                )}
+                            </ScheduleProvider>
+                        </ActivityProvider>
+                    </AdsReadyProvider>
+                </NavigationContainer>
+            </SafeAreaProvider>
         </GestureHandlerRootView>
     );
 }
-
