@@ -11,6 +11,7 @@ import { Activity } from '../types';
 import ActivityIcon from './ActivityIcon';
 import { ActivityMaterialColors } from '../constants/materialDesign';
 import { SoftPopColors } from '../constants/theme';
+import { ACTIVITY_CARD_MIN_WIDTH } from '../hooks/layoutMetrics';
 
 interface ActivityCardProps {
   activity: Activity;
@@ -20,11 +21,9 @@ interface ActivityCardProps {
   width?: number;
 }
 
-const CARD_MIN_WIDTH = 140;
-
 export default function ActivityCard({ activity, onEdit, onDelete, width }: ActivityCardProps) {
   const colorScheme = ActivityMaterialColors[activity.colorKey];
-  const cardWidth = width !== undefined ? Math.max(width, CARD_MIN_WIDTH) : undefined;
+  const cardWidth = width !== undefined ? Math.max(width, ACTIVITY_CARD_MIN_WIDTH) : undefined;
 
   return (
     <View

@@ -97,7 +97,7 @@ export default function DraggableActivityCard({
         <Pressable
             onPress={handlePress}
             onLongPress={handleLongPress}
-            delayLongPress={500}
+            delayLongPress={isChip ? 200 : 500} // Horizontal chip scroller steals a 500ms press
             style={isChip ? styles.chipPressable : undefined}
         >
             {({ pressed }) => (
@@ -130,7 +130,7 @@ export default function DraggableActivityCard({
                         <View style={[styles.emojiContainer, isChip && styles.chipEmoji]}>
                             <ActivityIcon
                                 activity={activity}
-                                size={isChip ? 28 : 36}
+                                size={isChip ? 32 : 36}
                                 color={SoftPopColors.text}
                             />
                         </View>
@@ -257,14 +257,14 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     chipPressable: {
-        width: 96,
+        width: 112,
     },
     chip: {
-        width: 96,
+        width: 112,
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 10,
+        padding: 12,
         marginBottom: 0,
         minHeight: 0,
         gap: 4,
@@ -273,9 +273,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     chipEmoji: {
-        width: 44,
-        height: 44,
-        borderRadius: 12,
+        width: 52,
+        height: 52,
+        borderRadius: 14,
     },
     chipInfo: {
         flex: 0,

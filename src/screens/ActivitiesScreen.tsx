@@ -15,8 +15,6 @@ import { Activity } from '../types';
 import { SoftPopColors } from '../constants/theme';
 import { useLayout } from '../hooks/useLayout';
 
-const ACTIVITY_CARD_MIN_WIDTH = 140;
-
 export default function ActivitiesScreen() {
   const {
     width,
@@ -35,10 +33,8 @@ export default function ActivitiesScreen() {
 
   const GAP = isCompact ? 12 : 20;
   const contentPadding = space * 2;
-  const cardWidth = Math.max(
-    ACTIVITY_CARD_MIN_WIDTH,
-    (width - contentPadding - GAP * (activityColumns - 1)) / activityColumns,
-  );
+  const cardWidth =
+    (width - contentPadding - GAP * (activityColumns - 1)) / activityColumns;
 
   const handleAddActivity = () => {
     setEditingActivity(null);

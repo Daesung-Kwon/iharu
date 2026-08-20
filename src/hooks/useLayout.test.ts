@@ -37,4 +37,28 @@ describe('getLayoutMetrics', () => {
     assert.equal(layout.isLandscape, true);
     assert.equal(layout.activityColumns, 6);
   });
+
+  it('treats 767 as compact and 769 as regular', () => {
+    const compact = getLayoutMetrics(767, 1024);
+    const regular = getLayoutMetrics(769, 1024);
+    assert.equal(compact.isCompact, true);
+    assert.equal(compact.activityColumns, 2);
+    assert.equal(regular.isCompact, false);
+    assert.equal(regular.activityColumns, 4);
+  });
+
+  it('keeps phone landscape compact so 844×390 stays one-column', () => {
+    const layout = getLayoutMetrics(844, 390);
+    assert.equal(layout.isCompact, true);
+    assert.equal(layout.isLandscape, true);
+    assert.equal(layout.space, 16);
+    assert.equal(layout.activityColumns, 3);
+  });
+
+  it('does not claim six columns when 140px cards cannot fit', () => {
+    const layout = getLayoutMetrics(800, 768);
+    assert.equal(layout.isCompact, false);
+    assert.equal(layout.isLandscape, true);
+    assert.equal(layout.activityColumns, 4);
+  });
 });

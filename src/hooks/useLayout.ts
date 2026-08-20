@@ -12,7 +12,9 @@ import {
 } from './layoutMetrics';
 
 export {
+  ACTIVITY_CARD_MIN_WIDTH,
   AD_BANNER_HEIGHT,
+  getFittedActivityColumns,
   getLayoutMetrics,
   TAB_BAR_HEIGHT,
 } from './layoutMetrics';

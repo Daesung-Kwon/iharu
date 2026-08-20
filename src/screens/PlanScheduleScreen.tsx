@@ -156,8 +156,8 @@ export default function PlanScheduleScreen() {
               draggingActivity && styles.dropZoneTextActive
             ]}>
               {draggingActivity
-                ? `${draggingActivity.name}을(를) 여기에 놓으세요!`
-                : '활동을 길게 누른 뒤 여기에 놓아보세요!'
+                ? `${draggingActivity.name}을(를) 추가하려면 여기를 탭하세요`
+                : '활동을 길게 누른 뒤 여기를 탭하세요'
               }
             </Text>
           </Pressable>
@@ -212,7 +212,7 @@ export default function PlanScheduleScreen() {
           }
         ]}>
           <Text style={styles.draggingText}>
-            {draggingActivity.name}을(를) 타임라인에 놓으세요
+            {draggingActivity.name}을(를) 타임라인에서 탭하세요
           </Text>
           <Pressable
             style={({ pressed }) => [
@@ -288,7 +288,15 @@ export default function PlanScheduleScreen() {
 
       {isCompact ? (
         // Phone widths cannot fit activity list + timeline side by side
-        <View style={[styles.contentCompact, { paddingHorizontal: space, gap: 12 }]}>
+        <ScrollView
+          style={styles.contentCompact}
+          contentContainerStyle={[
+            styles.contentCompactInner,
+            { paddingHorizontal: space, gap: 12 },
+          ]}
+          nestedScrollEnabled
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={[styles.activityChipsPanel, { padding: 12 }]}>
             <View style={[styles.instructionBanner, styles.instructionBannerCompact]}>
               <MaterialIcons
@@ -305,6 +313,7 @@ export default function PlanScheduleScreen() {
             ) : (
               <ScrollView
                 horizontal
+                nestedScrollEnabled
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.activityChipsContent}
               >
@@ -382,7 +391,7 @@ export default function PlanScheduleScreen() {
             </View>
             {renderScheduleBody()}
           </View>
-        </View>
+        </ScrollView>
       ) : (
         <View style={[styles.content, { padding: space, gap: space }]}>
           <View style={[styles.activityListPanel, { padding: 24 }]}>
@@ -580,8 +589,11 @@ const styles = StyleSheet.create({
   },
   contentCompact: {
     flex: 1,
-    flexDirection: 'column',
     minHeight: 0,
+  },
+  contentCompactInner: {
+    flexGrow: 1,
+    flexDirection: 'column',
   },
   activityListPanel: {
     flex: 1,
@@ -637,6 +649,7 @@ const styles = StyleSheet.create({
   schedulePanelCompact: {
     flex: 1,
     maxWidth: '100%',
+    minHeight: 180,
   },
   panelHeader: {
     flexDirection: 'row',
