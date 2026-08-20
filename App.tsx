@@ -10,6 +10,7 @@ import { Text, TextProps } from 'react-native';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { ActivityProvider } from './src/contexts/ActivityContext';
 import { ScheduleProvider } from './src/contexts/ScheduleContext';
+import { AdsReadyProvider } from './src/contexts/AdsReadyContext';
 import CustomSplashScreen from './src/screens/SplashScreen';
 import mobileAds, { MaxAdContentRating } from 'react-native-google-mobile-ads';
 
@@ -35,21 +36,30 @@ export default function App() {
     });
 
     const [isSplashFinished, setIsSplashFinished] = React.useState(false);
+    const [adsConfigFinished, setAdsConfigFinished] = React.useState(false);
+    const [adsReady, setAdsReady] = React.useState(false);
 
-    // RequestOptions에 maxAdContentRating이 없어 초기화 전에 G등급·아동 대상으로 설정
+    // 첫 배너가 TFCD/G 없이 나가지 않도록 설정·초기화가 끝난 뒤에만 네비게이션/배너를 마운트
     useEffect(() => {
-        mobileAds()
-            .setRequestConfiguration({
-                maxAdContentRating: MaxAdContentRating.G,
-                tagForChildDirectedTreatment: true,
-            })
-            .then(() => mobileAds().initialize())
-            .then(adapterStatuses => {
+        let cancelled = false;
+        (async () => {
+            try {
+                await mobileAds().setRequestConfiguration({
+                    maxAdContentRating: MaxAdContentRating.G,
+                    tagForChildDirectedTreatment: true,
+                });
+                const adapterStatuses = await mobileAds().initialize();
                 console.log('📱 Google Mobile Ads SDK initialized:', adapterStatuses);
-            })
-            .catch(error => {
+                if (!cancelled) setAdsReady(true);
+            } catch (error) {
                 console.warn('⚠️ Google Mobile Ads SDK initialization failed:', error);
-            });
+            } finally {
+                if (!cancelled) setAdsConfigFinished(true);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     useEffect(() => {
@@ -85,15 +95,17 @@ export default function App() {
             <QueryClientProvider client={queryClient}>
                 <SafeAreaProvider>
                     <NavigationContainer>
-                        <ActivityProvider>
-                            <ScheduleProvider>
-                                <StatusBar style="auto" />
-                                <AppNavigator />
-                                {!isSplashFinished && (
-                                    <CustomSplashScreen onFinish={() => setIsSplashFinished(true)} />
-                                )}
-                            </ScheduleProvider>
-                        </ActivityProvider>
+                        <AdsReadyProvider ready={adsReady}>
+                            <ActivityProvider>
+                                <ScheduleProvider>
+                                    <StatusBar style="auto" />
+                                    {adsConfigFinished && <AppNavigator />}
+                                    {(!isSplashFinished || !adsConfigFinished) && (
+                                        <CustomSplashScreen onFinish={() => setIsSplashFinished(true)} />
+                                    )}
+                                </ScheduleProvider>
+                            </ActivityProvider>
+                        </AdsReadyProvider>
                     </NavigationContainer>
                 </SafeAreaProvider>
             </QueryClientProvider>

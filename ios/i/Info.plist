@@ -44,7 +44,7 @@
     <key>NSUserTrackingUsageDescription</key>
     <string>이 앱은 맞춤형 광고를 위한 추적을 사용하지 않습니다. 표시되는 광고는 비맞춤형입니다.</string>
     <key>GADDelayAppMeasurementInit</key>
-    <false/>
+    <true/>
     <key>LSMinimumSystemVersion</key>
     <string>12.0</string>
     <key>LSRequiresIPhoneOS</key>

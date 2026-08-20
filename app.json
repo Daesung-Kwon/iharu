@@ -65,6 +65,7 @@
         {
           "androidAppId": "ca-app-pub-9978285135642181~1318901506",
           "iosAppId": "ca-app-pub-9978285135642181~7551710314",
+          "delayAppMeasurementInit": true,
           "userTrackingUsageDescription": "이 앱은 맞춤형 광고를 위한 추적을 사용하지 않습니다. 표시되는 광고는 비맞춤형입니다."
         }
       ]
