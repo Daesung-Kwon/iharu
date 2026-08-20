@@ -88,8 +88,8 @@
 - Node.js 18 이상
 - npm 또는 yarn
 - Expo CLI (선택)
-- iOS: Xcode (iPad 시뮬레이터용)
-- Android: Android Studio (태블릿 에뮬레이터용)
+- iOS: Xcode (iPhone / iPad 시뮬레이터용)
+- Android: Android Studio (폰 / 태블릿 에뮬레이터용)
 
 ### 설치 및 실행
 
@@ -104,10 +104,10 @@ npm install
 # 개발 서버 시작
 npm start
 
-# iOS 시뮬레이터 실행 (iPad)
+# iOS 시뮬레이터 실행 (iPhone 또는 iPad)
 npm run ios
 
-# Android 에뮬레이터 실행 (태블릿)
+# Android 에뮬레이터 실행 (폰 또는 태블릿)
 npm run android
 ```
 

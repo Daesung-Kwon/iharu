@@ -1,6 +1,5 @@
 /**
- * Window-driven layout tokens so phone widths can share tablet screens
- * without changing store deviceFamily / tabletOnly.
+ * Window-driven layout tokens so phone and tablet share one universal app.
  */
 
 import { Platform, useWindowDimensions } from 'react-native';
