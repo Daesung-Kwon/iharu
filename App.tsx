@@ -6,15 +6,12 @@ import { NavigationContainer } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
-import { requestTrackingPermissionsAsync } from 'expo-tracking-transparency';
 import { Text, TextProps } from 'react-native';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { ActivityProvider } from './src/contexts/ActivityContext';
 import { ScheduleProvider } from './src/contexts/ScheduleContext';
 import CustomSplashScreen from './src/screens/SplashScreen';
-
-
-import mobileAds from 'react-native-google-mobile-ads';
+import mobileAds, { MaxAdContentRating } from 'react-native-google-mobile-ads';
 
 // 스플래시 스크린을 유지하도록 설정
 SplashScreen.preventAutoHideAsync();
@@ -39,23 +36,20 @@ export default function App() {
 
     const [isSplashFinished, setIsSplashFinished] = React.useState(false);
 
-    // Initialize Google Mobile Ads SDK (안드로이드 크래시 방지를 위해 useEffect 내부에서 초기화)
+    // RequestOptions에 maxAdContentRating이 없어 초기화 전에 G등급·아동 대상으로 설정
     useEffect(() => {
-        (async () => {
-            const { status } = await requestTrackingPermissionsAsync();
-            if (status === 'granted') {
-                console.log('✅ Tracking permission granted');
-            }
-            
-            mobileAds()
-                .initialize()
-                .then(adapterStatuses => {
-                    console.log('📱 Google Mobile Ads SDK initialized:', adapterStatuses);
-                })
-                .catch(error => {
-                    console.warn('⚠️ Google Mobile Ads SDK initialization failed:', error);
-                });
-        })();
+        mobileAds()
+            .setRequestConfiguration({
+                maxAdContentRating: MaxAdContentRating.G,
+                tagForChildDirectedTreatment: true,
+            })
+            .then(() => mobileAds().initialize())
+            .then(adapterStatuses => {
+                console.log('📱 Google Mobile Ads SDK initialized:', adapterStatuses);
+            })
+            .catch(error => {
+                console.warn('⚠️ Google Mobile Ads SDK initialization failed:', error);
+            });
     }, []);
 
     useEffect(() => {
