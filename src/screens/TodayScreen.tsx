@@ -73,7 +73,6 @@ export default function TodayScreen() {
   const schedulesRef = useRef(schedules);
   schedulesRef.current = schedules;
 
-  // 앱 시작 시 알림 권한 확인 및 설정 로드 (권한 요청은 첫 토글 시점에)
   useEffect(() => {
     const initializeApp = async () => {
       try {
@@ -216,21 +215,37 @@ export default function TodayScreen() {
       }
     }
 
-    // 상태 업데이트
     const updatedNotifications = {
       ...notifications,
       [itemId]: newEnabled,
     };
-    setNotifications(updatedNotifications);
-    await saveNotificationSettings(updatedNotifications);
 
     if (newEnabled) {
-      await scheduleActivityNotification(item, true, selectedDate);
-      showToast(`${item.activity?.name || '활동'} 5분 전에 알림을 보내드릴게요`);
-    } else {
-      await cancelActivityNotification(itemId);
-      showToast('알림이 해제되었어요');
+      const result = await scheduleActivityNotification(item, true, selectedDate);
+      if (result === 'scheduled') {
+        setNotifications(updatedNotifications);
+        await saveNotificationSettings(updatedNotifications);
+        showToast(`${item.activity?.name || '활동'} 5분 전에 알림을 보내드릴게요`);
+        return;
+      }
+      if (result === 'master_off') {
+        setNotifications(updatedNotifications);
+        await saveNotificationSettings(updatedNotifications);
+        showToast('설정에서 알림을 켜면 예약됩니다');
+        return;
+      }
+      if (result === 'past') {
+        showToast('이미 지난 시간이라 알림을 예약하지 않았어요');
+        return;
+      }
+      showToast('알림을 예약하지 못했어요');
+      return;
     }
+
+    setNotifications(updatedNotifications);
+    await saveNotificationSettings(updatedNotifications);
+    await cancelActivityNotification(itemId);
+    showToast('알림이 해제되었어요');
   };
 
   const handleGoToToday = () => {
@@ -257,11 +272,9 @@ export default function TodayScreen() {
           {
             text: '삭제하고 복사',
             style: 'destructive',
-            onPress: async () => {
-              const oldItemIds = todaySchedule.items.map(item => item.id);
+            onPress: () => {
               const success = copyScheduleToDate(selectedDate, today, { overwrite: true });
               if (success) {
-                await Promise.all(oldItemIds.map(id => cancelActivityNotification(id)));
                 setSelectedDate(today);
                 Alert.alert('완료', '일정을 오늘로 복사했습니다.');
               } else {

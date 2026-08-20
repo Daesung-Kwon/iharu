@@ -8,13 +8,19 @@ import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Schedule, ScheduleItem } from '../types';
-import { getActivityNotificationTime, toLocalDateString } from '../utils/dateUtils';
+import { getActivityNotificationTime } from '../utils/dateUtils';
 
 const NOTIFICATION_SETTINGS_KEY = '@daily_schedule_notifications';
 const NOTIFICATIONS_MASTER_KEY = '@settings.notificationsEnabled';
 const NOTIFICATION_PREFIX = 'activity-';
 const ANDROID_CHANNEL_ID = 'activity_reminders';
-const UPCOMING_DAYS = 7;
+
+export type ScheduleNotificationResult =
+  | 'scheduled'
+  | 'cancelled'
+  | 'master_off'
+  | 'past'
+  | 'failed';
 
 async function ensureAndroidChannel(): Promise<void> {
   if (Platform.OS !== 'android') return;
@@ -164,7 +170,7 @@ export async function scheduleActivityNotification(
   scheduleItem: ScheduleItem,
   enabled: boolean,
   scheduleDate: Date | string
-): Promise<void> {
+): Promise<ScheduleNotificationResult> {
   try {
     const notificationId = `${NOTIFICATION_PREFIX}${scheduleItem.id}`;
 
@@ -172,28 +178,29 @@ export async function scheduleActivityNotification(
       await ensureAndroidChannel();
     }
 
-    // 기존 알림 취소
     await Notifications.cancelScheduledNotificationAsync(notificationId);
 
     if (!enabled) {
       console.log(`알림 취소: ${scheduleItem.activity?.name}`);
-      return;
+      return 'cancelled';
+    }
+
+    if (scheduleItem.status === 'completed' || scheduleItem.status === 'skipped') {
+      return 'cancelled';
     }
 
     const masterEnabled = await loadNotificationsMasterEnabled();
     if (!masterEnabled) {
-      return;
+      return 'master_off';
     }
 
     const notificationTime = getActivityNotificationTime(scheduleDate, scheduleItem.startTime);
 
-    // 과거 시간이면 스케줄링하지 않음
     if (notificationTime.getTime() <= Date.now()) {
       console.log(`과거 시간이므로 알림 스케줄링 안 함: ${scheduleItem.activity?.name}`);
-      return;
+      return 'past';
     }
 
-    // 알림 스케줄링 (시뮬레이터에서도 시도, 에러 발생 시 무시)
     try {
       await Notifications.scheduleNotificationAsync({
         identifier: notificationId,
@@ -218,26 +225,27 @@ export async function scheduleActivityNotification(
       } else {
         console.log(`✅ 스케줄링 시도: ${scheduleItem.activity?.name} at ${notificationTime.toLocaleString()} (시뮬레이터: 실제 알림은 수신 안 됨)`);
       }
+      return 'scheduled';
     } catch (scheduleError) {
-      // 시뮬레이터에서는 스케줄링이 실패할 수 있음 (무시)
       if (Device.isDevice) {
-        throw scheduleError; // 실제 디바이스에서는 에러를 다시 던짐
-      } else {
-        console.log(`⚠️ 시뮬레이터: 스케줄링 실패 (무시됨): ${scheduleItem.activity?.name}`);
+        throw scheduleError;
       }
+      console.log(`⚠️ 시뮬레이터: 스케줄링 실패 (무시됨): ${scheduleItem.activity?.name}`);
+      return 'scheduled';
     }
   } catch (error) {
     console.error('알림 스케줄링 실패:', error);
+    return 'failed';
   }
 }
 
 /**
- * 오늘부터 N일간의 활성 알림을 재스케줄
+ * 저장된 모든 일정의 활성 알림을 재스케줄 (identifier별로 먼저 취소).
+ * 과거 trigger는 scheduleActivityNotification에서 skip.
  */
 export async function rescheduleUpcomingNotifications(
   schedules: Schedule[],
-  settings: NotificationSettings,
-  daysAhead = UPCOMING_DAYS
+  settings: NotificationSettings
 ): Promise<void> {
   try {
     const masterEnabled = await loadNotificationsMasterEnabled();
@@ -251,16 +259,9 @@ export async function rescheduleUpcomingNotifications(
       return;
     }
 
-    await cancelAllNotifications();
     await ensureAndroidChannel();
 
-    const today = new Date();
-    const start = toLocalDateString(today);
-    const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysAhead);
-    const end = toLocalDateString(endDate);
-
     for (const schedule of schedules) {
-      if (schedule.date < start || schedule.date > end) continue;
       for (const item of schedule.items) {
         if (settings[item.id]) {
           await scheduleActivityNotification(item, true, schedule.date);
@@ -268,9 +269,9 @@ export async function rescheduleUpcomingNotifications(
       }
     }
 
-    console.log('✅ 다가오는 일정 알림 재스케줄링 완료');
+    console.log('✅ 일정 알림 재스케줄링 완료');
   } catch (error) {
-    console.error('다가오는 알림 재스케줄링 실패:', error);
+    console.error('알림 재스케줄링 실패:', error);
   }
 }
 
@@ -299,6 +300,27 @@ export async function cancelActivityNotification(itemId: string): Promise<void> 
   }
 }
 
+/** Cancel OS notifications and drop per-item map keys. */
+export async function clearItemNotifications(itemIds: string[]): Promise<void> {
+  if (itemIds.length === 0) return;
+  await Promise.all(itemIds.map(id => cancelActivityNotification(id)));
+  try {
+    const settings = await loadNotificationSettings();
+    let changed = false;
+    for (const id of itemIds) {
+      if (id in settings) {
+        delete settings[id];
+        changed = true;
+      }
+    }
+    if (changed) {
+      await saveNotificationSettings(settings);
+    }
+  } catch (error) {
+    console.error('알림 설정 항목 삭제 실패:', error);
+  }
+}
+
 /**
  * 예약된 알림 목록 확인 (디버깅용)
  */
@@ -322,5 +344,6 @@ export default {
   rescheduleUpcomingNotifications,
   cancelAllNotifications,
   cancelActivityNotification,
+  clearItemNotifications,
   getScheduledNotifications,
 };

@@ -189,7 +189,7 @@ export default function TodayScheduleItem({
         </View>
       </View>
 
-      {/* Right: Notification Toggle (upcoming: 곧 시작할 일정, future: 예정된 일정) */}
+      {/* Right: Notification Toggle */}
       {(itemStatus === 'upcoming' || itemStatus === 'future') && (
         <Pressable
           style={({ pressed }) => [

@@ -2,7 +2,7 @@
  * Toast - 짧은 메시지 표시 (자동 사라짐)
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Text, StyleSheet, Animated } from 'react-native';
 
 interface ToastProps {
@@ -13,25 +13,51 @@ interface ToastProps {
 }
 
 export default function Toast({ message, visible, onHide, duration = 2000 }: ToastProps) {
-  const opacity = React.useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const animationRef = useRef<Animated.CompositeAnimation | null>(null);
+  const runIdRef = useRef(0);
+  const onHideRef = useRef(onHide);
+  onHideRef.current = onHide;
 
   useEffect(() => {
-    if (!visible || !message) return;
+    if (!visible || !message) {
+      animationRef.current?.stop();
+      animationRef.current = null;
+      opacity.setValue(0);
+      return;
+    }
 
-    Animated.sequence([
+    const runId = ++runIdRef.current;
+    animationRef.current?.stop();
+    opacity.setValue(0);
+
+    const animation = Animated.sequence([
       Animated.timing(opacity, {
         toValue: 1,
         duration: 200,
         useNativeDriver: true,
       }),
-      Animated.delay(duration - 400),
+      Animated.delay(Math.max(duration - 400, 0)),
       Animated.timing(opacity, {
         toValue: 0,
         duration: 200,
         useNativeDriver: true,
       }),
-    ]).start(() => onHide());
-  }, [visible, message, duration]);
+    ]);
+    animationRef.current = animation;
+    animation.start(({ finished }) => {
+      if (finished && runId === runIdRef.current) {
+        onHideRef.current();
+      }
+    });
+
+    return () => {
+      animation.stop();
+      if (animationRef.current === animation) {
+        animationRef.current = null;
+      }
+    };
+  }, [visible, message, duration, opacity]);
 
   if (!visible) return null;
 

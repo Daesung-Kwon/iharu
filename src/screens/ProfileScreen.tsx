@@ -54,7 +54,6 @@ export default function ProfileScreen() {
   const appVersion = Constants.expoConfig?.version || '1.0.0';
   const appName = Constants.expoConfig?.name || 'i하루';
 
-  // 알림 마스터 설정 로드 (권한은 요청하지 않음)
   React.useEffect(() => {
     const loadSettings = async () => {
       const enabled = await loadNotificationsMasterEnabled();
@@ -63,7 +62,6 @@ export default function ProfileScreen() {
     loadSettings();
   }, []);
 
-  // 알림 마스터 토글 — per-item 맵은 유지
   const handleNotificationToggle = async (value: boolean) => {
     if (value) {
       const hasPermission = await requestNotificationPermissions();

@@ -7,6 +7,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Schedule, ScheduleItem, Activity } from '../types';
 import { migrateUtcSlicedScheduleDates, toLocalDateString } from '../utils/dateUtils';
+import { cancelActivityNotification, clearItemNotifications } from '../services/notificationService';
 
 const STORAGE_KEY = '@daily_schedule_schedules';
 
@@ -175,6 +176,9 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [selectedChildProfileId, checkTimeConflict]);
 
   const updateScheduleItem = useCallback((itemId: string, updates: Partial<ScheduleItem>) => {
+    if (updates.status === 'completed' || updates.status === 'skipped') {
+      void cancelActivityNotification(itemId);
+    }
     setSchedules(prev =>
       prev.map(schedule => ({
         ...schedule,
@@ -189,6 +193,7 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const removeScheduleItem = useCallback((itemId: string) => {
+    void clearItemNotifications([itemId]);
     setSchedules(prev =>
       prev.map(schedule => ({
         ...schedule,
@@ -200,6 +205,10 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const removeAllScheduleItems = useCallback((date: Date) => {
     const dateString = toLocalDateString(date);
+    const ids = schedules.find(s => s.date === dateString)?.items.map(item => item.id) ?? [];
+    if (ids.length > 0) {
+      void clearItemNotifications(ids);
+    }
     setSchedules(prev =>
       prev.map(schedule =>
         schedule.date === dateString
@@ -207,7 +216,7 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           : schedule
       )
     );
-  }, []);
+  }, [schedules]);
 
   const copyScheduleToDate = useCallback((
     sourceDate: Date,
@@ -226,6 +235,10 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const targetSchedule = schedules.find(s => s.date === targetDateString);
     if (targetSchedule && targetSchedule.items.length > 0 && !overwrite) {
       return false;
+    }
+
+    if (overwrite && targetSchedule && targetSchedule.items.length > 0) {
+      void clearItemNotifications(targetSchedule.items.map(item => item.id));
     }
 
     const now = new Date().toISOString();
