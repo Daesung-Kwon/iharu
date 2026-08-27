@@ -1,35 +1,37 @@
 /**
  * 일정 만들기 화면
- * 드래그 앤 드롭으로 타임라인에 일정 배치
+ * 길게 눌러 활동을 선택한 뒤 타임라인 슬롯을 탭해 배치
  * Soft Pop 3D (Claymorphism) 디자인 적용
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, useWindowDimensions, Pressable, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, Pressable, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useActivity } from '../contexts/ActivityContext';
 import { useSchedule } from '../contexts/ScheduleContext';
 import DraggableActivityCard from '../components/DraggableActivityCard';
+import ActivityIcon from '../components/ActivityIcon';
 import ScheduleItemCard from '../components/ScheduleItemCard';
 import TimelineViewV2 from '../components/TimelineViewV2';
 import { Activity } from '../types';
+import { SoftPopColors } from '../constants/theme';
+import { useLayout } from '../hooks/useLayout';
+import { isToday } from '../utils/statsUtils';
+import { toLocalDateString } from '../utils/dateUtils';
 
-// Soft Pop 3D 디자인 색상 팔레트
-const SoftPopColors = {
-  background: '#FFF9F0', // Cream
-  primary: '#FF6B6B', // Soft Red
-  secondary: '#FFD93D', // Banana Yellow
-  text: '#2D3436', // Soft Black
-  textSecondary: '#636E72', // Soft Gray
-  white: '#FFFFFF',
-  success: '#6BCB77',
-  error: '#FF6B6B',
-};
+const SELECT_INSTRUCTION = '활동을 길게 누른 뒤 시간을 탭하세요';
+const COMPACT_SELECT_INSTRUCTION = '활동을 탭한 뒤 시간을 탭하세요';
 
 export default function PlanScheduleScreen() {
-  const { width, height } = useWindowDimensions();
-  const isLandscape = width > height;
+  const {
+    width,
+    isCompact,
+    isLandscape,
+    space,
+    titleSize,
+    tabBarOffset,
+  } = useLayout();
   const { activities } = useActivity();
   const {
     selectedDate,
@@ -38,9 +40,8 @@ export default function PlanScheduleScreen() {
     addScheduleItem,
     removeScheduleItem,
     removeAllScheduleItems,
-    checkTimeConflict
   } = useSchedule();
-  const [viewMode, setViewMode] = useState<'summary' | 'timeline'>('summary');
+  const [viewMode, setViewMode] = useState<'summary' | 'timeline'>('timeline');
   const [draggingActivity, setDraggingActivity] = useState<Activity | null>(null);
 
   const currentSchedule = getScheduleForDate(selectedDate);
@@ -56,33 +57,42 @@ export default function PlanScheduleScreen() {
     return sum + (item.activity?.durationMinutes || 0);
   }, 0);
 
-
-  const handleTimeSlotPress = (time: string) => {
-    console.log('Time slot pressed:', time, 'Dragging:', draggingActivity?.name);
-    if (draggingActivity) {
-      // 드래그 중인 활동을 해당 시간에 추가
-      const success = addScheduleItem(selectedDate, draggingActivity, time);
-      if (success) {
-        setDraggingActivity(null); // 드래그 모드 해제
-        // 성공 시 시각적 피드백으로 충분 (Alert 제거로 UX 개선)
-      } else {
-        // 더 자세한 에러 메시지
-        const duration = draggingActivity.durationMinutes;
-        const [hours, minutes] = time.split(':').map(Number);
-        const startMinutes = hours * 60 + minutes;
-        const endMinutes = startMinutes + duration;
-        const endHours = Math.floor(endMinutes / 60);
-        const endMins = endMinutes % 60;
-        const endTime = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
-
-        Alert.alert(
-          '시간 중복',
-          `${time}부터 ${endTime}까지 다른 활동과 겹칩니다.\n\n다른 시간을 선택해주세요.`
-        );
+  const placeActivity = (activity: Activity, time: string, weekdays: boolean) => {
+    const success = addScheduleItem(selectedDate, activity, time, { weekdays });
+    if (success) {
+      setDraggingActivity(null);
+      if (weekdays) {
+        Alert.alert('월~금 반복', '이번 주 월~금에 같은 시간으로 넣었어요. 이미 일정이 있는 날은 건너뛰었습니다.');
       }
     } else {
-      // 드래그 모드가 아닐 때는 아무 동작 안함
-      Alert.alert('안내', '먼저 왼쪽 활동 목록에서 활동을 길게 눌러주세요.');
+      const duration = activity.durationMinutes;
+      const [hours, minutes] = time.split(':').map(Number);
+      const startMinutes = hours * 60 + minutes;
+      const endMinutes = startMinutes + duration;
+      const endHours = Math.floor(endMinutes / 60);
+      const endMins = endMinutes % 60;
+      const endTime = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
+      Alert.alert(
+        '시간 중복',
+        `${time}부터 ${endTime}까지 다른 활동과 겹칩니다.\n\n다른 시간을 선택해주세요.`
+      );
+    }
+  };
+
+  const handleTimeSlotPress = (time: string) => {
+    if (draggingActivity) {
+      const activity = draggingActivity;
+      Alert.alert(
+        `${activity.name} · ${time}`,
+        '같은 시간에 반복할까요?',
+        [
+          { text: '취소', style: 'cancel' },
+          { text: '오늘만', onPress: () => placeActivity(activity, time, false) },
+          { text: '월~금', onPress: () => placeActivity(activity, time, true) },
+        ]
+      );
+    } else {
+      Alert.alert('안내', isCompact ? COMPACT_SELECT_INSTRUCTION : SELECT_INSTRUCTION);
     }
   };
 
@@ -91,27 +101,140 @@ export default function PlanScheduleScreen() {
     setDraggingActivity(null);
   };
 
+  const handleSelectActivity = (activity: Activity) => {
+    console.log('드래그 모드 시작:', activity.name);
+    setDraggingActivity(activity);
+  };
+
+  const instructionText = draggingActivity
+    ? '원하는 시간을 탭하세요'
+    : (isCompact ? COMPACT_SELECT_INSTRUCTION : SELECT_INSTRUCTION);
+
+  const dateButtonSize = isCompact ? 44 : 56;
+
+  const renderActivityCards = (variant: 'list' | 'chip') => (
+    activities.map((activity) => (
+      <View key={activity.id}>
+        <DraggableActivityCard
+          activity={activity}
+          variant={variant}
+          onDragStart={() => handleSelectActivity(activity)}
+          onDragEnd={() => {
+            // 종료는 타임라인 탭 또는 취소에서만 처리
+          }}
+          onPress={
+            variant === 'chip'
+              ? () => handleSelectActivity(activity)
+              : undefined
+          }
+          isDragging={draggingActivity?.id === activity.id}
+        />
+      </View>
+    ))
+  );
+
+  const renderScheduleBody = () => (
+    viewMode === 'summary' ? (
+      <View style={styles.summaryView}>
+        <View style={styles.summaryStats}>
+          <View style={[styles.statCard, isCompact && styles.statCardCompact]}>
+            <Text style={[styles.statNumber, isCompact && styles.statNumberCompact]}>
+              {scheduleItems.length}
+            </Text>
+            <Text style={styles.statLabel}>개 활동</Text>
+          </View>
+          <View style={[styles.statCard, isCompact && styles.statCardCompact]}>
+            <Text style={[styles.statNumber, isCompact && styles.statNumberCompact]}>
+              {totalMinutes}
+            </Text>
+            <Text style={styles.statLabel}>총 시간 (분)</Text>
+          </View>
+        </View>
+
+        {scheduleItems.length === 0 ? (
+          <Pressable
+            style={({ pressed }) => [
+              styles.dropZone,
+              isCompact && styles.dropZoneCompact,
+              draggingActivity && styles.dropZoneActive,
+              pressed && styles.dropZonePressed
+            ]}
+            onPress={() => {
+              if (draggingActivity) {
+                addScheduleItem(selectedDate, draggingActivity, '09:00');
+                setDraggingActivity(null);
+              }
+            }}
+          >
+            <MaterialIcons
+              name="calendar-today"
+              size={isCompact ? 48 : 64}
+              color={draggingActivity ? SoftPopColors.primary : SoftPopColors.textSecondary}
+            />
+            <Text style={[
+              styles.dropZoneText,
+              draggingActivity && styles.dropZoneTextActive
+            ]}>
+              {draggingActivity
+                ? `${draggingActivity.name}을(를) 추가하려면 여기를 탭하세요`
+                : '활동을 길게 누른 뒤 여기를 탭하세요'
+              }
+            </Text>
+          </Pressable>
+        ) : (
+          <ScrollView
+            style={styles.scheduleItemsList}
+            contentContainerStyle={[
+              styles.scheduleItemsListContent,
+              { paddingBottom: tabBarOffset + 8 },
+            ]}
+            showsVerticalScrollIndicator={false}
+          >
+            {scheduleItems.map((item) => (
+              <ScheduleItemCard
+                key={item.id}
+                scheduleItem={item}
+                onRemove={() => removeScheduleItem(item.id)}
+                compact={isCompact}
+              />
+            ))}
+          </ScrollView>
+        )}
+      </View>
+    ) : (
+      <TimelineViewV2
+        scheduleItems={scheduleItems}
+        onTimeSlotPress={handleTimeSlotPress}
+        onRemoveItem={removeScheduleItem}
+        draggingActivity={draggingActivity}
+        contentPaddingBottom={tabBarOffset + 8}
+        showNowLine={isToday(toLocalDateString(selectedDate))}
+        initialScrollTime={isToday(toLocalDateString(selectedDate)) ? undefined : '07:00'}
+      />
+    )
+  );
+
   return (
     <SafeAreaView
       style={[styles.container, isLandscape && styles.containerLandscape]}
       edges={isLandscape
         ? []
         : Platform.OS === 'android'
-          ? ['top', 'bottom'] // Android만 bottom 추가
-          : ['top'] // iOS는 기존 유지
+          ? ['top', 'bottom']
+          : ['top']
       }
     >
-      {/* Dragging Indicator - 화면 상단 가운데 */}
-      {draggingActivity && (
+      {draggingActivity && !isCompact && (
         <View style={[
           styles.draggingIndicator,
           {
+            top: isCompact ? 72 : 120,
             left: Math.max(20, (width - Math.min(width - 40, 400)) / 2),
             width: Math.min(width - 40, 400),
           }
         ]}>
           <Text style={styles.draggingText}>
-            {draggingActivity.name}을(를) 타임라인에 놓으세요
+            {draggingActivity.name}을(를) 타임라인에서 탭하세요
           </Text>
           <Pressable
             style={({ pressed }) => [
@@ -129,13 +252,26 @@ export default function PlanScheduleScreen() {
         </View>
       )}
 
-      {/* Header Section */}
-      <View style={styles.header}>
-        <Text style={styles.title}>일정 만들기</Text>
+      <View style={[
+        styles.header,
+        {
+          padding: space,
+          paddingBottom: isCompact ? 12 : 20,
+          marginHorizontal: space,
+          marginTop: space,
+        },
+      ]}>
+        <Text style={[
+          styles.title,
+          { fontSize: titleSize, lineHeight: titleSize + 8 },
+        ]}>
+          일정 만들기
+        </Text>
         <View style={styles.dateSelector}>
           <Pressable
             style={({ pressed }) => [
               styles.dateButton,
+              { width: dateButtonSize, height: dateButtonSize, borderRadius: dateButtonSize / 2 },
               pressed && styles.dateButtonPressed
             ]}
             onPress={() => handleDateChange('prev')}
@@ -147,7 +283,7 @@ export default function PlanScheduleScreen() {
               color={SoftPopColors.text}
             />
           </Pressable>
-          <Text style={styles.dateText}>
+          <Text style={[styles.dateText, isCompact && styles.dateTextCompact]}>
             {selectedDate.toLocaleDateString('ko-KR', {
               year: 'numeric',
               month: 'long',
@@ -157,6 +293,7 @@ export default function PlanScheduleScreen() {
           <Pressable
             style={({ pressed }) => [
               styles.dateButton,
+              { width: dateButtonSize, height: dateButtonSize, borderRadius: dateButtonSize / 2 },
               pressed && styles.dateButtonPressed
             ]}
             onPress={() => handleDateChange('next')}
@@ -171,210 +308,252 @@ export default function PlanScheduleScreen() {
         </View>
       </View>
 
-      {/* Main Content - Two Column Layout */}
-      <View style={styles.content}>
-        {/* Activity List Panel (Left) - Soft Pop 3D Card */}
-        <View style={styles.activityListPanel}>
-          <View style={styles.panelHeader}>
-            <MaterialIcons
-              name="list"
-              size={28}
-              color={SoftPopColors.primary}
-            />
-            <Text style={styles.panelTitle}>활동 목록</Text>
-          </View>
-          <ScrollView
-            style={styles.activityList}
-            showsVerticalScrollIndicator={false}
-          >
+      {isCompact ? (
+        // Phone widths cannot fit activity list + timeline side by side
+        <ScrollView
+          style={styles.contentCompact}
+          contentContainerStyle={[
+            styles.contentCompactInner,
+            { paddingHorizontal: space, gap: 12 },
+          ]}
+          nestedScrollEnabled
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={[styles.activityChipsPanel, { padding: 12 }]}>
+            <View style={[styles.instructionBanner, styles.instructionBannerCompact]}>
+              <MaterialIcons
+                name="info-outline"
+                size={18}
+                color={SoftPopColors.primary}
+              />
+              <Text style={[styles.instructionText, styles.instructionTextCompact]}>
+                {instructionText}
+              </Text>
+            </View>
             {activities.length === 0 ? (
-              <View style={styles.emptyListState}>
-                <MaterialIcons
-                  name="inbox"
-                  size={48}
-                  color={SoftPopColors.textSecondary}
-                />
-                <Text style={styles.emptyListText}>
-                  활동 목록이 여기에 표시됩니다
-                </Text>
-              </View>
+              <Text style={styles.emptyChipsText}>활동 목록이 여기에 표시됩니다</Text>
             ) : (
-              <View style={styles.activityListContent}>
-                <View style={styles.instructionBanner}>
-                  <MaterialIcons
-                    name="info-outline"
-                    size={22}
-                    color={SoftPopColors.primary}
-                  />
-                  <Text style={styles.instructionText}>
-                    {draggingActivity
-                      ? '✨ 오른쪽 타임라인에서 원하는 시간을 탭하세요!'
-                      : '👆 활동을 길게 눌러서 드래그 모드를 시작하세요'}
+              <ScrollView
+                horizontal
+                nestedScrollEnabled
+                scrollEnabled={!draggingActivity}
+                keyboardShouldPersistTaps="handled"
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.activityChipsContent}
+              >
+                {renderActivityCards('chip')}
+              </ScrollView>
+            )}
+            {draggingActivity && (
+              <View style={styles.selectedChipBar}>
+                <ActivityIcon
+                  activity={draggingActivity}
+                  size={28}
+                  color={SoftPopColors.primary}
+                />
+                <View style={styles.selectedChipInfo}>
+                  <Text style={styles.selectedChipLabel}>선택한 활동</Text>
+                  <Text style={styles.selectedChipName} numberOfLines={1}>
+                    {draggingActivity.name} · {draggingActivity.durationMinutes}분
                   </Text>
                 </View>
-                <View style={styles.activityCardsWrapper}>
-                  {activities.map((activity) => (
-                    <View key={activity.id}>
-                      <DraggableActivityCard
-                        activity={activity}
-                        onDragStart={() => {
-                          console.log('드래그 모드 시작:', activity.name);
-                          setDraggingActivity(activity);
-                        }}
-                        onDragEnd={() => {
-                          // 드래그 종료는 명시적으로 처리
-                        }}
-                        onPress={() => {
-                          // 단순 클릭 동작 제거
-                        }}
-                        isDragging={draggingActivity?.id === activity.id}
-                      />
-                    </View>
-                  ))}
-                </View>
+                <Pressable
+                  onPress={handleCancelDrag}
+                  accessibilityLabel="선택 취소"
+                  hitSlop={8}
+                >
+                  <MaterialIcons name="close" size={22} color={SoftPopColors.white} />
+                </Pressable>
               </View>
             )}
-          </ScrollView>
-        </View>
-
-        {/* Schedule Panel (Right) - Soft Pop 3D Card */}
-        <View style={styles.schedulePanel}>
-          <View style={styles.panelHeader}>
-            <MaterialIcons
-              name="calendar-today"
-              size={28}
-              color={SoftPopColors.secondary}
-            />
-            <Text style={styles.panelTitle}>일정표</Text>
-            {scheduleItems.length > 0 && (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.deleteAllButton,
-                  pressed && styles.deleteAllButtonPressed
-                ]}
-                onPress={() => removeAllScheduleItems(selectedDate)}
-                accessibilityLabel="모든 일정 삭제"
-              >
-                <MaterialIcons
-                  name="delete-outline"
-                  size={20}
-                  color={SoftPopColors.error}
-                />
-                <Text style={styles.deleteAllText}>모두 삭제</Text>
-              </Pressable>
-            )}
-            <View style={styles.viewModeButtons}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.viewModeButton,
-                  viewMode === 'summary' && styles.viewModeButtonActive,
-                  pressed && styles.viewModeButtonPressed,
-                ]}
-                onPress={() => setViewMode('summary')}
-                accessibilityLabel="요약 보기"
-              >
-                <Text
-                  style={[
-                    styles.viewModeButtonText,
-                    viewMode === 'summary' && styles.viewModeButtonTextActive,
-                  ]}
-                >
-                  요약
-                </Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.viewModeButton,
-                  viewMode === 'timeline' && styles.viewModeButtonActive,
-                  pressed && styles.viewModeButtonPressed,
-                ]}
-                onPress={() => setViewMode('timeline')}
-                accessibilityLabel="타임라인 보기"
-              >
-                <Text
-                  style={[
-                    styles.viewModeButtonText,
-                    viewMode === 'timeline' && styles.viewModeButtonTextActive,
-                  ]}
-                >
-                  타임라인
-                </Text>
-              </Pressable>
-            </View>
           </View>
 
-          {viewMode === 'summary' ? (
-            <View style={styles.summaryView}>
-              {/* Summary Stats - Material Cards */}
-              <View style={styles.summaryStats}>
-                <View style={styles.statCard}>
-                  <Text style={styles.statNumber}>{scheduleItems.length}</Text>
-                  <Text style={styles.statLabel}>개 활동</Text>
-                </View>
-                <View style={styles.statCard}>
-                  <Text style={styles.statNumber}>{totalMinutes}</Text>
-                  <Text style={styles.statLabel}>총 시간 (분)</Text>
-                </View>
-              </View>
-
-              {/* Schedule Items List or Drop Zone */}
-              {scheduleItems.length === 0 ? (
+          <View style={[styles.schedulePanel, styles.schedulePanelCompact, { padding: space }]}>
+            <View style={styles.panelHeader}>
+              <MaterialIcons
+                name="calendar-today"
+                size={24}
+                color={SoftPopColors.secondary}
+              />
+              <Text style={styles.panelTitle}>일정표</Text>
+              {scheduleItems.length > 0 && (
                 <Pressable
                   style={({ pressed }) => [
-                    styles.dropZone,
-                    draggingActivity && styles.dropZoneActive,
-                    pressed && styles.dropZonePressed
+                    styles.deleteAllButton,
+                    styles.deleteAllButtonCompact,
+                    pressed && styles.deleteAllButtonPressed
                   ]}
-                  onPress={() => {
-                    if (draggingActivity) {
-                      // 기본 시간에 추가
-                      addScheduleItem(selectedDate, draggingActivity, '09:00');
-                      setDraggingActivity(null);
-                    }
-                  }}
+                  onPress={() => removeAllScheduleItems(selectedDate)}
+                  accessibilityLabel="모든 일정 삭제"
                 >
                   <MaterialIcons
-                    name="calendar-today"
-                    size={64}
-                    color={draggingActivity ? SoftPopColors.primary : SoftPopColors.textSecondary}
+                    name="delete-outline"
+                    size={18}
+                    color={SoftPopColors.error}
                   />
-                  <Text style={[
-                    styles.dropZoneText,
-                    draggingActivity && styles.dropZoneTextActive
-                  ]}>
-                    {draggingActivity
-                      ? `${draggingActivity.name}을(를) 여기에 놓으세요!`
-                      : '왼쪽에서 활동을 길게 눌러서 여기에 놓아보세요!'
-                    }
+                  <Text style={styles.deleteAllText}>모두 삭제</Text>
+                </Pressable>
+              )}
+              <View style={styles.viewModeButtons}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.viewModeButton,
+                    styles.viewModeButtonCompact,
+                    viewMode === 'summary' && styles.viewModeButtonActive,
+                    pressed && styles.viewModeButtonPressed,
+                  ]}
+                  onPress={() => setViewMode('summary')}
+                  accessibilityLabel="요약 보기"
+                >
+                  <Text
+                    style={[
+                      styles.viewModeButtonText,
+                      viewMode === 'summary' && styles.viewModeButtonTextActive,
+                    ]}
+                  >
+                    요약
                   </Text>
                 </Pressable>
-              ) : (
-                <ScrollView
-                  style={styles.scheduleItemsList}
-                  contentContainerStyle={styles.scheduleItemsListContent}
-                  showsVerticalScrollIndicator={false}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.viewModeButton,
+                    styles.viewModeButtonCompact,
+                    viewMode === 'timeline' && styles.viewModeButtonActive,
+                    pressed && styles.viewModeButtonPressed,
+                  ]}
+                  onPress={() => setViewMode('timeline')}
+                  accessibilityLabel="타임라인 보기"
                 >
-                  {scheduleItems.map((item) => (
-                    <ScheduleItemCard
-                      key={item.id}
-                      scheduleItem={item}
-                      onRemove={() => removeScheduleItem(item.id)}
-                      compact={false}
-                    />
-                  ))}
-                </ScrollView>
-              )}
+                  <Text
+                    style={[
+                      styles.viewModeButtonText,
+                      viewMode === 'timeline' && styles.viewModeButtonTextActive,
+                    ]}
+                  >
+                    타임라인
+                  </Text>
+                </Pressable>
+              </View>
             </View>
-          ) : (
-            <TimelineViewV2
-              scheduleItems={scheduleItems}
-              onTimeSlotPress={handleTimeSlotPress}
-              onRemoveItem={removeScheduleItem}
-              draggingActivity={draggingActivity}
-            />
-          )}
+            {renderScheduleBody()}
+          </View>
+        </ScrollView>
+      ) : (
+        <View style={[styles.content, { padding: space, gap: space }]}>
+          <View style={[styles.activityListPanel, { padding: 24 }]}>
+            <View style={styles.panelHeader}>
+              <MaterialIcons
+                name="list"
+                size={28}
+                color={SoftPopColors.primary}
+              />
+              <Text style={styles.panelTitle}>활동 목록</Text>
+            </View>
+            <ScrollView
+              style={styles.activityList}
+              showsVerticalScrollIndicator={false}
+            >
+              {activities.length === 0 ? (
+                <View style={styles.emptyListState}>
+                  <MaterialIcons
+                    name="inbox"
+                    size={48}
+                    color={SoftPopColors.textSecondary}
+                  />
+                  <Text style={styles.emptyListText}>
+                    활동 목록이 여기에 표시됩니다
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.activityListContent}>
+                  <View style={styles.instructionBanner}>
+                    <MaterialIcons
+                      name="info-outline"
+                      size={22}
+                      color={SoftPopColors.primary}
+                    />
+                    <Text style={styles.instructionText}>
+                      {draggingActivity
+                        ? '✨ 타임라인에서 원하는 시간을 탭하세요!'
+                        : SELECT_INSTRUCTION}
+                    </Text>
+                  </View>
+                  <View style={styles.activityCardsWrapper}>
+                    {renderActivityCards('list')}
+                  </View>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+
+          <View style={styles.schedulePanel}>
+            <View style={styles.panelHeader}>
+              <MaterialIcons
+                name="calendar-today"
+                size={28}
+                color={SoftPopColors.secondary}
+              />
+              <Text style={styles.panelTitle}>일정표</Text>
+              {scheduleItems.length > 0 && (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.deleteAllButton,
+                    pressed && styles.deleteAllButtonPressed
+                  ]}
+                  onPress={() => removeAllScheduleItems(selectedDate)}
+                  accessibilityLabel="모든 일정 삭제"
+                >
+                  <MaterialIcons
+                    name="delete-outline"
+                    size={20}
+                    color={SoftPopColors.error}
+                  />
+                  <Text style={styles.deleteAllText}>모두 삭제</Text>
+                </Pressable>
+              )}
+              <View style={styles.viewModeButtons}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.viewModeButton,
+                    viewMode === 'summary' && styles.viewModeButtonActive,
+                    pressed && styles.viewModeButtonPressed,
+                  ]}
+                  onPress={() => setViewMode('summary')}
+                  accessibilityLabel="요약 보기"
+                >
+                  <Text
+                    style={[
+                      styles.viewModeButtonText,
+                      viewMode === 'summary' && styles.viewModeButtonTextActive,
+                    ]}
+                  >
+                    요약
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.viewModeButton,
+                    viewMode === 'timeline' && styles.viewModeButtonActive,
+                    pressed && styles.viewModeButtonPressed,
+                  ]}
+                  onPress={() => setViewMode('timeline')}
+                  accessibilityLabel="타임라인 보기"
+                >
+                  <Text
+                    style={[
+                      styles.viewModeButtonText,
+                      viewMode === 'timeline' && styles.viewModeButtonTextActive,
+                    ]}
+                  >
+                    타임라인
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+            {renderScheduleBody()}
+          </View>
         </View>
-      </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -382,7 +561,7 @@ export default function PlanScheduleScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: SoftPopColors.background, // Cream background
+    backgroundColor: SoftPopColors.background,
   },
   containerLandscape: {
     paddingTop: 0,
@@ -392,11 +571,9 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     backgroundColor: SoftPopColors.white,
     borderRadius: 24,
-    margin: 32,
     marginBottom: 12,
     borderWidth: 2,
     borderColor: SoftPopColors.white,
-    // Soft floating effect
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -415,7 +592,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 20,
+    gap: 12,
   },
   dateButton: {
     width: 56,
@@ -423,8 +600,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: SoftPopColors.white,
-    borderRadius: 28, // rounded-full
-    // 3D pressable effect
+    borderRadius: 28,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
@@ -442,8 +618,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: SoftPopColors.text,
-    paddingHorizontal: 20,
+    paddingHorizontal: 12,
     fontFamily: 'BMJUA',
+    flexShrink: 1,
+    textAlign: 'center',
+  },
+  dateTextCompact: {
+    fontSize: 16,
+    paddingHorizontal: 4,
   },
   content: {
     flex: 1,
@@ -451,40 +633,99 @@ const styles = StyleSheet.create({
     padding: 32,
     gap: 32,
   },
+  contentCompact: {
+    flex: 1,
+    minHeight: 0,
+  },
+  contentCompactInner: {
+    flexGrow: 1,
+    flexDirection: 'column',
+  },
   activityListPanel: {
     flex: 1,
     backgroundColor: SoftPopColors.white,
-    borderRadius: 24, // rounded-3xl
+    borderRadius: 24,
     padding: 24,
     maxWidth: 400,
     borderWidth: 2,
     borderColor: SoftPopColors.white,
-    // Soft floating effect
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
+  },
+  activityChipsPanel: {
+    flexShrink: 0,
+    backgroundColor: SoftPopColors.white,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: SoftPopColors.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  activityChipsContent: {
+    gap: 8,
+    paddingVertical: 4,
+    paddingRight: 8,
+  },
+  emptyChipsText: {
+    fontSize: 14,
+    color: SoftPopColors.textSecondary,
+    fontFamily: 'BMJUA',
+    paddingVertical: 8,
+  },
+  selectedChipBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+    backgroundColor: SoftPopColors.primary,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  selectedChipInfo: {
+    flex: 1,
+  },
+  selectedChipLabel: {
+    fontSize: 11,
+    color: SoftPopColors.white,
+    opacity: 0.85,
+    fontFamily: 'BMJUA',
+  },
+  selectedChipName: {
+    fontSize: 16,
+    color: SoftPopColors.white,
+    fontFamily: 'BMJUA',
   },
   schedulePanel: {
     flex: 2,
     backgroundColor: SoftPopColors.white,
-    borderRadius: 24, // rounded-3xl
+    borderRadius: 24,
     padding: 24,
     borderWidth: 2,
     borderColor: SoftPopColors.white,
-    // Soft floating effect
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
+    minHeight: 0,
+  },
+  schedulePanelCompact: {
+    flex: 1,
+    maxWidth: '100%',
+    minHeight: 180,
   },
   panelHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    gap: 12,
+    marginBottom: 12,
+    gap: 8,
     flexWrap: 'wrap',
   },
   panelTitle: {
@@ -508,21 +749,24 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
     alignItems: 'center',
-    // 3D pressable effect - iOS only for base state
     ...(Platform.OS === 'ios' && {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
       shadowRadius: 2,
     }),
-    // Android: 투명 상태에서 elevation 제거
+  },
+  viewModeButtonCompact: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    minHeight: 40,
   },
   viewModeButtonActive: {
     backgroundColor: SoftPopColors.secondary,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
     shadowRadius: 3,
-    elevation: 3, // 활성 상태(배경색 있음)에서는 elevation 유지
+    elevation: 3,
   },
   viewModeButtonPressed: {
     transform: [{ translateY: 1 }],
@@ -551,7 +795,7 @@ const styles = StyleSheet.create({
   },
   activityCardsWrapper: {
     gap: 12,
-    paddingVertical: 8, // 확대 시 여유 공간
+    paddingVertical: 8,
   },
   instructionBanner: {
     flexDirection: 'row',
@@ -563,12 +807,15 @@ const styles = StyleSheet.create({
     gap: 8,
     borderWidth: 2,
     borderColor: SoftPopColors.white,
-    // Soft floating effect
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  instructionBannerCompact: {
+    padding: 10,
+    marginBottom: 8,
   },
   instructionText: {
     fontSize: 14,
@@ -578,20 +825,28 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontFamily: 'BMJUA',
   },
+  instructionTextCompact: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
   deleteAllButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 20, // rounded-full
+    borderRadius: 20,
     backgroundColor: '#FFF0F0',
-    // 3D pressable effect
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 3,
+  },
+  deleteAllButtonCompact: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 4,
   },
   deleteAllButtonPressed: {
     transform: [{ translateY: 2 }],
@@ -621,27 +876,31 @@ const styles = StyleSheet.create({
   },
   summaryView: {
     flex: 1,
+    minHeight: 0,
   },
   summaryStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 32,
-    gap: 20,
+    marginBottom: 24,
+    gap: 12,
   },
   statCard: {
     flex: 1,
     backgroundColor: SoftPopColors.white,
-    borderRadius: 24, // rounded-3xl
+    borderRadius: 24,
     padding: 24,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: SoftPopColors.white,
-    // Soft floating effect
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
+  },
+  statCardCompact: {
+    padding: 12,
+    borderRadius: 16,
   },
   statNumber: {
     fontSize: 36,
@@ -649,6 +908,10 @@ const styles = StyleSheet.create({
     color: SoftPopColors.secondary,
     marginBottom: 8,
     fontFamily: 'BMJUA',
+  },
+  statNumberCompact: {
+    fontSize: 28,
+    marginBottom: 4,
   },
   statLabel: {
     fontSize: 16,
@@ -661,17 +924,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: SoftPopColors.background,
-    borderRadius: 24, // rounded-3xl
+    borderRadius: 24,
     borderWidth: 3,
     borderColor: SoftPopColors.textSecondary,
     borderStyle: 'dashed',
     padding: 56,
-    // Soft floating effect
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  dropZoneCompact: {
+    padding: 24,
   },
   dropZonePressed: {
     transform: [{ scale: 0.98 }],
@@ -701,21 +966,20 @@ const styles = StyleSheet.create({
   scheduleItemsListContent: {
     paddingVertical: 8,
     paddingBottom: 60,
-    gap: 12, // Spacing between floating sticker cards
+    gap: 12,
   },
   draggingIndicator: {
     position: 'absolute',
-    top: 120, // 화면 상단으로 이동
+    top: 120,
     backgroundColor: SoftPopColors.primary,
-    borderRadius: 24, // rounded-3xl
+    borderRadius: 24,
     padding: 20,
-    // Strong shadow for floating effect
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
-    elevation: 20, // z-index 높임
-    zIndex: 1000, // 최상위에 표시
+    elevation: 20,
+    zIndex: 1000,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -735,11 +999,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 20, // rounded-full
+    borderRadius: 20,
   },
   cancelDragButtonPressed: {
     transform: [{ scale: 0.9 }],
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
 });
-

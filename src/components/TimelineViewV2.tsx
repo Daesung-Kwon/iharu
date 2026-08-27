@@ -4,31 +4,22 @@
  * Soft Pop 3D (Claymorphism) 디자인 적용
  */
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { TIMELINE_CONFIG } from '../constants/config';
 import { ScheduleItem, Activity } from '../types';
-import { ActivityEmojis } from '../constants/emojis';
+import ActivityIcon from './ActivityIcon';
 import { ActivityMaterialColors } from '../constants/materialDesign';
-
-// Soft Pop 3D 디자인 색상 팔레트
-const SoftPopColors = {
-  background: '#FFF9F0', // Cream
-  primary: '#FF6B6B', // Soft Red
-  secondary: '#FFD93D', // Banana Yellow
-  text: '#2D3436', // Soft Black
-  textSecondary: '#636E72', // Soft Gray
-  white: '#FFFFFF',
-  error: '#FF6B6B',
-  success: '#6BCB77',
-};
+import { SoftPopColors } from '../constants/theme';
 
 interface TimelineViewV2Props {
   scheduleItems: ScheduleItem[];
   onTimeSlotPress?: (time: string) => void;
   onRemoveItem?: (itemId: string) => void;
   draggingActivity?: Activity | null;
-  initialScrollTime?: string; // 초기 스크롤 위치 시간 (기본: 09:00)
+  initialScrollTime?: string;
+  contentPaddingBottom?: number;
+  showNowLine?: boolean;
 }
 
 export default function TimelineViewV2({
@@ -36,9 +27,18 @@ export default function TimelineViewV2({
   onTimeSlotPress,
   onRemoveItem,
   draggingActivity,
-  initialScrollTime = '09:00'
+  initialScrollTime = '07:00',
+  contentPaddingBottom,
+  showNowLine = false,
 }: TimelineViewV2Props) {
   const scrollViewRef = useRef<ScrollView>(null);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    if (!showNowLine) return;
+    const tick = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(tick);
+  }, [showNowLine]);
   // 30분 단위로 타임라인 슬롯 생성 (00:00 ~ 23:30)
   const timeSlots: string[] = [];
   for (let hour = TIMELINE_CONFIG.START_HOUR; hour < TIMELINE_CONFIG.END_HOUR; hour++) {
@@ -114,56 +114,77 @@ export default function TimelineViewV2({
     return timeSlots.findIndex(slot => slot === time);
   };
 
-  // 초기 스크롤 위치 설정
+  const nowLineOffset = useMemo(() => {
+    if (!showNowLine) return 0;
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    let y = 0;
+    for (const time of timeSlots) {
+      const [h, m] = time.split(':').map(Number);
+      const slotMin = h * 60 + m;
+      const startItem = getScheduleItemForTime(time);
+      if (startItem) {
+        const height = calculateItemHeight(startItem);
+        const [endH, endM] = startItem.endTime.split(':').map(Number);
+        const endMin = endH * 60 + endM;
+        if (nowMin <= slotMin) break;
+        if (nowMin < endMin) {
+          y += ((nowMin - slotMin) / Math.max(endMin - slotMin, 1)) * height;
+          break;
+        }
+        y += height;
+        continue;
+      }
+      const occupied = isTimeOccupied(time);
+      if (occupied && occupied.startTime !== time) {
+        continue;
+      }
+      if (nowMin <= slotMin) break;
+      if (nowMin < slotMin + TIMELINE_CONFIG.INTERVAL_MINUTES) {
+        y += ((nowMin - slotMin) / TIMELINE_CONFIG.INTERVAL_MINUTES) * TIMELINE_CONFIG.SLOT_HEIGHT;
+        break;
+      }
+      y += TIMELINE_CONFIG.SLOT_HEIGHT;
+    }
+    return y;
+  }, [showNowLine, now, scheduleItems]);
+
   useEffect(() => {
-    const scrollToTime = () => {
-      let targetTime = initialScrollTime;
-
-      // 일정이 하나라도 있으면 마지막 활동으로 스크롤
-      if (scheduleItems.length > 0) {
-        // 시간순 정렬 후 마지막 활동 찾기
-        const sortedItems = [...scheduleItems].sort((a, b) => {
-          const [aHours, aMins] = a.startTime.split(':').map(Number);
-          const [bHours, bMins] = b.startTime.split(':').map(Number);
-          return (aHours * 60 + aMins) - (bHours * 60 + bMins);
-        });
-
-        const lastItem = sortedItems[sortedItems.length - 1];
-        targetTime = lastItem.startTime;
-        console.log('Scrolling to last activity:', lastItem.activity?.name, 'at', targetTime);
-      }
-
-      const targetIndex = getTimeIndex(targetTime);
-      if (targetIndex !== -1 && scrollViewRef.current) {
-        // 타겟 위치 계산 (화면 중앙에 오도록)
-        const targetY = targetIndex * TIMELINE_CONFIG.SLOT_HEIGHT - 200; // 200px 위로 올려서 중앙 배치
-
-        setTimeout(() => {
-          scrollViewRef.current?.scrollTo({
-            y: Math.max(0, targetY),
-            animated: true,
-          });
-        }, 100);
-      }
-    };
-
-    scrollToTime();
-  }, [initialScrollTime, scheduleItems.length]); // scheduleItems.length 변경 시에도 재실행
+    const targetY = showNowLine
+      ? nowLineOffset - 160
+      : Math.max(0, getTimeIndex(initialScrollTime) * TIMELINE_CONFIG.SLOT_HEIGHT - 160);
+    const timer = setTimeout(() => {
+      scrollViewRef.current?.scrollTo({
+        y: Math.max(0, targetY),
+        animated: true,
+      });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [initialScrollTime, showNowLine, scheduleItems.length]);
 
   return (
     <ScrollView
       ref={scrollViewRef}
       style={styles.container}
-      contentContainerStyle={styles.contentContainer}
+      contentContainerStyle={[
+        styles.contentContainer,
+        contentPaddingBottom !== undefined && { paddingBottom: contentPaddingBottom },
+      ]}
       showsVerticalScrollIndicator={true}
     >
+      <View>
+      {showNowLine && (
+        <View pointerEvents="none" style={[styles.nowLine, { top: nowLineOffset }]}>
+          <View style={styles.nowDot} />
+          <View style={styles.nowHair} />
+          <Text style={styles.nowLabel}>지금</Text>
+        </View>
+      )}
       {timeSlots.map((time, index) => {
         const scheduleItem = getScheduleItemForTime(time);
         const occupiedItem = isTimeOccupied(time);
 
         // 이 시간에 시작하는 일정이 있으면 블록으로 표시
         if (scheduleItem) {
-          const emoji = ActivityEmojis[scheduleItem.activity?.emojiKey || ''] || '📌';
           const colorScheme = ActivityMaterialColors[scheduleItem.activity?.colorKey || 'blue'];
           const blockHeight = calculateItemHeight(scheduleItem);
           // timeSlot의 높이는 활동 블록의 높이와 동일하게 설정
@@ -197,7 +218,13 @@ export default function TimelineViewV2({
                   }
                 ]}>
                   <View style={styles.scheduleBlockHeader}>
-                    <Text style={styles.scheduleEmoji}>{emoji}</Text>
+                    <View style={styles.scheduleEmojiWrapper}>
+                      <ActivityIcon
+                        activity={scheduleItem.activity}
+                        size={32}
+                        color={SoftPopColors.text}
+                      />
+                    </View>
                     <View style={styles.scheduleInfo}>
                       <Text style={styles.scheduleName}>
                         {scheduleItem.activity?.name || '활동'}
@@ -276,6 +303,7 @@ export default function TimelineViewV2({
           </View>
         );
       })}
+      </View>
     </ScrollView>
   );
 }
@@ -287,6 +315,36 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingBottom: 60,
+  },
+  nowLine: {
+    position: 'absolute',
+    left: 72,
+    right: 8,
+    height: 2,
+    backgroundColor: SoftPopColors.primary,
+    zIndex: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  nowDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: SoftPopColors.primary,
+    marginLeft: -4,
+    marginTop: -4,
+  },
+  nowHair: {
+    flex: 1,
+    height: 2,
+    backgroundColor: SoftPopColors.primary,
+  },
+  nowLabel: {
+    marginLeft: 6,
+    fontSize: 11,
+    color: SoftPopColors.primary,
+    fontFamily: 'BMJUA',
+    marginTop: -8,
   },
   timeSlot: {
     flexDirection: 'row',
@@ -374,8 +432,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  scheduleEmoji: {
-    fontSize: 36,
+  scheduleEmojiWrapper: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scheduleInfo: {
     flex: 1,

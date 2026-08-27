@@ -8,18 +8,9 @@ import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Activity } from '../types';
-import { ActivityEmojis } from '../constants/emojis';
+import ActivityIcon from './ActivityIcon';
 import { ActivityMaterialColors } from '../constants/materialDesign';
-
-// Soft Pop 3D 디자인 색상 팔레트
-const SoftPopColors = {
-    background: '#FFF9F0', // Cream
-    primary: '#FF6B6B', // Soft Red
-    secondary: '#FFD93D', // Banana Yellow
-    text: '#2D3436', // Soft Black
-    textSecondary: '#636E72', // Soft Gray
-    white: '#FFFFFF',
-};
+import { SoftPopColors } from '../constants/theme';
 
 interface DraggableActivityCardProps {
     activity: Activity;
@@ -27,6 +18,8 @@ interface DraggableActivityCardProps {
     onDragEnd?: () => void;
     onPress?: () => void;
     isDragging?: boolean;
+    /** Horizontal phone strip; list remains the tablet two-pane row. */
+    variant?: 'list' | 'chip';
 }
 
 export default function DraggableActivityCard({
@@ -34,16 +27,20 @@ export default function DraggableActivityCard({
     onDragStart,
     onDragEnd,
     onPress,
-    isDragging = false
+    isDragging = false,
+    variant = 'list',
 }: DraggableActivityCardProps) {
-    const emoji = ActivityEmojis[activity.emojiKey] || activity.emojiKey;
+    const isChip = variant === 'chip';
     const colorScheme = ActivityMaterialColors[activity.colorKey];
 
     const scaleAnim = useRef(new Animated.Value(1)).current;
     const opacityAnim = useRef(new Animated.Value(1)).current;
 
     const handlePress = () => {
-        console.log('Card pressed, isDragging:', isDragging);
+        if (isChip) {
+            onPress?.();
+            return;
+        }
         if (!isDragging) {
             onPress?.();
         }
@@ -103,51 +100,60 @@ export default function DraggableActivityCard({
         <Pressable
             onPress={handlePress}
             onLongPress={handleLongPress}
-            delayLongPress={500}
+            delayLongPress={isChip ? 200 : 500} // Horizontal chip scroller steals a 500ms press
+            style={isChip ? styles.chipPressable : undefined}
         >
             {({ pressed }) => (
                 <Animated.View
                     style={[
                         styles.card,
+                        isChip && styles.chip,
                         { backgroundColor: colorScheme.surface || SoftPopColors.white },
                         animatedStyle,
                         isDragging && styles.cardDragging,
                         pressed && !isDragging && styles.cardPressed
                     ]}
                 >
-                    {/* Dragging Badge */}
                     {isDragging && (
-                        <View style={styles.draggingBadge}>
-                            <Text style={styles.draggingBadgeText}>선택 됨</Text>
+                        <View style={[styles.draggingBadge, isChip && styles.chipDraggingBadge]}>
+                            <Text style={styles.draggingBadgeText}>선택</Text>
                         </View>
                     )}
 
-                    {/* Drag Handle + Emoji Group (붙여서 배치) */}
-                    <View style={styles.leftGroup}>
-                        <View style={styles.dragHandle}>
-                            <MaterialIcons
-                                name="drag-handle"
-                                size={22}
-                                color={isDragging ? SoftPopColors.primary : SoftPopColors.textSecondary}
+                    <View style={[styles.leftGroup, isChip && styles.chipIconGroup]}>
+                        {!isChip && (
+                            <View style={styles.dragHandle}>
+                                <MaterialIcons
+                                    name="drag-handle"
+                                    size={22}
+                                    color={isDragging ? SoftPopColors.primary : SoftPopColors.textSecondary}
+                                />
+                            </View>
+                        )}
+                        <View style={[styles.emojiContainer, isChip && styles.chipEmoji]}>
+                            <ActivityIcon
+                                activity={activity}
+                                size={isChip ? 32 : 36}
+                                color={SoftPopColors.text}
                             />
-                        </View>
-                        <View style={styles.emojiContainer}>
-                            <Text style={styles.emoji}>{emoji}</Text>
                         </View>
                     </View>
 
-                    {/* Info (텍스트 영역 - 최대한 넓게) */}
-                    <View style={styles.infoContainer}>
-                        <Text style={styles.name} numberOfLines={2}>
+                    <View style={[styles.infoContainer, isChip && styles.chipInfo]}>
+                        <Text
+                            style={[styles.name, isChip && styles.chipName]}
+                            numberOfLines={isChip ? 1 : 2}
+                            lineBreakStrategyIOS="hangul-word"
+                        >
                             {activity.name}
                         </Text>
                         <View style={styles.durationContainer}>
                             <MaterialIcons
                                 name="schedule"
-                                size={16}
+                                size={isChip ? 12 : 16}
                                 color={SoftPopColors.textSecondary}
                             />
-                            <Text style={styles.duration}>
+                            <Text style={[styles.duration, isChip && styles.chipDuration]}>
                                 {activity.durationMinutes}분
                             </Text>
                         </View>
@@ -200,20 +206,19 @@ const styles = StyleSheet.create({
         backgroundColor: SoftPopColors.background,
         borderRadius: 16,
     },
-    emoji: {
-        fontSize: 36,
-    },
     infoContainer: {
         flex: 1,
         gap: 8,
         marginLeft: 12, // 왼쪽 그룹과 텍스트 영역 사이 간격만 유지
     },
     name: {
-        fontSize: 18,
+        fontSize: 17,
         fontWeight: '600',
         color: SoftPopColors.text,
-        lineHeight: 24,
+        lineHeight: 22,
         fontFamily: 'BMJUA',
+        flexShrink: 1,
+        width: '100%',
     },
     durationContainer: {
         flexDirection: 'row',
@@ -256,6 +261,51 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: SoftPopColors.white,
         fontWeight: '700',
+        fontFamily: 'BMJUA',
+    },
+    chipDraggingBadge: {
+        top: 4,
+        right: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+    },
+    chipPressable: {
+        width: 112,
+    },
+    chip: {
+        width: 112,
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 12,
+        marginBottom: 0,
+        minHeight: 0,
+        gap: 4,
+    },
+    chipIconGroup: {
+        justifyContent: 'center',
+    },
+    chipEmoji: {
+        width: 52,
+        height: 52,
+        borderRadius: 14,
+    },
+    chipInfo: {
+        flex: 0,
+        alignItems: 'center',
+        marginLeft: 0,
+        gap: 2,
+        width: '100%',
+    },
+    chipName: {
+        fontSize: 13,
+        lineHeight: 18,
+        textAlign: 'center',
+        width: '100%',
+    },
+    chipDuration: {
+        fontSize: 12,
+        lineHeight: 16,
     },
 });
 

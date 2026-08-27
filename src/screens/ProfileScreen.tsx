@@ -5,58 +5,67 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Switch, useWindowDimensions, Image, Platform } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Switch, Image, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { AdBanner } from '../components/AdBanner';
-import { exportAllData, importAllData, clearAllData } from '../services/storage';
-import { requestNotificationPermissions, loadNotificationSettings, saveNotificationSettings } from '../services/notificationService';
+import { exportAllData, importAllData, clearAllData, parseBackupData } from '../services/storage';
+import {
+  requestNotificationPermissions,
+  loadNotificationsMasterEnabled,
+  saveNotificationsMasterEnabled,
+  loadNotificationSettings,
+  loadNotificationLeadMinutes,
+  saveNotificationLeadMinutes,
+  cancelAllNotifications,
+  rescheduleUpcomingNotifications,
+} from '../services/notificationService';
+import { loadSettingsPin, saveSettingsPin, clearSettingsPin } from '../services/pinLock';
+import PinLockModal from '../components/PinLockModal';
+import { NOTIFICATION_LEAD_OPTIONS, NotificationLeadMinutes } from '../utils/dateUtils';
 import { useActivity } from '../contexts/ActivityContext';
 import { useSchedule } from '../contexts/ScheduleContext';
+import { toLocalDateString } from '../utils/dateUtils';
 import TermsModal from '../components/TermsModal';
 import PrivacyModal from '../components/PrivacyModal';
 import LicenseModal from '../components/LicenseModal';
-
-// Soft Pop 3D 디자인 색상 팔레트
-const SoftPopColors = {
-  background: '#FFF9F0', // Cream
-  primary: '#FF6B6B', // Soft Red
-  secondary: '#FFD93D', // Banana Yellow
-  text: '#2D3436', // Soft Black
-  textSecondary: '#636E72', // Soft Gray
-  white: '#FFFFFF',
-  error: '#FF6B6B',
-};
+import { SoftPopColors } from '../constants/theme';
+import { useLayout } from '../hooks/useLayout';
 
 export default function ProfileScreen() {
-  const { width, height } = useWindowDimensions();
-  const isLandscape = width > height;
-  const insets = useSafeAreaInsets();
-  const { resetActivities } = useActivity();
-  const { resetSchedules } = useSchedule();
+  const { isCompact, isLandscape, space, adBannerBottom, contentPadWithAd } = useLayout();
+  const { resetActivities, reloadFromStorage: reloadActivities } = useActivity();
+  const { resetSchedules, schedules, reloadFromStorage: reloadSchedules } = useSchedule();
   const [notificationEnabled, setNotificationEnabled] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showLicense, setShowLicense] = useState(false);
+  const [leadMinutes, setLeadMinutes] = useState<NotificationLeadMinutes>(5);
+  const [storedPin, setStoredPin] = useState<string | null>(null);
+  const [unlocked, setUnlocked] = useState(true);
+  const [pinModal, setPinModal] = useState<'unlock' | 'set' | 'confirm' | 'remove' | null>(null);
+  const [pendingPin, setPendingPin] = useState('');
+  const [pinError, setPinError] = useState('');
 
   const appVersion = Constants.expoConfig?.version || '1.0.0';
   const appName = Constants.expoConfig?.name || 'i하루';
 
-  // 알림 설정 로드
   React.useEffect(() => {
     const loadSettings = async () => {
-      const hasPermission = await requestNotificationPermissions();
-      const settings = await loadNotificationSettings();
-      setNotificationEnabled(hasPermission && Object.keys(settings).length > 0);
+      const enabled = await loadNotificationsMasterEnabled();
+      setNotificationEnabled(enabled);
+      setLeadMinutes(await loadNotificationLeadMinutes());
+      const pin = await loadSettingsPin();
+      setStoredPin(pin);
+      setUnlocked(!pin);
     };
     loadSettings();
   }, []);
 
-  // 알림 설정 토글
   const handleNotificationToggle = async (value: boolean) => {
     if (value) {
       const hasPermission = await requestNotificationPermissions();
@@ -64,10 +73,66 @@ export default function ProfileScreen() {
         Alert.alert('알림 권한 필요', '알림을 사용하려면 알림 권한이 필요합니다.');
         return;
       }
+      setNotificationEnabled(true);
+      await saveNotificationsMasterEnabled(true);
+      const settings = await loadNotificationSettings();
+      await rescheduleUpcomingNotifications(schedules, settings);
+      return;
     }
-    setNotificationEnabled(value);
-    // 알림 설정 저장 (빈 객체로 저장하면 모든 알림 비활성화)
-    await saveNotificationSettings(value ? {} : {});
+
+    setNotificationEnabled(false);
+    await saveNotificationsMasterEnabled(false);
+    await cancelAllNotifications();
+  };
+
+  const handleLeadMinutes = async (minutes: NotificationLeadMinutes) => {
+    setLeadMinutes(minutes);
+    await saveNotificationLeadMinutes(minutes);
+    if (notificationEnabled) {
+      const settings = await loadNotificationSettings();
+      await rescheduleUpcomingNotifications(schedules, settings);
+    }
+  };
+
+  const handlePinSubmit = async (pin: string) => {
+    setPinError('');
+    if (pinModal === 'unlock') {
+      if (pin === storedPin) {
+        setUnlocked(true);
+        setPinModal(null);
+      } else {
+        setPinError('비밀번호가 달라요');
+      }
+      return;
+    }
+    if (pinModal === 'set') {
+      setPendingPin(pin);
+      setPinModal('confirm');
+      return;
+    }
+    if (pinModal === 'confirm') {
+      if (pin !== pendingPin) {
+        setPinError('다시 입력한 숫자가 달라요');
+        return;
+      }
+      await saveSettingsPin(pin);
+      setStoredPin(pin);
+      setUnlocked(true);
+      setPinModal(null);
+      Alert.alert('잠금 설정', '설정이 비밀번호로 잠겼어요.');
+      return;
+    }
+    if (pinModal === 'remove') {
+      if (pin !== storedPin) {
+        setPinError('비밀번호가 달라요');
+        return;
+      }
+      await clearSettingsPin();
+      setStoredPin(null);
+      setUnlocked(true);
+      setPinModal(null);
+      Alert.alert('잠금 해제', '설정 잠금을 풀었어요.');
+    }
   };
 
   // 데이터 백업
@@ -83,8 +148,21 @@ export default function ProfileScreen() {
 
       const activityCount = data.activities.length;
       const scheduleCount = data.schedules.length;
+      const hasDeletedDefaults = data.deletedDefaultIds.length > 0;
+      const hasNotificationSettings = Object.keys(data.notificationSettings).length > 0;
+      const hasNonDefaultMaster = data.notificationsEnabled === false;
+      const hasNonDefaultLead = data.notificationLeadMinutes !== 5;
+      const hasPin = Boolean(data.settingsPin);
 
-      if (activityCount === 0 && scheduleCount === 0) {
+      if (
+        activityCount === 0
+        && scheduleCount === 0
+        && !hasDeletedDefaults
+        && !hasNotificationSettings
+        && !hasNonDefaultMaster
+        && !hasNonDefaultLead
+        && !hasPin
+      ) {
         Alert.alert('백업할 데이터 없음', '저장된 활동이나 일정이 없습니다.');
         return;
       }
@@ -96,7 +174,7 @@ export default function ProfileScreen() {
       });
 
       const jsonString = JSON.stringify(data, null, 2);
-      const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
+      const timestamp = toLocalDateString(new Date()).replace(/-/g, '');
       const fileName = `i하루-백업-${timestamp}.json`;
 
       // documentDirectory 사용 (사용자가 접근 가능한 위치)
@@ -195,23 +273,34 @@ export default function ProfileScreen() {
                   encoding: FileSystem.EncodingType.UTF8,
                 });
 
-                // JSON 파싱
-                const data = JSON.parse(fileContent);
-
-                // 데이터 검증
-                if (!data.version || !Array.isArray(data.activities) || !Array.isArray(data.schedules)) {
+                const data = parseBackupData(fileContent);
+                if (!data) {
                   Alert.alert('복원 실패', '유효하지 않은 백업 파일입니다.');
                   return;
                 }
 
-                // 데이터 복원
                 const success = await importAllData(data);
                 if (success) {
-                  // Context는 자동으로 AsyncStorage에서 다시 로드됨
-                  // 하지만 즉시 반영을 위해 앱 재시작 권장
+                  const [, restoredSchedules] = await Promise.all([
+                    reloadActivities(),
+                    reloadSchedules(),
+                  ]);
+                  const enabled = await loadNotificationsMasterEnabled();
+                  setNotificationEnabled(enabled);
+                  setLeadMinutes(await loadNotificationLeadMinutes());
+                  const pin = await loadSettingsPin();
+                  setStoredPin(pin);
+                  setUnlocked(!pin);
+                  await cancelAllNotifications();
+                  if (enabled) {
+                    await rescheduleUpcomingNotifications(
+                      restoredSchedules,
+                      data.notificationSettings
+                    );
+                  }
                   Alert.alert(
                     '복원 완료',
-                    '데이터가 복원되었습니다.\n\n변경사항을 확인하려면 앱을 재시작해주세요.',
+                    '데이터가 복원되었습니다.',
                     [{ text: '확인' }]
                   );
                 } else {
@@ -244,9 +333,14 @@ export default function ProfileScreen() {
           onPress: async () => {
             try {
               await clearAllData();
-              // Context 초기화
               resetActivities();
               resetSchedules();
+              setNotificationEnabled(await loadNotificationsMasterEnabled());
+              setLeadMinutes(await loadNotificationLeadMinutes());
+              const pin = await loadSettingsPin();
+              setStoredPin(pin);
+              setUnlocked(!pin);
+              await cancelAllNotifications();
               Alert.alert('완료', '모든 데이터가 삭제되었습니다.');
             } catch (error) {
               console.error('Reset error:', error);
@@ -268,26 +362,32 @@ export default function ProfileScreen() {
           : ['top'] // iOS는 기존 유지
       }
     >
+      {!unlocked ? (
+        <View style={[styles.lockGate, { padding: space }]}>
+          <MaterialIcons name="lock" size={48} color={SoftPopColors.primary} />
+          <Text style={styles.lockTitle}>설정이 잠겨 있어요</Text>
+          <Text style={styles.lockMessage}>부모님만 바꿀 수 있게 잠가 두었어요.</Text>
+          <Pressable
+            style={styles.lockButton}
+            onPress={() => {
+              setPinError('');
+              setPinModal('unlock');
+            }}
+          >
+            <Text style={styles.lockButtonText}>비밀번호 입력</Text>
+          </Pressable>
+        </View>
+      ) : (
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
           styles.content,
-          {
-            // 동적 계산: 탭바 높이 + SafeArea bottom (OS별)
-            paddingBottom: (() => {
-              const TAB_BAR_HEIGHT = 68;
-              const AD_HEIGHT = 60;
-              const tabBarHeight = Platform.OS === 'android'
-                ? TAB_BAR_HEIGHT + Math.max(insets.bottom, 16) + 8
-                : TAB_BAR_HEIGHT + Math.max(insets.bottom, 10);
-              return tabBarHeight + AD_HEIGHT + 20;
-            })(),
-          }
+          { padding: space, paddingBottom: contentPadWithAd },
         ]}
         showsVerticalScrollIndicator={false}
       >
         {/* 앱 정보 카드 */}
-        <View style={styles.appInfoCard}>
+        <View style={[styles.appInfoCard, isCompact && styles.appInfoCardCompact]}>
           <View style={styles.avatarContainer}>
             <Image
               source={require('../../assets/icon.png')}
@@ -300,7 +400,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* 설정 섹션 */}
-        <View style={styles.section}>
+        <View style={[styles.section, isCompact && styles.sectionCompact]}>
           <Text style={styles.sectionTitle}>설정</Text>
 
           {/* 알림 설정 */}
@@ -318,10 +418,56 @@ export default function ProfileScreen() {
               thumbColor={notificationEnabled ? SoftPopColors.primary : SoftPopColors.textSecondary}
             />
           </View>
+          <View style={styles.leadRow}>
+            <Text style={styles.leadLabel}>미리 알림</Text>
+            <View style={styles.leadChips}>
+              {NOTIFICATION_LEAD_OPTIONS.map((minutes) => (
+                <Pressable
+                  key={minutes}
+                  onPress={() => handleLeadMinutes(minutes)}
+                  style={[
+                    styles.leadChip,
+                    leadMinutes === minutes && styles.leadChipActive,
+                  ]}
+                >
+                  <Text style={[
+                    styles.leadChipText,
+                    leadMinutes === minutes && styles.leadChipTextActive,
+                  ]}>
+                    {minutes === 0 ? '정각' : `${minutes}분 전`}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+          <Pressable
+            style={({ pressed }) => [
+              styles.settingItem,
+              pressed && styles.settingItemPressed,
+            ]}
+            onPress={() => {
+              setPinError('');
+              setPinModal(storedPin ? 'remove' : 'set');
+            }}
+          >
+            <MaterialIcons
+              name={storedPin ? 'lock-open' : 'lock'}
+              size={28}
+              color={SoftPopColors.textSecondary}
+            />
+            <Text style={styles.settingText}>
+              {storedPin ? '설정 잠금 해제' : '설정 잠금'}
+            </Text>
+            <MaterialIcons
+              name="chevron-right"
+              size={24}
+              color={SoftPopColors.textSecondary}
+            />
+          </Pressable>
         </View>
 
         {/* 데이터 관리 섹션 */}
-        <View style={styles.section}>
+        <View style={[styles.section, isCompact && styles.sectionCompact]}>
           <Text style={styles.sectionTitle}>데이터 관리</Text>
 
           <Pressable
@@ -387,7 +533,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* 정보 섹션 */}
-        <View style={styles.section}>
+        <View style={[styles.section, isCompact && styles.sectionCompact]}>
           <Text style={styles.sectionTitle}>정보</Text>
 
           <Pressable
@@ -451,14 +597,13 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
       </ScrollView>
+      )}
 
       {/* Ad Banner */}
       <AdBanner
         style={{
           position: 'absolute',
-          bottom: Platform.OS === 'android'
-            ? 68 + Math.max(insets.bottom, 16) + 8
-            : 68 + Math.max(insets.bottom, 10),
+          bottom: adBannerBottom,
           width: '100%',
         }}
       />
@@ -480,6 +625,28 @@ export default function ProfileScreen() {
         visible={showLicense}
         onClose={() => setShowLicense(false)}
       />
+
+      <PinLockModal
+        visible={pinModal !== null}
+        title={
+          pinModal === 'unlock' ? '비밀번호'
+            : pinModal === 'set' ? '잠금 숫자 4자리'
+              : pinModal === 'confirm' ? '한 번 더 입력'
+                : '잠금 해제'
+        }
+        message={
+          pinModal === 'set' ? '아이가 설정을 바꾸지 못하게 잠가 두세요.'
+            : pinModal === 'confirm' ? '같은 숫자 4자리를 다시 눌러 주세요.'
+              : undefined
+        }
+        confirmLabel={pinModal === 'remove' ? '잠금 풀기' : '확인'}
+        errorText={pinError}
+        onCancel={() => {
+          setPinModal(null);
+          setPinError('');
+        }}
+        onSubmit={handlePinSubmit}
+      />
     </SafeAreaView>
   );
 }
@@ -497,7 +664,65 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 32,
-    // paddingBottom은 동적으로 계산 (contentContainerStyle에서)
+  },
+  lockGate: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  lockTitle: {
+    fontSize: 22,
+    fontFamily: 'BMJUA',
+    color: SoftPopColors.text,
+  },
+  lockMessage: {
+    fontSize: 16,
+    fontFamily: 'BMJUA',
+    color: SoftPopColors.textSecondary,
+    textAlign: 'center',
+  },
+  lockButton: {
+    marginTop: 12,
+    backgroundColor: SoftPopColors.primary,
+    borderRadius: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+  },
+  lockButtonText: {
+    color: SoftPopColors.white,
+    fontFamily: 'BMJUA',
+    fontSize: 18,
+  },
+  leadRow: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  leadLabel: {
+    fontSize: 14,
+    fontFamily: 'BMJUA',
+    color: SoftPopColors.textSecondary,
+    marginBottom: 8,
+  },
+  leadChips: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  leadChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: SoftPopColors.background,
+  },
+  leadChipActive: {
+    backgroundColor: SoftPopColors.primary,
+  },
+  leadChipText: {
+    fontFamily: 'BMJUA',
+    color: SoftPopColors.textSecondary,
+  },
+  leadChipTextActive: {
+    color: SoftPopColors.white,
   },
   appInfoCard: {
     backgroundColor: SoftPopColors.white,
@@ -513,6 +738,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
+  },
+  appInfoCardCompact: {
+    padding: 24,
+    marginBottom: 16,
   },
   avatarContainer: {
     marginBottom: 20,
@@ -563,6 +792,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
+  },
+  sectionCompact: {
+    padding: 16,
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 20,

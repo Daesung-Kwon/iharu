@@ -3,12 +3,13 @@
  * Soft Pop 3D (Claymorphism) 디자인 적용
  */
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, useWindowDimensions, Platform } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Platform, Linking, AppState } from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { MainTabParamList } from '../types';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import mobileAds from 'react-native-google-mobile-ads';
-import * as TrackingTransparency from 'expo-tracking-transparency';
 import { useSchedule } from '../contexts/ScheduleContext';
 import { AdBanner } from '../components/AdBanner';
 import TodayScheduleItem from '../components/TodayScheduleItem';
@@ -17,34 +18,41 @@ import HorizontalDatePicker from '../components/HorizontalDatePicker';
 import ClapAnimation from '../components/ClapAnimation';
 import { getItemStatus, getNextActivity, getCurrentActivity, getMinutesUntil, formatRemainingTime } from '../utils/timeUtils';
 import { calculateDayStats, isToday, isPast, isFuture } from '../utils/statsUtils';
-import { ActivityEmojis } from '../constants/emojis';
-
-// Soft Pop 3D 디자인 색상 팔레트
-const SoftPopColors = {
-  background: '#FFF9F0', // Cream
-  primary: '#FF6B6B', // Soft Red
-  secondary: '#FFD93D', // Banana Yellow
-  text: '#2D3436', // Soft Black
-  textSecondary: '#636E72', // Soft Gray
-  white: '#FFFFFF',
-  success: '#6BCB77',
-  error: '#FF6B6B',
-};
+import { toLocalDateString } from '../utils/dateUtils';
+import ActivityIcon from '../components/ActivityIcon';
+import Toast from '../components/Toast';
+import { SoftPopColors } from '../constants/theme';
+import { useLayout } from '../hooks/useLayout';
 import {
+  getNotificationPermissionStatus,
   requestNotificationPermissions,
   loadNotificationSettings,
   saveNotificationSettings,
   scheduleActivityNotification,
-  scheduleTodayNotifications,
+  rescheduleUpcomingNotifications,
   cancelActivityNotification,
+  loadNotificationLeadMinutes,
 } from '../services/notificationService';
 
 export default function TodayScreen() {
-  const { width, height } = useWindowDimensions();
-  const isLandscape = width > height;
-  const insets = useSafeAreaInsets();
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const { getScheduleForDate, updateScheduleItem, schedules, copyScheduleToDate } = useSchedule();
+  const {
+    isCompact,
+    isLandscape,
+    space,
+    titleSize,
+    dateCardWidth,
+    adBannerBottom,
+    contentPadWithAd,
+  } = useLayout();
+  const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+  const {
+    selectedDate,
+    setSelectedDate,
+    getScheduleForDate,
+    updateScheduleItem,
+    schedules,
+    copyScheduleToDate,
+  } = useSchedule();
   const selectedSchedule = getScheduleForDate(selectedDate);
   const scheduleItems = selectedSchedule?.items || [];
   const [showCelebration, setShowCelebration] = useState(false);
@@ -52,58 +60,48 @@ export default function TodayScreen() {
   const [showClapAnimation, setShowClapAnimation] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [notifications, setNotifications] = useState<Record<string, boolean>>({});
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastVisible, setToastVisible] = useState(false);
 
-  const selectedDateString = selectedDate.toISOString().split('T')[0];
+  const selectedDateString = toLocalDateString(selectedDate);
   const isViewingToday = isToday(selectedDateString);
   const isViewingPast = isPast(selectedDateString);
   const isViewingFuture = isFuture(selectedDateString);
   const dayStats = calculateDayStats(selectedSchedule);
+  const schedulesRef = useRef(schedules);
+  schedulesRef.current = schedules;
 
-  // 앱 시작 시 알림 권한 요청 및 설정 로드
   useEffect(() => {
     const initializeApp = async () => {
-      // 광고 초기화 및 권한 요청
-      try {
-        await mobileAds().initialize();
-        if (Platform.OS === 'ios') {
-          // iOS 시스템 안정화 및 알림 팝업과의 충돌 방지를 위해 지연 호출
-          setTimeout(async () => {
-            const { status } = await TrackingTransparency.requestTrackingPermissionsAsync();
-            console.log('Tracking status:', status);
-          }, 2000);
-        }
-      } catch (e) {
-        console.error('Ads initialization failed', e);
-      }
-
-      // 알림 권한 요청
-      await requestNotificationPermissions();
-
-      // 저장된 알림 설정 로드
       const savedSettings = await loadNotificationSettings();
       setNotifications(savedSettings);
-
-      // 오늘 일정 알림 스케줄링
-      const todaySchedule = getScheduleForDate(new Date());
-      if (todaySchedule && todaySchedule.items.length > 0) {
-        await scheduleTodayNotifications(todaySchedule.items, savedSettings);
-      }
     };
 
     initializeApp();
   }, []);
 
-  // 오늘 일정이 변경될 때만 알림 재스케줄링 (알림 설정 변경은 handleToggleNotification에서 개별 처리)
+  const rescheduleNotifications = useCallback(async () => {
+    const permStatus = await getNotificationPermissionStatus();
+    if (permStatus !== 'granted') return;
+    const savedSettings = await loadNotificationSettings();
+    setNotifications(savedSettings);
+    await rescheduleUpcomingNotifications(schedulesRef.current, savedSettings);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      rescheduleNotifications();
+    }, [rescheduleNotifications])
+  );
+
   useEffect(() => {
-    if (!isViewingToday || scheduleItems.length === 0) return;
-
-    const scheduleNotifications = async () => {
-      await scheduleTodayNotifications(scheduleItems, notifications);
-    };
-
-    scheduleNotifications();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isViewingToday, scheduleItems.length]); // notifications 제거 - 개별 토글에서 처리
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        rescheduleNotifications();
+      }
+    });
+    return () => sub.remove();
+  }, [rescheduleNotifications]);
 
   // 매분 현재 시간 업데이트
   useEffect(() => {
@@ -173,30 +171,72 @@ export default function TodayScreen() {
     }
   };
 
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setToastVisible(true);
+  };
+
   const handleToggleNotification = async (itemId: string) => {
     const item = scheduleItems.find(i => i.id === itemId);
     if (!item) return;
 
     const newEnabled = !notifications[itemId];
 
-    // 상태 업데이트
+    // 알림 ON: 먼저 권한 확인/요청
+    if (newEnabled) {
+      const permStatus = await getNotificationPermissionStatus();
+      if (permStatus !== 'granted') {
+        const granted = await requestNotificationPermissions();
+        if (!granted) {
+          Alert.alert(
+            '알림 권한 필요',
+            '알림을 사용하려면 설정에서 권한을 허용해주세요.',
+            [
+              { text: '취소', style: 'cancel' },
+              { text: '설정 열기', onPress: () => Linking.openSettings() },
+            ]
+          );
+          return;
+        }
+      }
+    }
+
     const updatedNotifications = {
       ...notifications,
       [itemId]: newEnabled,
     };
-    setNotifications(updatedNotifications);
 
-    // AsyncStorage에 저장
-    await saveNotificationSettings(updatedNotifications);
-
-    // 알림 스케줄링/취소
-    if (isViewingToday) {
-      if (newEnabled) {
-        await scheduleActivityNotification(item, true);
-      } else {
-        await cancelActivityNotification(itemId);
+    if (newEnabled) {
+      const result = await scheduleActivityNotification(item, true, selectedDate);
+      if (result === 'scheduled') {
+        setNotifications(updatedNotifications);
+        await saveNotificationSettings(updatedNotifications);
+        const lead = await loadNotificationLeadMinutes();
+        showToast(
+          lead === 0
+            ? `${item.activity?.name || '활동'} 시작 시간에 알림을 보내드릴게요`
+            : `${item.activity?.name || '활동'} ${lead}분 전에 알림을 보내드릴게요`
+        );
+        return;
       }
+      if (result === 'master_off') {
+        setNotifications(updatedNotifications);
+        await saveNotificationSettings(updatedNotifications);
+        showToast('설정에서 알림을 켜면 예약됩니다');
+        return;
+      }
+      if (result === 'past') {
+        showToast('이미 지난 시간이라 알림을 예약하지 않았어요');
+        return;
+      }
+      showToast('알림을 예약하지 못했어요');
+      return;
     }
+
+    setNotifications(updatedNotifications);
+    await saveNotificationSettings(updatedNotifications);
+    await cancelActivityNotification(itemId);
+    showToast('알림이 해제되었어요');
   };
 
   const handleGoToToday = () => {
@@ -224,8 +264,7 @@ export default function TodayScreen() {
             text: '삭제하고 복사',
             style: 'destructive',
             onPress: () => {
-              // 기존 일정 삭제 후 복사
-              const success = copyScheduleToDate(selectedDate, today);
+              const success = copyScheduleToDate(selectedDate, today, { overwrite: true });
               if (success) {
                 setSelectedDate(today);
                 Alert.alert('완료', '일정을 오늘로 복사했습니다.');
@@ -274,27 +313,16 @@ export default function TodayScreen() {
         style={styles.scrollView}
         contentContainerStyle={[
           styles.content,
-          isLandscape && styles.contentLandscape,
-          {
-            // 동적 계산: 탭바 높이 + SafeArea bottom (OS별)
-            paddingBottom: (() => {
-              const TAB_BAR_HEIGHT = 68;
-              const AD_HEIGHT = 60; // Approximate ad height
-              const tabBarHeight = Platform.OS === 'android'
-                ? TAB_BAR_HEIGHT + Math.max(insets.bottom, 16) + 8
-                : TAB_BAR_HEIGHT + Math.max(insets.bottom, 10);
-              return tabBarHeight + AD_HEIGHT + 20; // Extra padding
-            })(),
-          }
+          { padding: space, paddingBottom: contentPadWithAd },
         ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header Section */}
-        <View style={styles.header}>
+        <View style={[styles.header, { padding: space, paddingBottom: isCompact ? 12 : 20 }]}>
           <View style={styles.headerContent}>
             <View style={styles.headerTop}>
               <View style={styles.headerTitleContainer}>
-                <Text style={styles.title}>
+                <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleSize + 8 }]}>
                   {isViewingToday ? '오늘의 일정' : '일정 이력'}
                 </Text>
                 <Text style={styles.selectedDateText}>
@@ -336,13 +364,90 @@ export default function TodayScreen() {
               selectedDate={selectedDate}
               onDateSelect={handleDateSelect}
               schedules={schedules}
+              cardWidth={dateCardWidth}
             />
           </View>
         </View>
 
+        {scheduleItems.length > 0 && isViewingToday && (currentActivity || nextActivity) && (
+          <View style={styles.highlightSection}>
+            {currentActivity && (
+              <View style={styles.currentActivityCard}>
+                <View style={styles.currentActivityHeader}>
+                  <MaterialIcons
+                    name="play-circle"
+                    size={28}
+                    color={SoftPopColors.primary}
+                  />
+                  <Text style={styles.currentActivityTitle}>지금 할 시간!</Text>
+                </View>
+                <View style={styles.currentActivityContent}>
+                  <View style={styles.currentActivityIconWrapper}>
+                    <ActivityIcon
+                      activity={currentActivity.activity}
+                      size={52}
+                      color={SoftPopColors.primary}
+                    />
+                  </View>
+                  <View style={styles.currentActivityInfo}>
+                    <Text style={styles.currentActivityName}>
+                      {currentActivity.activity?.name}
+                    </Text>
+                    <Text style={styles.currentActivityTime}>
+                      {currentActivity.startTime} - {currentActivity.endTime}
+                    </Text>
+                  </View>
+                </View>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.completeNowButton,
+                    pressed && styles.completeNowButtonPressed,
+                  ]}
+                  onPress={() => handleToggleComplete(currentActivity.id)}
+                  accessibilityLabel="지금 활동 완료"
+                >
+                  <MaterialIcons name="check-circle" size={22} color={SoftPopColors.white} />
+                  <Text style={styles.completeNowButtonText}>완료했어요</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {nextActivity && !currentActivity && (
+              <View style={styles.nextActivityCard}>
+                <View style={styles.nextActivityHeader}>
+                  <MaterialIcons
+                    name="schedule"
+                    size={20}
+                    color={SoftPopColors.textSecondary}
+                  />
+                  <Text style={styles.nextActivityTitle}>다음 활동</Text>
+                  <Text style={styles.nextActivityTimeUntil}>
+                    {formatRemainingTime(getMinutesUntil(nextActivity.startTime, currentTime))}
+                  </Text>
+                </View>
+                <View style={styles.nextActivityContent}>
+                  <View style={styles.nextActivityIconWrapper}>
+                    <ActivityIcon
+                      activity={nextActivity.activity}
+                      size={28}
+                      color={SoftPopColors.text}
+                    />
+                  </View>
+                  <Text style={styles.nextActivityName}>
+                    {nextActivity.activity?.name}
+                  </Text>
+                  <Text style={styles.nextActivityTime}>
+                    {nextActivity.startTime}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Progress Card with Stats */}
         {scheduleItems.length > 0 && (
-          <View style={styles.progressCard}>
+          <View style={[styles.progressCard, { padding: space }]}>
             <View style={styles.progressCardHeader}>
               <Text style={styles.progressCardIcon}>
                 {isViewingPast ? '📊' : '⭐'}
@@ -431,67 +536,6 @@ export default function TodayScreen() {
           </View>
         )}
 
-        {/* Current & Next Activity Cards (Today Only) */}
-        {scheduleItems.length > 0 && isViewingToday && (
-          <View style={styles.highlightSection}>
-            {/* Current Activity */}
-            {currentActivity && (
-              <View style={styles.currentActivityCard}>
-                <View style={styles.currentActivityHeader}>
-                  <MaterialIcons
-                    name="play-circle"
-                    size={28}
-                    color={SoftPopColors.primary}
-                  />
-                  <Text style={styles.currentActivityTitle}>지금 할 시간!</Text>
-                </View>
-                <View style={styles.currentActivityContent}>
-                  <Text style={styles.currentActivityEmoji}>
-                    {ActivityEmojis[currentActivity.activity?.emojiKey || ''] || '📌'}
-                  </Text>
-                  <View style={styles.currentActivityInfo}>
-                    <Text style={styles.currentActivityName}>
-                      {currentActivity.activity?.name}
-                    </Text>
-                    <Text style={styles.currentActivityTime}>
-                      {currentActivity.startTime} - {currentActivity.endTime}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            )}
-
-            {/* Next Activity */}
-            {nextActivity && !currentActivity && (
-              <View style={styles.nextActivityCard}>
-                <View style={styles.nextActivityHeader}>
-                  <MaterialIcons
-                    name="schedule"
-                    size={20}
-                    color={SoftPopColors.textSecondary}
-                  />
-                  <Text style={styles.nextActivityTitle}>다음 활동</Text>
-                  <Text style={styles.nextActivityTimeUntil}>
-                    {formatRemainingTime(getMinutesUntil(nextActivity.startTime, currentTime))}
-                  </Text>
-                </View>
-                <View style={styles.nextActivityContent}>
-                  <Text style={styles.nextActivityEmoji}>
-                    {ActivityEmojis[nextActivity.activity?.emojiKey || ''] || '📌'}
-                  </Text>
-                  <Text style={styles.nextActivityName}>
-                    {nextActivity.activity?.name}
-                  </Text>
-                  <Text style={styles.nextActivityTime}>
-                    {nextActivity.startTime}
-                  </Text>
-                </View>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Schedule Items or Empty State */}
         {scheduleItems.length === 0 ? (
           <View style={styles.emptyState}>
             <MaterialIcons
@@ -501,8 +545,20 @@ export default function TodayScreen() {
             />
             <Text style={styles.emptyTitle}>아직 일정이 없어요</Text>
             <Text style={styles.emptyMessage}>
-              일정 만들기 페이지에서 오늘의 일과를 계획해보세요!
+              일정 만들기에서 오늘의 일과를 계획해보세요!
             </Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.emptyCta,
+                pressed && styles.emptyCtaPressed,
+              ]}
+              onPress={() => navigation.navigate('PlanSchedule')}
+              accessibilityLabel="일정 만들기"
+              accessibilityRole="button"
+            >
+              <MaterialIcons name="event-note" size={22} color={SoftPopColors.white} />
+              <Text style={styles.emptyCtaText}>일정 만들기</Text>
+            </Pressable>
           </View>
         ) : (
           <View style={styles.scheduleItemsContainer}>
@@ -545,7 +601,7 @@ export default function TodayScreen() {
                       handleToggleComplete(item.id);
                     }
                   }}
-                  onToggleNotification={isViewingToday ? () => handleToggleNotification(item.id) : undefined}
+                  onToggleNotification={(isViewingToday || isViewingFuture) ? () => handleToggleNotification(item.id) : undefined}
                   notificationEnabled={notifications[item.id] || false}
                 />
               );
@@ -558,9 +614,7 @@ export default function TodayScreen() {
       <AdBanner
         style={{
           position: 'absolute',
-          bottom: Platform.OS === 'android'
-            ? 68 + Math.max(insets.bottom, 16) + 8
-            : 68 + Math.max(insets.bottom, 10),
+          bottom: adBannerBottom,
           width: '100%',
           zIndex: 100,
           elevation: 10,
@@ -586,6 +640,12 @@ export default function TodayScreen() {
           setShowClapAnimation(false);
         }}
       />
+
+      <Toast
+        message={toastMessage}
+        visible={toastVisible}
+        onHide={() => setToastVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -600,7 +660,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 32,
-    // paddingBottom은 동적으로 계산 (contentContainerStyle에서)
   },
   header: {
     padding: 32,
@@ -837,9 +896,6 @@ const styles = StyleSheet.create({
   containerLandscape: {
     flexDirection: 'row',
   },
-  contentLandscape: {
-    paddingHorizontal: 32,
-  },
   emptyEmoji: {
     fontSize: 64,
     marginBottom: 20,
@@ -858,6 +914,49 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 40,
     lineHeight: 24,
+    fontFamily: 'BMJUA',
+  },
+  emptyCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 24,
+    backgroundColor: SoftPopColors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 28,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  emptyCtaPressed: {
+    transform: [{ translateY: 2 }],
+    shadowOpacity: 0.12,
+  },
+  emptyCtaText: {
+    fontSize: 18,
+    color: SoftPopColors.white,
+    fontFamily: 'BMJUA',
+  },
+  completeNowButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 16,
+    backgroundColor: SoftPopColors.primary,
+    paddingVertical: 14,
+    borderRadius: 20,
+  },
+  completeNowButtonPressed: {
+    transform: [{ translateY: 2 }],
+    opacity: 0.9,
+  },
+  completeNowButtonText: {
+    fontSize: 18,
+    color: SoftPopColors.white,
     fontFamily: 'BMJUA',
   },
   highlightSection: {
@@ -894,8 +993,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 20,
   },
-  currentActivityEmoji: {
-    fontSize: 52,
+  currentActivityIconWrapper: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   currentActivityInfo: {
     flex: 1,
@@ -954,8 +1054,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  nextActivityEmoji: {
-    fontSize: 28,
+  nextActivityIconWrapper: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   nextActivityName: {
     fontSize: 18,
