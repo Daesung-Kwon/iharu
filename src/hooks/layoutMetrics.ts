@@ -62,6 +62,6 @@ export function getLayoutMetrics(width: number, height: number): LayoutMetrics {
       space,
     ),
     tabBarHeight: TAB_BAR_HEIGHT,
-    dateCardWidth: isCompact ? 56 : 80,
+    dateCardWidth: isCompact ? 64 : 80,
   };
 }

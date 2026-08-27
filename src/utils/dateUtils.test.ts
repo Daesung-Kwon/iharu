@@ -5,6 +5,7 @@ import {
   migrateUtcSlicedScheduleDates,
   combineLocalDateAndTime,
   getActivityNotificationTime,
+  getWeekdayDatesInWeek,
 } from './dateUtils';
 import { isToday, isPast, isFuture } from './statsUtils';
 
@@ -51,6 +52,25 @@ describe('combineLocalDateAndTime / getActivityNotificationTime', () => {
     assert.equal(toLocalDateString(result), '2026-12-01');
     assert.equal(result.getHours(), 7);
     assert.equal(result.getMinutes(), 5);
+  });
+
+  it('honors a custom lead time including 0 minutes', () => {
+    const atStart = getActivityNotificationTime('2026-08-20', '09:00', 0);
+    assert.equal(atStart.getHours(), 9);
+    assert.equal(atStart.getMinutes(), 0);
+    const tenBefore = getActivityNotificationTime('2026-08-20', '09:00', 10);
+    assert.equal(tenBefore.getHours(), 8);
+    assert.equal(tenBefore.getMinutes(), 50);
+  });
+});
+
+describe('getWeekdayDatesInWeek', () => {
+  it('returns Mon–Fri for a Wednesday', () => {
+    const days = getWeekdayDatesInWeek(new Date(2026, 7, 19));
+    assert.deepEqual(
+      days.map(toLocalDateString),
+      ['2026-08-17', '2026-08-18', '2026-08-19', '2026-08-20', '2026-08-21'],
+    );
   });
 });
 

@@ -5,7 +5,9 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Platform, Linking, AppState } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { MainTabParamList } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSchedule } from '../contexts/ScheduleContext';
@@ -29,6 +31,7 @@ import {
   scheduleActivityNotification,
   rescheduleUpcomingNotifications,
   cancelActivityNotification,
+  loadNotificationLeadMinutes,
 } from '../services/notificationService';
 
 export default function TodayScreen() {
@@ -41,6 +44,7 @@ export default function TodayScreen() {
     adBannerBottom,
     contentPadWithAd,
   } = useLayout();
+  const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   const {
     selectedDate,
     setSelectedDate,
@@ -207,7 +211,12 @@ export default function TodayScreen() {
       if (result === 'scheduled') {
         setNotifications(updatedNotifications);
         await saveNotificationSettings(updatedNotifications);
-        showToast(`${item.activity?.name || '활동'} 5분 전에 알림을 보내드릴게요`);
+        const lead = await loadNotificationLeadMinutes();
+        showToast(
+          lead === 0
+            ? `${item.activity?.name || '활동'} 시작 시간에 알림을 보내드릴게요`
+            : `${item.activity?.name || '활동'} ${lead}분 전에 알림을 보내드릴게요`
+        );
         return;
       }
       if (result === 'master_off') {
@@ -360,6 +369,82 @@ export default function TodayScreen() {
           </View>
         </View>
 
+        {scheduleItems.length > 0 && isViewingToday && (currentActivity || nextActivity) && (
+          <View style={styles.highlightSection}>
+            {currentActivity && (
+              <View style={styles.currentActivityCard}>
+                <View style={styles.currentActivityHeader}>
+                  <MaterialIcons
+                    name="play-circle"
+                    size={28}
+                    color={SoftPopColors.primary}
+                  />
+                  <Text style={styles.currentActivityTitle}>지금 할 시간!</Text>
+                </View>
+                <View style={styles.currentActivityContent}>
+                  <View style={styles.currentActivityIconWrapper}>
+                    <ActivityIcon
+                      activity={currentActivity.activity}
+                      size={52}
+                      color={SoftPopColors.primary}
+                    />
+                  </View>
+                  <View style={styles.currentActivityInfo}>
+                    <Text style={styles.currentActivityName}>
+                      {currentActivity.activity?.name}
+                    </Text>
+                    <Text style={styles.currentActivityTime}>
+                      {currentActivity.startTime} - {currentActivity.endTime}
+                    </Text>
+                  </View>
+                </View>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.completeNowButton,
+                    pressed && styles.completeNowButtonPressed,
+                  ]}
+                  onPress={() => handleToggleComplete(currentActivity.id)}
+                  accessibilityLabel="지금 활동 완료"
+                >
+                  <MaterialIcons name="check-circle" size={22} color={SoftPopColors.white} />
+                  <Text style={styles.completeNowButtonText}>완료했어요</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {nextActivity && !currentActivity && (
+              <View style={styles.nextActivityCard}>
+                <View style={styles.nextActivityHeader}>
+                  <MaterialIcons
+                    name="schedule"
+                    size={20}
+                    color={SoftPopColors.textSecondary}
+                  />
+                  <Text style={styles.nextActivityTitle}>다음 활동</Text>
+                  <Text style={styles.nextActivityTimeUntil}>
+                    {formatRemainingTime(getMinutesUntil(nextActivity.startTime, currentTime))}
+                  </Text>
+                </View>
+                <View style={styles.nextActivityContent}>
+                  <View style={styles.nextActivityIconWrapper}>
+                    <ActivityIcon
+                      activity={nextActivity.activity}
+                      size={28}
+                      color={SoftPopColors.text}
+                    />
+                  </View>
+                  <Text style={styles.nextActivityName}>
+                    {nextActivity.activity?.name}
+                  </Text>
+                  <Text style={styles.nextActivityTime}>
+                    {nextActivity.startTime}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Progress Card with Stats */}
         {scheduleItems.length > 0 && (
           <View style={[styles.progressCard, { padding: space }]}>
@@ -451,75 +536,6 @@ export default function TodayScreen() {
           </View>
         )}
 
-        {/* Current & Next Activity Cards (Today Only) */}
-        {scheduleItems.length > 0 && isViewingToday && (
-          <View style={styles.highlightSection}>
-            {/* Current Activity */}
-            {currentActivity && (
-              <View style={styles.currentActivityCard}>
-                <View style={styles.currentActivityHeader}>
-                  <MaterialIcons
-                    name="play-circle"
-                    size={28}
-                    color={SoftPopColors.primary}
-                  />
-                  <Text style={styles.currentActivityTitle}>지금 할 시간!</Text>
-                </View>
-                <View style={styles.currentActivityContent}>
-                  <View style={styles.currentActivityIconWrapper}>
-                    <ActivityIcon
-                      activity={currentActivity.activity}
-                      size={52}
-                      color={SoftPopColors.primary}
-                    />
-                  </View>
-                  <View style={styles.currentActivityInfo}>
-                    <Text style={styles.currentActivityName}>
-                      {currentActivity.activity?.name}
-                    </Text>
-                    <Text style={styles.currentActivityTime}>
-                      {currentActivity.startTime} - {currentActivity.endTime}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            )}
-
-            {/* Next Activity */}
-            {nextActivity && !currentActivity && (
-              <View style={styles.nextActivityCard}>
-                <View style={styles.nextActivityHeader}>
-                  <MaterialIcons
-                    name="schedule"
-                    size={20}
-                    color={SoftPopColors.textSecondary}
-                  />
-                  <Text style={styles.nextActivityTitle}>다음 활동</Text>
-                  <Text style={styles.nextActivityTimeUntil}>
-                    {formatRemainingTime(getMinutesUntil(nextActivity.startTime, currentTime))}
-                  </Text>
-                </View>
-                <View style={styles.nextActivityContent}>
-                  <View style={styles.nextActivityIconWrapper}>
-                    <ActivityIcon
-                      activity={nextActivity.activity}
-                      size={28}
-                      color={SoftPopColors.text}
-                    />
-                  </View>
-                  <Text style={styles.nextActivityName}>
-                    {nextActivity.activity?.name}
-                  </Text>
-                  <Text style={styles.nextActivityTime}>
-                    {nextActivity.startTime}
-                  </Text>
-                </View>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Schedule Items or Empty State */}
         {scheduleItems.length === 0 ? (
           <View style={styles.emptyState}>
             <MaterialIcons
@@ -529,8 +545,20 @@ export default function TodayScreen() {
             />
             <Text style={styles.emptyTitle}>아직 일정이 없어요</Text>
             <Text style={styles.emptyMessage}>
-              일정 만들기 페이지에서 오늘의 일과를 계획해보세요!
+              일정 만들기에서 오늘의 일과를 계획해보세요!
             </Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.emptyCta,
+                pressed && styles.emptyCtaPressed,
+              ]}
+              onPress={() => navigation.navigate('PlanSchedule')}
+              accessibilityLabel="일정 만들기"
+              accessibilityRole="button"
+            >
+              <MaterialIcons name="event-note" size={22} color={SoftPopColors.white} />
+              <Text style={styles.emptyCtaText}>일정 만들기</Text>
+            </Pressable>
           </View>
         ) : (
           <View style={styles.scheduleItemsContainer}>
@@ -886,6 +914,49 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 40,
     lineHeight: 24,
+    fontFamily: 'BMJUA',
+  },
+  emptyCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 24,
+    backgroundColor: SoftPopColors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 28,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  emptyCtaPressed: {
+    transform: [{ translateY: 2 }],
+    shadowOpacity: 0.12,
+  },
+  emptyCtaText: {
+    fontSize: 18,
+    color: SoftPopColors.white,
+    fontFamily: 'BMJUA',
+  },
+  completeNowButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 16,
+    backgroundColor: SoftPopColors.primary,
+    paddingVertical: 14,
+    borderRadius: 20,
+  },
+  completeNowButtonPressed: {
+    transform: [{ translateY: 2 }],
+    opacity: 0.9,
+  },
+  completeNowButtonText: {
+    fontSize: 18,
+    color: SoftPopColors.white,
     fontFamily: 'BMJUA',
   },
   highlightSection: {

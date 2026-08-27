@@ -3,6 +3,7 @@
  */
 
 import { Activity, Schedule } from '../types';
+import { NotificationLeadMinutes } from '../utils/dateUtils';
 
 export interface AppData {
   version: string;
@@ -12,6 +13,8 @@ export interface AppData {
   deletedDefaultIds: string[];
   notificationSettings: Record<string, boolean>;
   notificationsEnabled: boolean;
+  notificationLeadMinutes: NotificationLeadMinutes;
+  settingsPin: string | null;
   lastSync?: string;
 }
 
@@ -45,6 +48,14 @@ function isScheduleEntry(value: unknown): boolean {
     && value.items.every(isScheduleItemEntry);
 }
 
+function isLeadMinutes(value: unknown): value is NotificationLeadMinutes {
+  return value === 0 || value === 5 || value === 10;
+}
+
+function isSettingsPin(value: unknown): value is string | null {
+  return value === null || (typeof value === 'string' && /^\d{4}$/.test(value));
+}
+
 /** True only when every AppData field is present with the right JSON types. */
 export function isValidAppData(value: unknown): value is AppData {
   if (!isRecord(value)) return false;
@@ -55,6 +66,8 @@ export function isValidAppData(value: unknown): value is AppData {
   if (!isStringArray(value.deletedDefaultIds)) return false;
   if (!isNotificationSettings(value.notificationSettings)) return false;
   if (typeof value.notificationsEnabled !== 'boolean') return false;
+  if (!isLeadMinutes(value.notificationLeadMinutes)) return false;
+  if (!isSettingsPin(value.settingsPin)) return false;
   if (value.lastSync !== undefined && typeof value.lastSync !== 'string') return false;
   return true;
 }
@@ -79,6 +92,8 @@ export function parseBackupData(input: string | unknown): AppData | null {
     deletedDefaultIds: value.deletedDefaultIds ?? [],
     notificationSettings: value.notificationSettings ?? {},
     notificationsEnabled: value.notificationsEnabled ?? true,
+    notificationLeadMinutes: value.notificationLeadMinutes ?? 5,
+    settingsPin: value.settingsPin === undefined ? null : value.settingsPin,
   };
   return isValidAppData(normalized) ? normalized : null;
 }

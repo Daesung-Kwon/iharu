@@ -8,7 +8,7 @@ import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Schedule, ScheduleItem } from '../types';
-import { getActivityNotificationTime } from '../utils/dateUtils';
+import { getActivityNotificationTime, NotificationLeadMinutes } from '../utils/dateUtils';
 import { KEYS } from './storage';
 
 const NOTIFICATION_PREFIX = 'activity-';
@@ -161,6 +161,27 @@ export async function saveNotificationsMasterEnabled(enabled: boolean): Promise<
   }
 }
 
+export async function loadNotificationLeadMinutes(): Promise<NotificationLeadMinutes> {
+  try {
+    const stored = await AsyncStorage.getItem(KEYS.NOTIFICATION_LEAD_MINUTES);
+    const parsed = stored ? Number(stored) : 5;
+    if (parsed === 0 || parsed === 5 || parsed === 10) {
+      return parsed;
+    }
+    return 5;
+  } catch {
+    return 5;
+  }
+}
+
+export async function saveNotificationLeadMinutes(minutes: NotificationLeadMinutes): Promise<void> {
+  try {
+    await AsyncStorage.setItem(KEYS.NOTIFICATION_LEAD_MINUTES, String(minutes));
+  } catch (error) {
+    console.error('알림 미리 시간 저장 실패:', error);
+  }
+}
+
 /**
  * 특정 활동의 알림 스케줄링
  * 해당 일정 날짜의 시작 5분 전에 알림 예약
@@ -193,19 +214,28 @@ export async function scheduleActivityNotification(
       return 'master_off';
     }
 
-    const notificationTime = getActivityNotificationTime(scheduleDate, scheduleItem.startTime);
+    const leadMinutes = await loadNotificationLeadMinutes();
+    const notificationTime = getActivityNotificationTime(
+      scheduleDate,
+      scheduleItem.startTime,
+      leadMinutes
+    );
 
     if (notificationTime.getTime() <= Date.now()) {
       console.log(`과거 시간이므로 알림 스케줄링 안 함: ${scheduleItem.activity?.name}`);
       return 'past';
     }
 
+    const leadLabel = leadMinutes === 0
+      ? '지금 시작할 시간이에요'
+      : `시작까지 ${leadMinutes}분 남았어요`;
+
     try {
       await Notifications.scheduleNotificationAsync({
         identifier: notificationId,
         content: {
           title: '활동 시작 예정',
-          body: `${scheduleItem.activity?.name} 시작까지 5분 남았어요! 🎯`,
+          body: `${scheduleItem.activity?.name} ${leadLabel}! 🎯`,
           sound: true,
           data: {
             scheduleItemId: scheduleItem.id,

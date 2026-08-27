@@ -44,7 +44,11 @@ export default function ActivityCard({ activity, onEdit, onDelete, width }: Acti
 
       {/* Activity Info - 배경 완전히 투명 */}
       <View style={styles.infoContainer}>
-        <Text style={styles.name} numberOfLines={2}>
+        <Text
+          style={styles.name}
+          numberOfLines={2}
+          lineBreakStrategyIOS="hangul-word"
+        >
           {activity.name}
         </Text>
         <View style={styles.durationContainer}>
@@ -135,13 +139,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   name: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
     color: SoftPopColors.text,
     marginBottom: 8,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 22,
     fontFamily: 'BMJUA',
+    width: '100%',
+    flexShrink: 1,
   },
   durationContainer: {
     flexDirection: 'row',

@@ -11,7 +11,7 @@ describe('getLayoutMetrics', () => {
     assert.equal(layout.space, 16);
     assert.equal(layout.titleSize, 22);
     assert.equal(layout.activityColumns, 2);
-    assert.equal(layout.dateCardWidth, 56);
+    assert.equal(layout.dateCardWidth, 64);
     assert.equal(layout.tabBarHeight, TAB_BAR_HEIGHT);
   });
 

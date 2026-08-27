@@ -37,7 +37,10 @@ export default function DraggableActivityCard({
     const opacityAnim = useRef(new Animated.Value(1)).current;
 
     const handlePress = () => {
-        console.log('Card pressed, isDragging:', isDragging);
+        if (isChip) {
+            onPress?.();
+            return;
+        }
         if (!isDragging) {
             onPress?.();
         }
@@ -111,9 +114,9 @@ export default function DraggableActivityCard({
                         pressed && !isDragging && styles.cardPressed
                     ]}
                 >
-                    {isDragging && !isChip && (
-                        <View style={styles.draggingBadge}>
-                            <Text style={styles.draggingBadgeText}>선택 됨</Text>
+                    {isDragging && (
+                        <View style={[styles.draggingBadge, isChip && styles.chipDraggingBadge]}>
+                            <Text style={styles.draggingBadgeText}>선택</Text>
                         </View>
                     )}
 
@@ -140,6 +143,7 @@ export default function DraggableActivityCard({
                         <Text
                             style={[styles.name, isChip && styles.chipName]}
                             numberOfLines={isChip ? 1 : 2}
+                            lineBreakStrategyIOS="hangul-word"
                         >
                             {activity.name}
                         </Text>
@@ -208,11 +212,13 @@ const styles = StyleSheet.create({
         marginLeft: 12, // 왼쪽 그룹과 텍스트 영역 사이 간격만 유지
     },
     name: {
-        fontSize: 18,
+        fontSize: 17,
         fontWeight: '600',
         color: SoftPopColors.text,
-        lineHeight: 24,
+        lineHeight: 22,
         fontFamily: 'BMJUA',
+        flexShrink: 1,
+        width: '100%',
     },
     durationContainer: {
         flexDirection: 'row',
@@ -255,6 +261,13 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: SoftPopColors.white,
         fontWeight: '700',
+        fontFamily: 'BMJUA',
+    },
+    chipDraggingBadge: {
+        top: 4,
+        right: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
     },
     chipPressable: {
         width: 112,

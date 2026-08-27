@@ -19,9 +19,14 @@ import {
   loadNotificationsMasterEnabled,
   saveNotificationsMasterEnabled,
   loadNotificationSettings,
+  loadNotificationLeadMinutes,
+  saveNotificationLeadMinutes,
   cancelAllNotifications,
   rescheduleUpcomingNotifications,
 } from '../services/notificationService';
+import { loadSettingsPin, saveSettingsPin, clearSettingsPin } from '../services/pinLock';
+import PinLockModal from '../components/PinLockModal';
+import { NOTIFICATION_LEAD_OPTIONS, NotificationLeadMinutes } from '../utils/dateUtils';
 import { useActivity } from '../contexts/ActivityContext';
 import { useSchedule } from '../contexts/ScheduleContext';
 import { toLocalDateString } from '../utils/dateUtils';
@@ -39,6 +44,12 @@ export default function ProfileScreen() {
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showLicense, setShowLicense] = useState(false);
+  const [leadMinutes, setLeadMinutes] = useState<NotificationLeadMinutes>(5);
+  const [storedPin, setStoredPin] = useState<string | null>(null);
+  const [unlocked, setUnlocked] = useState(true);
+  const [pinModal, setPinModal] = useState<'unlock' | 'set' | 'confirm' | 'remove' | null>(null);
+  const [pendingPin, setPendingPin] = useState('');
+  const [pinError, setPinError] = useState('');
 
   const appVersion = Constants.expoConfig?.version || '1.0.0';
   const appName = Constants.expoConfig?.name || 'i하루';
@@ -47,6 +58,10 @@ export default function ProfileScreen() {
     const loadSettings = async () => {
       const enabled = await loadNotificationsMasterEnabled();
       setNotificationEnabled(enabled);
+      setLeadMinutes(await loadNotificationLeadMinutes());
+      const pin = await loadSettingsPin();
+      setStoredPin(pin);
+      setUnlocked(!pin);
     };
     loadSettings();
   }, []);
@@ -70,6 +85,56 @@ export default function ProfileScreen() {
     await cancelAllNotifications();
   };
 
+  const handleLeadMinutes = async (minutes: NotificationLeadMinutes) => {
+    setLeadMinutes(minutes);
+    await saveNotificationLeadMinutes(minutes);
+    if (notificationEnabled) {
+      const settings = await loadNotificationSettings();
+      await rescheduleUpcomingNotifications(schedules, settings);
+    }
+  };
+
+  const handlePinSubmit = async (pin: string) => {
+    setPinError('');
+    if (pinModal === 'unlock') {
+      if (pin === storedPin) {
+        setUnlocked(true);
+        setPinModal(null);
+      } else {
+        setPinError('비밀번호가 달라요');
+      }
+      return;
+    }
+    if (pinModal === 'set') {
+      setPendingPin(pin);
+      setPinModal('confirm');
+      return;
+    }
+    if (pinModal === 'confirm') {
+      if (pin !== pendingPin) {
+        setPinError('다시 입력한 숫자가 달라요');
+        return;
+      }
+      await saveSettingsPin(pin);
+      setStoredPin(pin);
+      setUnlocked(true);
+      setPinModal(null);
+      Alert.alert('잠금 설정', '설정이 비밀번호로 잠겼어요.');
+      return;
+    }
+    if (pinModal === 'remove') {
+      if (pin !== storedPin) {
+        setPinError('비밀번호가 달라요');
+        return;
+      }
+      await clearSettingsPin();
+      setStoredPin(null);
+      setUnlocked(true);
+      setPinModal(null);
+      Alert.alert('잠금 해제', '설정 잠금을 풀었어요.');
+    }
+  };
+
   // 데이터 백업
   const handleBackup = async () => {
     try {
@@ -86,6 +151,8 @@ export default function ProfileScreen() {
       const hasDeletedDefaults = data.deletedDefaultIds.length > 0;
       const hasNotificationSettings = Object.keys(data.notificationSettings).length > 0;
       const hasNonDefaultMaster = data.notificationsEnabled === false;
+      const hasNonDefaultLead = data.notificationLeadMinutes !== 5;
+      const hasPin = Boolean(data.settingsPin);
 
       if (
         activityCount === 0
@@ -93,6 +160,8 @@ export default function ProfileScreen() {
         && !hasDeletedDefaults
         && !hasNotificationSettings
         && !hasNonDefaultMaster
+        && !hasNonDefaultLead
+        && !hasPin
       ) {
         Alert.alert('백업할 데이터 없음', '저장된 활동이나 일정이 없습니다.');
         return;
@@ -218,6 +287,10 @@ export default function ProfileScreen() {
                   ]);
                   const enabled = await loadNotificationsMasterEnabled();
                   setNotificationEnabled(enabled);
+                  setLeadMinutes(await loadNotificationLeadMinutes());
+                  const pin = await loadSettingsPin();
+                  setStoredPin(pin);
+                  setUnlocked(!pin);
                   await cancelAllNotifications();
                   if (enabled) {
                     await rescheduleUpcomingNotifications(
@@ -263,6 +336,10 @@ export default function ProfileScreen() {
               resetActivities();
               resetSchedules();
               setNotificationEnabled(await loadNotificationsMasterEnabled());
+              setLeadMinutes(await loadNotificationLeadMinutes());
+              const pin = await loadSettingsPin();
+              setStoredPin(pin);
+              setUnlocked(!pin);
               await cancelAllNotifications();
               Alert.alert('완료', '모든 데이터가 삭제되었습니다.');
             } catch (error) {
@@ -285,6 +362,22 @@ export default function ProfileScreen() {
           : ['top'] // iOS는 기존 유지
       }
     >
+      {!unlocked ? (
+        <View style={[styles.lockGate, { padding: space }]}>
+          <MaterialIcons name="lock" size={48} color={SoftPopColors.primary} />
+          <Text style={styles.lockTitle}>설정이 잠겨 있어요</Text>
+          <Text style={styles.lockMessage}>부모님만 바꿀 수 있게 잠가 두었어요.</Text>
+          <Pressable
+            style={styles.lockButton}
+            onPress={() => {
+              setPinError('');
+              setPinModal('unlock');
+            }}
+          >
+            <Text style={styles.lockButtonText}>비밀번호 입력</Text>
+          </Pressable>
+        </View>
+      ) : (
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
@@ -325,6 +418,52 @@ export default function ProfileScreen() {
               thumbColor={notificationEnabled ? SoftPopColors.primary : SoftPopColors.textSecondary}
             />
           </View>
+          <View style={styles.leadRow}>
+            <Text style={styles.leadLabel}>미리 알림</Text>
+            <View style={styles.leadChips}>
+              {NOTIFICATION_LEAD_OPTIONS.map((minutes) => (
+                <Pressable
+                  key={minutes}
+                  onPress={() => handleLeadMinutes(minutes)}
+                  style={[
+                    styles.leadChip,
+                    leadMinutes === minutes && styles.leadChipActive,
+                  ]}
+                >
+                  <Text style={[
+                    styles.leadChipText,
+                    leadMinutes === minutes && styles.leadChipTextActive,
+                  ]}>
+                    {minutes === 0 ? '정각' : `${minutes}분 전`}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+          <Pressable
+            style={({ pressed }) => [
+              styles.settingItem,
+              pressed && styles.settingItemPressed,
+            ]}
+            onPress={() => {
+              setPinError('');
+              setPinModal(storedPin ? 'remove' : 'set');
+            }}
+          >
+            <MaterialIcons
+              name={storedPin ? 'lock-open' : 'lock'}
+              size={28}
+              color={SoftPopColors.textSecondary}
+            />
+            <Text style={styles.settingText}>
+              {storedPin ? '설정 잠금 해제' : '설정 잠금'}
+            </Text>
+            <MaterialIcons
+              name="chevron-right"
+              size={24}
+              color={SoftPopColors.textSecondary}
+            />
+          </Pressable>
         </View>
 
         {/* 데이터 관리 섹션 */}
@@ -458,6 +597,7 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
       </ScrollView>
+      )}
 
       {/* Ad Banner */}
       <AdBanner
@@ -485,6 +625,28 @@ export default function ProfileScreen() {
         visible={showLicense}
         onClose={() => setShowLicense(false)}
       />
+
+      <PinLockModal
+        visible={pinModal !== null}
+        title={
+          pinModal === 'unlock' ? '비밀번호'
+            : pinModal === 'set' ? '잠금 숫자 4자리'
+              : pinModal === 'confirm' ? '한 번 더 입력'
+                : '잠금 해제'
+        }
+        message={
+          pinModal === 'set' ? '아이가 설정을 바꾸지 못하게 잠가 두세요.'
+            : pinModal === 'confirm' ? '같은 숫자 4자리를 다시 눌러 주세요.'
+              : undefined
+        }
+        confirmLabel={pinModal === 'remove' ? '잠금 풀기' : '확인'}
+        errorText={pinError}
+        onCancel={() => {
+          setPinModal(null);
+          setPinError('');
+        }}
+        onSubmit={handlePinSubmit}
+      />
     </SafeAreaView>
   );
 }
@@ -502,6 +664,65 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 32,
+  },
+  lockGate: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  lockTitle: {
+    fontSize: 22,
+    fontFamily: 'BMJUA',
+    color: SoftPopColors.text,
+  },
+  lockMessage: {
+    fontSize: 16,
+    fontFamily: 'BMJUA',
+    color: SoftPopColors.textSecondary,
+    textAlign: 'center',
+  },
+  lockButton: {
+    marginTop: 12,
+    backgroundColor: SoftPopColors.primary,
+    borderRadius: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+  },
+  lockButtonText: {
+    color: SoftPopColors.white,
+    fontFamily: 'BMJUA',
+    fontSize: 18,
+  },
+  leadRow: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  leadLabel: {
+    fontSize: 14,
+    fontFamily: 'BMJUA',
+    color: SoftPopColors.textSecondary,
+    marginBottom: 8,
+  },
+  leadChips: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  leadChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: SoftPopColors.background,
+  },
+  leadChipActive: {
+    backgroundColor: SoftPopColors.primary,
+  },
+  leadChipText: {
+    fontFamily: 'BMJUA',
+    color: SoftPopColors.textSecondary,
+  },
+  leadChipTextActive: {
+    color: SoftPopColors.white,
   },
   appInfoCard: {
     backgroundColor: SoftPopColors.white,

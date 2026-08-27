@@ -11,13 +11,17 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useActivity } from '../contexts/ActivityContext';
 import { useSchedule } from '../contexts/ScheduleContext';
 import DraggableActivityCard from '../components/DraggableActivityCard';
+import ActivityIcon from '../components/ActivityIcon';
 import ScheduleItemCard from '../components/ScheduleItemCard';
 import TimelineViewV2 from '../components/TimelineViewV2';
 import { Activity } from '../types';
 import { SoftPopColors } from '../constants/theme';
 import { useLayout } from '../hooks/useLayout';
+import { isToday } from '../utils/statsUtils';
+import { toLocalDateString } from '../utils/dateUtils';
 
 const SELECT_INSTRUCTION = '활동을 길게 누른 뒤 시간을 탭하세요';
+const COMPACT_SELECT_INSTRUCTION = '활동을 탭한 뒤 시간을 탭하세요';
 
 export default function PlanScheduleScreen() {
   const {
@@ -53,28 +57,42 @@ export default function PlanScheduleScreen() {
     return sum + (item.activity?.durationMinutes || 0);
   }, 0);
 
-  const handleTimeSlotPress = (time: string) => {
-    console.log('Time slot pressed:', time, 'Dragging:', draggingActivity?.name);
-    if (draggingActivity) {
-      const success = addScheduleItem(selectedDate, draggingActivity, time);
-      if (success) {
-        setDraggingActivity(null);
-      } else {
-        const duration = draggingActivity.durationMinutes;
-        const [hours, minutes] = time.split(':').map(Number);
-        const startMinutes = hours * 60 + minutes;
-        const endMinutes = startMinutes + duration;
-        const endHours = Math.floor(endMinutes / 60);
-        const endMins = endMinutes % 60;
-        const endTime = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
-
-        Alert.alert(
-          '시간 중복',
-          `${time}부터 ${endTime}까지 다른 활동과 겹칩니다.\n\n다른 시간을 선택해주세요.`
-        );
+  const placeActivity = (activity: Activity, time: string, weekdays: boolean) => {
+    const success = addScheduleItem(selectedDate, activity, time, { weekdays });
+    if (success) {
+      setDraggingActivity(null);
+      if (weekdays) {
+        Alert.alert('월~금 반복', '이번 주 월~금에 같은 시간으로 넣었어요. 이미 일정이 있는 날은 건너뛰었습니다.');
       }
     } else {
-      Alert.alert('안내', SELECT_INSTRUCTION);
+      const duration = activity.durationMinutes;
+      const [hours, minutes] = time.split(':').map(Number);
+      const startMinutes = hours * 60 + minutes;
+      const endMinutes = startMinutes + duration;
+      const endHours = Math.floor(endMinutes / 60);
+      const endMins = endMinutes % 60;
+      const endTime = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
+      Alert.alert(
+        '시간 중복',
+        `${time}부터 ${endTime}까지 다른 활동과 겹칩니다.\n\n다른 시간을 선택해주세요.`
+      );
+    }
+  };
+
+  const handleTimeSlotPress = (time: string) => {
+    if (draggingActivity) {
+      const activity = draggingActivity;
+      Alert.alert(
+        `${activity.name} · ${time}`,
+        '같은 시간에 반복할까요?',
+        [
+          { text: '취소', style: 'cancel' },
+          { text: '오늘만', onPress: () => placeActivity(activity, time, false) },
+          { text: '월~금', onPress: () => placeActivity(activity, time, true) },
+        ]
+      );
+    } else {
+      Alert.alert('안내', isCompact ? COMPACT_SELECT_INSTRUCTION : SELECT_INSTRUCTION);
     }
   };
 
@@ -90,7 +108,7 @@ export default function PlanScheduleScreen() {
 
   const instructionText = draggingActivity
     ? '원하는 시간을 탭하세요'
-    : SELECT_INSTRUCTION;
+    : (isCompact ? COMPACT_SELECT_INSTRUCTION : SELECT_INSTRUCTION);
 
   const dateButtonSize = isCompact ? 44 : 56;
 
@@ -104,9 +122,11 @@ export default function PlanScheduleScreen() {
           onDragEnd={() => {
             // 종료는 타임라인 탭 또는 취소에서만 처리
           }}
-          onPress={() => {
-            // 탭은 배치가 아님 — 길게 눌러 선택
-          }}
+          onPress={
+            variant === 'chip'
+              ? () => handleSelectActivity(activity)
+              : undefined
+          }
           isDragging={draggingActivity?.id === activity.id}
         />
       </View>
@@ -188,6 +208,8 @@ export default function PlanScheduleScreen() {
         onRemoveItem={removeScheduleItem}
         draggingActivity={draggingActivity}
         contentPaddingBottom={tabBarOffset + 8}
+        showNowLine={isToday(toLocalDateString(selectedDate))}
+        initialScrollTime={isToday(toLocalDateString(selectedDate)) ? undefined : '07:00'}
       />
     )
   );
@@ -202,7 +224,7 @@ export default function PlanScheduleScreen() {
           : ['top']
       }
     >
-      {draggingActivity && (
+      {draggingActivity && !isCompact && (
         <View style={[
           styles.draggingIndicator,
           {
@@ -314,11 +336,35 @@ export default function PlanScheduleScreen() {
               <ScrollView
                 horizontal
                 nestedScrollEnabled
+                scrollEnabled={!draggingActivity}
+                keyboardShouldPersistTaps="handled"
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.activityChipsContent}
               >
                 {renderActivityCards('chip')}
               </ScrollView>
+            )}
+            {draggingActivity && (
+              <View style={styles.selectedChipBar}>
+                <ActivityIcon
+                  activity={draggingActivity}
+                  size={28}
+                  color={SoftPopColors.primary}
+                />
+                <View style={styles.selectedChipInfo}>
+                  <Text style={styles.selectedChipLabel}>선택한 활동</Text>
+                  <Text style={styles.selectedChipName} numberOfLines={1}>
+                    {draggingActivity.name} · {draggingActivity.durationMinutes}분
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={handleCancelDrag}
+                  accessibilityLabel="선택 취소"
+                  hitSlop={8}
+                >
+                  <MaterialIcons name="close" size={22} color={SoftPopColors.white} />
+                </Pressable>
+              </View>
             )}
           </View>
 
@@ -631,6 +677,30 @@ const styles = StyleSheet.create({
     color: SoftPopColors.textSecondary,
     fontFamily: 'BMJUA',
     paddingVertical: 8,
+  },
+  selectedChipBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+    backgroundColor: SoftPopColors.primary,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  selectedChipInfo: {
+    flex: 1,
+  },
+  selectedChipLabel: {
+    fontSize: 11,
+    color: SoftPopColors.white,
+    opacity: 0.85,
+    fontFamily: 'BMJUA',
+  },
+  selectedChipName: {
+    fontSize: 16,
+    color: SoftPopColors.white,
+    fontFamily: 'BMJUA',
   },
   schedulePanel: {
     flex: 2,

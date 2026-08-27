@@ -6,7 +6,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Schedule, ScheduleItem, Activity } from '../types';
-import { migrateUtcSlicedScheduleDates, toLocalDateString } from '../utils/dateUtils';
+import { getWeekdayDatesInWeek, migrateUtcSlicedScheduleDates, toLocalDateString } from '../utils/dateUtils';
 import { cancelActivityNotification, clearItemNotifications } from '../services/notificationService';
 import { KEYS } from '../services/storage';
 
@@ -27,7 +27,12 @@ interface ScheduleContextType {
   setSelectedDate: (date: Date) => void;
   setSelectedChildProfileId: (id: string | null) => void;
   getScheduleForDate: (date: Date) => Schedule | null;
-  addScheduleItem: (date: Date, activity: Activity, startTime: string) => boolean;
+  addScheduleItem: (
+    date: Date,
+    activity: Activity,
+    startTime: string,
+    options?: { weekdays?: boolean }
+  ) => boolean;
   updateScheduleItem: (itemId: string, updates: Partial<ScheduleItem>) => void;
   removeScheduleItem: (itemId: string) => void;
   removeAllScheduleItems: (date: Date) => void;
@@ -128,9 +133,9 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const addScheduleItem = useCallback((
     date: Date,
     activity: Activity,
-    startTime: string
+    startTime: string,
+    options?: { weekdays?: boolean }
   ) => {
-    const dateString = toLocalDateString(date);
     const [hours, minutes] = startTime.split(':').map(Number);
     const startMinutes = hours * 60 + minutes;
     const endMinutes = startMinutes + activity.durationMinutes;
@@ -138,47 +143,66 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const endMins = endMinutes % 60;
     const endTime = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
 
-    // 시간 중복 체크
     if (checkTimeConflict(date, startTime, endTime)) {
-      return false; // 중복되면 추가 안함
+      return false;
     }
 
-    const newItem: ScheduleItem = {
-      id: createScheduleItemId(),
-      scheduleId: `schedule-${dateString}`,
-      activityId: activity.id,
-      activity,
-      startTime,
-      endTime,
-      status: 'planned',
-      orderIndex: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    const targets = options?.weekdays ? getWeekdayDatesInWeek(date) : [date];
+    const nowIso = new Date().toISOString();
 
     setSchedules(prev => {
-      const existingSchedule = prev.find(s => s.date === dateString);
-      if (existingSchedule) {
-        return prev.map(schedule =>
-          schedule.id === existingSchedule.id
-            ? { ...schedule, items: [...schedule.items, newItem] }
-            : schedule
-        );
-      } else {
-        const newSchedule: Schedule = {
-          id: `schedule-${dateString}`,
-          userId: 'current-user', // TODO: 실제 사용자 ID로 교체
-          childProfileId: selectedChildProfileId || 'default',
-          date: dateString,
-          dateKind: 'local',
-          items: [newItem],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+      let next = prev;
+      for (const target of targets) {
+        const dateString = toLocalDateString(target);
+        const existing = next.find(s => s.date === dateString);
+        const items = existing?.items ?? [];
+        const conflict = items.some(item => {
+          const [itemStartHours, itemStartMins] = item.startTime.split(':').map(Number);
+          const [itemEndHours, itemEndMins] = item.endTime.split(':').map(Number);
+          const itemStart = itemStartHours * 60 + itemStartMins;
+          const itemEnd = itemEndHours * 60 + itemEndMins;
+          return startMinutes < itemEnd && endMinutes > itemStart;
+        });
+        if (conflict) continue;
+
+        const newItem: ScheduleItem = {
+          id: createScheduleItemId(),
+          scheduleId: `schedule-${dateString}`,
+          activityId: activity.id,
+          activity,
+          startTime,
+          endTime,
+          status: 'planned',
+          orderIndex: 0,
+          createdAt: nowIso,
+          updatedAt: nowIso,
         };
-        return [...prev, newSchedule];
+
+        if (existing) {
+          next = next.map(schedule =>
+            schedule.id === existing.id
+              ? { ...schedule, items: [...schedule.items, newItem], updatedAt: nowIso }
+              : schedule
+          );
+        } else {
+          next = [
+            ...next,
+            {
+              id: `schedule-${dateString}`,
+              userId: 'current-user',
+              childProfileId: selectedChildProfileId || 'default',
+              date: dateString,
+              dateKind: 'local',
+              items: [newItem],
+              createdAt: nowIso,
+              updatedAt: nowIso,
+            },
+          ];
+        }
       }
+      return next;
     });
-    return true; // 성공
+    return true;
   }, [selectedChildProfileId, checkTimeConflict]);
 
   const updateScheduleItem = useCallback((itemId: string, updates: Partial<ScheduleItem>) => {

@@ -52,13 +52,15 @@ export default function HorizontalDatePicker({
   };
 
   const CARD_WIDTH = cardWidth;
-  const CARD_MARGIN = 8;
+  const SLOT_GAP = 16;
+  const SLOT_WIDTH = CARD_WIDTH + SLOT_GAP;
+  const isCompact = CARD_WIDTH <= 64;
+  const sidePad = Math.max(Spacing.md, (screenWidth - CARD_WIDTH) / 2);
 
-  // 선택된 날짜로 자동 스크롤
+  // 선택된 날짜로 자동 스크롤 — 슬롯 너비와 snap 간격을 같게 둬 카드가 반만 잘리지 않게
   useEffect(() => {
     if (selectedIndex !== -1 && scrollViewRef.current) {
-      const targetX = selectedIndex * (CARD_WIDTH + CARD_MARGIN * 2) - screenWidth / 2 + CARD_WIDTH / 2;
-      
+      const targetX = selectedIndex * SLOT_WIDTH;
       setTimeout(() => {
         scrollViewRef.current?.scrollTo({
           x: Math.max(0, targetX),
@@ -66,7 +68,7 @@ export default function HorizontalDatePicker({
         });
       }, 100);
     }
-  }, [selectedDate, CARD_WIDTH, screenWidth, selectedIndex]);
+  }, [selectedDate, SLOT_WIDTH, selectedIndex]);
 
   const isToday = (date: Date): boolean => {
     return toLocalDateString(date) === toLocalDateString(today);
@@ -108,9 +110,8 @@ export default function HorizontalDatePicker({
     }
 
     return (
-      <View key={index} style={styles.dateCardWrapper}>
-        {/* 월 구분선 및 레이블 */}
-        {showMonthLabel && (
+      <View key={index} style={[styles.dateCardWrapper, { width: SLOT_WIDTH }]}>
+        {showMonthLabel && !isCompact && (
           <View style={styles.monthDivider}>
             <View style={styles.monthLabelContainer}>
               <Text style={styles.monthLabel}>
@@ -124,7 +125,7 @@ export default function HorizontalDatePicker({
           style={[
             styles.dateCard,
             { width: CARD_WIDTH },
-            CARD_WIDTH <= 56 && styles.dateCardCompact,
+            isCompact && styles.dateCardCompact,
             selected && styles.dateCardSelected,
             todayDate && styles.dateCardToday,
             !selected && isSaturday && styles.dateCardSaturday,
@@ -177,7 +178,7 @@ export default function HorizontalDatePicker({
         )}
 
         {/* 월 표시 (카드 상단) */}
-        {showMonthLabel && (
+        {showMonthLabel && !isCompact && (
           <View style={styles.monthBadge}>
             <Text style={styles.monthBadgeText}>
               {date.getMonth() + 1}월
@@ -195,7 +196,11 @@ export default function HorizontalDatePicker({
         ref={scrollViewRef}
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        snapToInterval={SLOT_WIDTH}
+        snapToAlignment="start"
+        decelerationRate="fast"
+        disableIntervalMomentum
+        contentContainerStyle={[styles.scrollContent, { paddingHorizontal: sidePad }]}
         style={styles.scrollView}
       >
         {dates.map((date, index) => renderDateCard(date, index))}
@@ -216,11 +221,11 @@ const styles = StyleSheet.create({
     flexGrow: 0,
   },
   scrollContent: {
-    paddingHorizontal: Spacing.md,
-    gap: Spacing.md,
+    alignItems: 'center',
   },
   dateCardWrapper: {
     position: 'relative',
+    alignItems: 'center',
   },
   monthDivider: {
     position: 'absolute',
@@ -278,7 +283,7 @@ const styles = StyleSheet.create({
   },
   dateCardCompact: {
     paddingVertical: Spacing.sm,
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
   },
   dateCardSelected: {
     backgroundColor: MaterialColors.primary[500],
@@ -300,6 +305,7 @@ const styles = StyleSheet.create({
     color: MaterialColors.text.secondary,
     textTransform: 'uppercase',
     fontFamily: 'BMJUA',
+    fontSize: 12,
   },
   dayTextSelected: {
     color: MaterialColors.surface.default,
@@ -311,6 +317,7 @@ const styles = StyleSheet.create({
     color: MaterialColors.text.primary,
     fontWeight: '600',
     fontFamily: 'BMJUA',
+    fontSize: 20,
   },
   dateTextSelected: {
     color: MaterialColors.surface.default,

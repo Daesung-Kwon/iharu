@@ -32,6 +32,18 @@ export const getActivityNotificationTime = (
   return time;
 };
 
+/** Mon–Fri of the week that contains `date` (local calendar). */
+export const getWeekdayDatesInWeek = (date: Date): Date[] => {
+  const mondayOffset = (date.getDay() + 6) % 7;
+  const monday = new Date(date.getFullYear(), date.getMonth(), date.getDate() - mondayOffset);
+  return [0, 1, 2, 3, 4].map(offset => (
+    new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + offset)
+  ));
+};
+
+export const NOTIFICATION_LEAD_OPTIONS = [0, 5, 10] as const;
+export type NotificationLeadMinutes = (typeof NOTIFICATION_LEAD_OPTIONS)[number];
+
 const addOneLocalDay = (dateString: string): string => {
   const [year, month, day] = dateString.split('-').map(Number);
   return toLocalDateString(new Date(year, month - 1, day + 1));

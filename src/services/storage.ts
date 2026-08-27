@@ -6,6 +6,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppData, parseBackupData } from './backupData';
+import { NotificationLeadMinutes } from '../utils/dateUtils';
 
 export { AppData, isValidAppData, parseBackupData } from './backupData';
 
@@ -17,12 +18,26 @@ export const KEYS = {
   DELETED_DEFAULTS: '@daily_schedule_deleted_defaults',
   NOTIFICATIONS: '@daily_schedule_notifications',
   NOTIFICATIONS_ENABLED: '@settings.notificationsEnabled',
+  NOTIFICATION_LEAD_MINUTES: '@settings.notificationLeadMinutes',
+  SETTINGS_PIN: '@settings.pin',
   SETTINGS: '@settings',
   LAST_SYNC: '@last_sync',
   MIGRATED: '@migrated',
 } as const;
 
 const CURRENT_VERSION = '1.0.0';
+
+function parseStoredLeadMinutes(stored: string | null): NotificationLeadMinutes {
+  const parsed = stored ? Number(stored) : 5;
+  if (parsed === 0 || parsed === 5 || parsed === 10) {
+    return parsed;
+  }
+  return 5;
+}
+
+function parseStoredPin(stored: string | null): string | null {
+  return stored && /^\d{4}$/.test(stored) ? stored : null;
+}
 
 /**
  * 앱 데이터 전체 내보내기 (백업용)
@@ -36,6 +51,8 @@ export const exportAllData = async (): Promise<AppData | null> => {
       deletedDefaultIds,
       notificationSettings,
       notificationsEnabled,
+      notificationLeadMinutes,
+      settingsPin,
     ] = await Promise.all([
       AsyncStorage.getItem(KEYS.ACTIVITIES),
       AsyncStorage.getItem(KEYS.SCHEDULES),
@@ -43,6 +60,8 @@ export const exportAllData = async (): Promise<AppData | null> => {
       AsyncStorage.getItem(KEYS.DELETED_DEFAULTS),
       AsyncStorage.getItem(KEYS.NOTIFICATIONS),
       AsyncStorage.getItem(KEYS.NOTIFICATIONS_ENABLED),
+      AsyncStorage.getItem(KEYS.NOTIFICATION_LEAD_MINUTES),
+      AsyncStorage.getItem(KEYS.SETTINGS_PIN),
     ]);
 
     return {
@@ -53,6 +72,8 @@ export const exportAllData = async (): Promise<AppData | null> => {
       deletedDefaultIds: deletedDefaultIds ? JSON.parse(deletedDefaultIds) : [],
       notificationSettings: notificationSettings ? JSON.parse(notificationSettings) : {},
       notificationsEnabled: notificationsEnabled === null ? true : notificationsEnabled === 'true',
+      notificationLeadMinutes: parseStoredLeadMinutes(notificationLeadMinutes),
+      settingsPin: parseStoredPin(settingsPin),
       lastSync: new Date().toISOString(),
     };
   } catch (error) {
@@ -83,6 +104,13 @@ export const importAllData = async (data: unknown): Promise<boolean> => {
         KEYS.NOTIFICATIONS_ENABLED,
         parsed.notificationsEnabled ? 'true' : 'false'
       ),
+      AsyncStorage.setItem(
+        KEYS.NOTIFICATION_LEAD_MINUTES,
+        String(parsed.notificationLeadMinutes)
+      ),
+      parsed.settingsPin
+        ? AsyncStorage.setItem(KEYS.SETTINGS_PIN, parsed.settingsPin)
+        : AsyncStorage.removeItem(KEYS.SETTINGS_PIN),
     ]);
 
     console.log('Data imported successfully');
@@ -104,6 +132,8 @@ export const clearAllData = async (): Promise<boolean> => {
       KEYS.DELETED_DEFAULTS,
       KEYS.NOTIFICATIONS,
       KEYS.NOTIFICATIONS_ENABLED,
+      KEYS.NOTIFICATION_LEAD_MINUTES,
+      KEYS.SETTINGS_PIN,
       KEYS.SETTINGS,
       KEYS.LAST_SYNC,
     ]);

@@ -10,6 +10,8 @@ const validAppData = {
   deletedDefaultIds: ['default-0'],
   notificationSettings: { 'item-1': true, 'item-2': false },
   notificationsEnabled: false,
+  notificationLeadMinutes: 10,
+  settingsPin: '1234',
   lastSync: '2026-08-20T00:00:00.000Z',
 };
 
@@ -32,6 +34,8 @@ describe('isValidAppData', () => {
     const { deletedDefaultIds: _deleted, ...noDeleted } = validAppData;
     const { notificationSettings: _settings, ...noSettings } = validAppData;
     const { notificationsEnabled: _enabled, ...noEnabled } = validAppData;
+    const { notificationLeadMinutes: _lead, ...noLead } = validAppData;
+    const { settingsPin: _pin, ...noPin } = validAppData;
 
     assert.equal(isValidAppData(noVersion), false);
     assert.equal(isValidAppData(noUserId), false);
@@ -40,6 +44,8 @@ describe('isValidAppData', () => {
     assert.equal(isValidAppData(noDeleted), false);
     assert.equal(isValidAppData(noSettings), false);
     assert.equal(isValidAppData(noEnabled), false);
+    assert.equal(isValidAppData(noLead), false);
+    assert.equal(isValidAppData(noPin), false);
   });
 
   it('rejects wrong field types', () => {
@@ -54,6 +60,15 @@ describe('isValidAppData', () => {
     assert.equal(isValidAppData({ ...validAppData, notificationSettings: { 'item-1': 'yes' } }), false);
     assert.equal(isValidAppData({ ...validAppData, notificationsEnabled: 'true' }), false);
     assert.equal(isValidAppData({ ...validAppData, lastSync: 123 }), false);
+    assert.equal(isValidAppData({ ...validAppData, notificationLeadMinutes: 7 }), false);
+    assert.equal(isValidAppData({ ...validAppData, notificationLeadMinutes: '5' }), false);
+    assert.equal(isValidAppData({ ...validAppData, settingsPin: '12' }), false);
+    assert.equal(isValidAppData({ ...validAppData, settingsPin: 'abcd' }), false);
+    assert.equal(isValidAppData({ ...validAppData, settingsPin: 1234 }), false);
+  });
+
+  it('accepts a null PIN and 0-minute lead', () => {
+    assert.equal(isValidAppData({ ...validAppData, settingsPin: null, notificationLeadMinutes: 0 }), true);
   });
 
   it('rejects garbage nested activities and schedules', () => {
@@ -139,6 +154,20 @@ describe('parseBackupData', () => {
       activities: [],
       schedules: [{ id: 'schedule-1', date: '2026-08-20', items: [{}] }],
     }), null);
+    assert.equal(parseBackupData({
+      version: '1.0.0',
+      userId: 'user-1',
+      activities: [],
+      schedules: [],
+      notificationLeadMinutes: 3,
+    }), null);
+    assert.equal(parseBackupData({
+      version: '1.0.0',
+      userId: 'user-1',
+      activities: [],
+      schedules: [],
+      settingsPin: '99',
+    }), null);
   });
 
   it('fills defaults for legacy backups that omit newer keys', () => {
@@ -156,6 +185,21 @@ describe('parseBackupData', () => {
       deletedDefaultIds: [],
       notificationSettings: {},
       notificationsEnabled: true,
+      notificationLeadMinutes: 5,
+      settingsPin: null,
     });
+  });
+
+  it('keeps an explicit 0-minute lead and does not treat it as missing', () => {
+    const parsed = parseBackupData({
+      version: '1.0.0',
+      userId: 'user-1',
+      activities: [],
+      schedules: [],
+      notificationLeadMinutes: 0,
+      settingsPin: null,
+    });
+    assert.equal(parsed?.notificationLeadMinutes, 0);
+    assert.equal(parsed?.settingsPin, null);
   });
 });
