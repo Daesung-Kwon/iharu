@@ -4,7 +4,7 @@
  * 필수 기능만 구현 (개인정보 수집 최소화)
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Switch, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -35,6 +35,7 @@ import PrivacyModal from '../components/PrivacyModal';
 import LicenseModal from '../components/LicenseModal';
 import { SoftPopColors } from '../constants/theme';
 import { useLayout } from '../hooks/useLayout';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function ProfileScreen() {
   const { isCompact, isLandscape, space, adBannerBottom, contentPadWithAd } = useLayout();
@@ -65,6 +66,18 @@ export default function ProfileScreen() {
     };
     loadSettings();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        if (storedPin) {
+          setUnlocked(false);
+          setPinModal(null);
+          setPinError('');
+        }
+      };
+    }, [storedPin])
+  );
 
   const handleNotificationToggle = async (value: boolean) => {
     if (value) {

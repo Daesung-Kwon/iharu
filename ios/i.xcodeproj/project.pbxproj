@@ -389,6 +389,7 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
+				DEVELOPMENT_TEAM = Y277JCQJGL;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dailyschedule.app;
 				PRODUCT_NAME = i;
 				SWIFT_OBJC_BRIDGING_HEADER = "i/i-Bridging-Header.h";
@@ -420,6 +421,7 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
+				DEVELOPMENT_TEAM = Y277JCQJGL;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dailyschedule.app;
 				PRODUCT_NAME = i;
 				SWIFT_OBJC_BRIDGING_HEADER = "i/i-Bridging-Header.h";

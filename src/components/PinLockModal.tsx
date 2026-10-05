@@ -23,9 +23,11 @@ export default function PinLockModal({
 }: PinLockModalProps) {
   const [pin, setPin] = useState('');
 
+  // Clear when the modal opens or the step changes (set → confirm, etc.).
+  // `visible` alone stays true across those steps, so also watch `title`.
   useEffect(() => {
     if (visible) setPin('');
-  }, [visible]);
+  }, [visible, title]);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
@@ -52,7 +54,11 @@ export default function PinLockModal({
               </Pressable>
             )}
             <Pressable
-              onPress={() => pin.length === 4 && onSubmit(pin)}
+              onPress={() => {
+                if (pin.length !== 4) return;
+                onSubmit(pin);
+                setPin('');
+              }}
               style={[styles.primary, pin.length !== 4 && styles.primaryDisabled]}
             >
               <Text style={styles.primaryText}>{confirmLabel}</Text>
