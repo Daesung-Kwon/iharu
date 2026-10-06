@@ -16,7 +16,7 @@ import ScheduleItemCard from '../components/ScheduleItemCard';
 import TimelineViewV2 from '../components/TimelineViewV2';
 import { Activity } from '../types';
 import { SoftPopColors } from '../constants/theme';
-import { getClayShadow, useLayout } from '../hooks/useLayout';
+import { getClayShadow, MIN_TOUCH_TARGET, useLayout } from '../hooks/useLayout';
 import { isToday } from '../utils/statsUtils';
 import { toLocalDateString } from '../utils/dateUtils';
 
@@ -763,7 +763,7 @@ const styles = StyleSheet.create({
   viewModeButtonCompact: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    minHeight: 40,
+    minHeight: MIN_TOUCH_TARGET,
   },
   viewModeButtonActive: {
     backgroundColor: SoftPopColors.secondary,

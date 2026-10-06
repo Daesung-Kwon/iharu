@@ -226,7 +226,13 @@ export default function TimelineViewV2({
                       />
                     </View>
                     <View style={styles.scheduleInfo}>
-                      <Text style={styles.scheduleName}>
+                      <Text
+                        style={styles.scheduleName}
+                        // A one-slot (30 min) block only has room for one line.
+                        numberOfLines={blockHeight > TIMELINE_CONFIG.SLOT_HEIGHT ? 2 : 1}
+                        ellipsizeMode="tail"
+                        lineBreakStrategyIOS="hangul-word"
+                      >
                         {scheduleItem.activity?.name || '활동'}
                       </Text>
                       <Text style={styles.scheduleTime}>

@@ -60,7 +60,12 @@ export default function ScheduleItemCard({
 
         {/* Center: Info */}
         <View style={styles.infoContainer}>
-          <Text style={styles.name} numberOfLines={1}>
+          <Text
+            style={styles.name}
+            numberOfLines={2}
+            ellipsizeMode="tail"
+            lineBreakStrategyIOS="hangul-word"
+          >
             {activity.name}
           </Text>
           <View style={styles.timeContainer}>
