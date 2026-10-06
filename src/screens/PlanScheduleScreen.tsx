@@ -16,7 +16,7 @@ import ScheduleItemCard from '../components/ScheduleItemCard';
 import TimelineViewV2 from '../components/TimelineViewV2';
 import { Activity } from '../types';
 import { SoftPopColors } from '../constants/theme';
-import { useLayout } from '../hooks/useLayout';
+import { getClayShadow, useLayout } from '../hooks/useLayout';
 import { isToday } from '../utils/statsUtils';
 import { toLocalDateString } from '../utils/dateUtils';
 
@@ -31,7 +31,9 @@ export default function PlanScheduleScreen() {
     space,
     titleSize,
     tabBarOffset,
+    cardRadius,
   } = useLayout();
+  const clayShadow = getClayShadow(isCompact);
   const { activities } = useActivity();
   const {
     selectedDate,
@@ -254,11 +256,13 @@ export default function PlanScheduleScreen() {
 
       <View style={[
         styles.header,
+        clayShadow,
         {
           padding: space,
           paddingBottom: isCompact ? 12 : 20,
           marginHorizontal: space,
           marginTop: space,
+          borderRadius: cardRadius,
         },
       ]}>
         <Text style={[

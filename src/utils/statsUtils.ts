@@ -113,3 +113,38 @@ export const isFuture = (dateString: string): boolean => {
   return dateString > toLocalDateString(new Date());
 };
 
+export type WeekDotStatus = 'empty' | 'partial' | 'complete';
+
+export type WeekDayOverview = {
+  date: Date;
+  dateString: string;
+  status: WeekDotStatus;
+  completionRate: number;
+};
+
+/** One row of Mon–Sun completion for the week that contains `weekDates`. */
+export const getWeekOverview = (
+  weekDates: Date[],
+  schedules: Schedule[],
+): WeekDayOverview[] => {
+  return weekDates.map(date => {
+    const dateString = toLocalDateString(date);
+    const schedule = schedules.find(item => item.date === dateString) ?? null;
+    const stats = calculateDayStats(schedule);
+    let status: WeekDotStatus = 'empty';
+    if (stats.totalItems > 0) {
+      status = stats.completionRate >= 100 ? 'complete' : 'partial';
+    }
+    return {
+      date,
+      dateString,
+      status,
+      completionRate: stats.completionRate,
+    };
+  });
+};
+
+export const countCompleteDays = (overview: WeekDayOverview[]): number => {
+  return overview.filter(day => day.status === 'complete').length;
+};
+

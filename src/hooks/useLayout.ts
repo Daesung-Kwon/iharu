@@ -7,23 +7,31 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AD_BANNER_HEIGHT,
   getLayoutMetrics,
-  TAB_BAR_HEIGHT,
+  getTabBarChrome,
+  type LayoutTier,
 } from './layoutMetrics';
 
 export {
   ACTIVITY_CARD_MIN_WIDTH,
   AD_BANNER_HEIGHT,
+  computeTabBarOffset,
+  getClayShadow,
   getFittedActivityColumns,
+  getInFlowBottomLayout,
   getLayoutMetrics,
+  getLayoutTier,
+  getTabBarChrome,
   TAB_BAR_HEIGHT,
+  TAB_BAR_HEIGHT_SMALL,
 } from './layoutMetrics';
-export type { LayoutMetrics } from './layoutMetrics';
+export type { LayoutMetrics, LayoutTier, TabBarChrome } from './layoutMetrics';
 
 /** Matches the floating tab bar's occupied height so scroll/ads clear it. */
-export function getTabBarOffset(insetsBottom: number): number {
-  return Platform.OS === 'android'
-    ? TAB_BAR_HEIGHT + Math.max(insetsBottom, 16) + 8
-    : TAB_BAR_HEIGHT + Math.max(insetsBottom, 10);
+export function getTabBarOffset(
+  insetsBottom: number,
+  tier: LayoutTier = 'phoneRegular',
+): number {
+  return getTabBarChrome(tier, insetsBottom, Platform.OS).offset;
 }
 
 export function getScrollBottomPadding(
@@ -31,10 +39,11 @@ export function getScrollBottomPadding(
   {
     includeAd = false,
     isCompact = false,
-  }: { includeAd?: boolean; isCompact?: boolean } = {},
+    tier = 'phoneRegular',
+  }: { includeAd?: boolean; isCompact?: boolean; tier?: LayoutTier } = {},
 ): number {
   const extra = isCompact ? 12 : 20;
-  return getTabBarOffset(insetsBottom)
+  return getTabBarOffset(insetsBottom, tier)
     + (includeAd ? AD_BANNER_HEIGHT : 0)
     + extra;
 }
@@ -43,19 +52,23 @@ export function useLayout() {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const metrics = getLayoutMetrics(width, height);
-  const tabBarOffset = getTabBarOffset(insets.bottom);
+  const tabBarChrome = getTabBarChrome(metrics.tier, insets.bottom, Platform.OS);
+  const tabBarOffset = tabBarChrome.offset;
 
   return {
     ...metrics,
     insets,
+    tabBarChrome,
     tabBarOffset,
     adBannerBottom: tabBarOffset,
     contentPad: getScrollBottomPadding(insets.bottom, {
       isCompact: metrics.isCompact,
+      tier: metrics.tier,
     }),
     contentPadWithAd: getScrollBottomPadding(insets.bottom, {
       includeAd: true,
       isCompact: metrics.isCompact,
+      tier: metrics.tier,
     }),
   };
 }
