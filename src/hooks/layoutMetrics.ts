@@ -16,6 +16,8 @@ export const AD_BANNER_HEIGHT = 60;
 /** Gap between the toast and whatever bottom chrome (ad / tab bar) is showing. */
 export const TOAST_CHROME_GAP = 12;
 export const ACTIVITY_CARD_MIN_WIDTH = 140;
+/** Apple HIG minimum touch target (pt). */
+export const MIN_TOUCH_TARGET = 44;
 
 /**
  * - phoneSmall: SE 2/3 (375x667) — tightest tokens, single-row header.

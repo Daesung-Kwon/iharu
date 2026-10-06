@@ -7,6 +7,7 @@ import {
   getLayoutMetrics,
   getLayoutTier,
   getTabBarChrome,
+  MIN_TOUCH_TARGET,
   TAB_BAR_HEIGHT,
   TAB_BAR_HEIGHT_SMALL,
   TOAST_CHROME_GAP,
@@ -249,4 +250,32 @@ describe('getInFlowBottomLayout (ad must not cover content)', () => {
     assert.equal(layout.scrollEndGap, 20);
     assert.equal(layout.reservedBottom, tabBarOffset + 90);
   });
+});
+
+describe('WeekStrip day touch targets (phones)', () => {
+  // Phone WeekStrip lives in the Today header card: screen width minus the
+  // screen padding (space) and the card padding (cardPad) on both sides,
+  // split into 7 day columns. Each column must stay >= 44pt wide.
+  const dayColumnWidth = (width: number, height: number) => {
+    const { space, cardPad } = getLayoutMetrics(width, height);
+    return (width - 2 * space - 2 * cardPad) / 7;
+  };
+
+  it('uses the HIG 44pt minimum', () => {
+    assert.equal(MIN_TOUCH_TARGET, 44);
+  });
+
+  for (const [label, w, h] of [
+    ['iPhone SE 375x667', 375, 667],
+    ['iPhone 13 mini 375x812', 375, 812],
+    ['iPhone 17 402x874', 402, 874],
+    ['small Android 360x640', 360, 640],
+  ] as const) {
+    it(`${label} day columns are at least 44pt wide`, () => {
+      assert.ok(
+        dayColumnWidth(w, h) >= MIN_TOUCH_TARGET,
+        `${dayColumnWidth(w, h).toFixed(1)}pt < ${MIN_TOUCH_TARGET}pt`,
+      );
+    });
+  }
 });

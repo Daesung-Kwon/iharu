@@ -215,6 +215,9 @@ export default function TodayScheduleItem({
               isCompact && styles.nameCompact,
               scheduleItem.status === 'completed' && styles.nameCompleted,
             ]}
+            numberOfLines={2}
+            ellipsizeMode="tail"
+            lineBreakStrategyIOS="hangul-word"
           >
             {activity.name}
           </Text>

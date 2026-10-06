@@ -21,6 +21,7 @@ export {
   getLayoutMetrics,
   getLayoutTier,
   getTabBarChrome,
+  MIN_TOUCH_TARGET,
   TAB_BAR_HEIGHT,
   TAB_BAR_HEIGHT_SMALL,
 } from './layoutMetrics';
