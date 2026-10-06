@@ -1,55 +1,67 @@
 /**
  * TodayScheduleItem 컴포넌트
- * 오늘의 일정 전용 아이템 카드 (체크박스 + 상태 표시)
+ * 오늘의 일정 전용 아이템 카드 (체크박스 + 스와이프 완료/알림)
  * Soft Pop 3D (Claymorphism) 디자인 적용
  */
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { MaterialIcons } from '@expo/vector-icons';
 import { ScheduleItem } from '../types';
 import ActivityIcon from './ActivityIcon';
 import { ActivityMaterialColors } from '../constants/materialDesign';
 import { SoftPopColors } from '../constants/theme';
+import { getClayShadow, useLayout } from '../hooks/useLayout';
+import { getCheckboxState } from '../utils/completionLogic';
 
 interface TodayScheduleItemProps {
   scheduleItem: ScheduleItem;
   itemStatus: 'upcoming' | 'current' | 'completed' | 'missed' | 'future';
   onToggleComplete: () => void;
+  onSwipeComplete?: () => void;
   onToggleNotification?: () => void;
   notificationEnabled?: boolean;
+  swipeEnabled?: boolean;
 }
 
 export default function TodayScheduleItem({
   scheduleItem,
   itemStatus,
   onToggleComplete,
+  onSwipeComplete,
   onToggleNotification,
   notificationEnabled = false,
+  swipeEnabled = true,
 }: TodayScheduleItemProps) {
+  const { isCompact, cardRadius } = useLayout();
+  const swipeRef = useRef<Swipeable>(null);
+  const handlingRef = useRef(false);
   const activity = scheduleItem.activity;
   if (!activity) return null;
 
   const colorScheme = ActivityMaterialColors[activity.colorKey];
+  const isCompleted = scheduleItem.status === 'completed';
+  const canComplete = swipeEnabled && itemStatus !== 'future';
+  const canNotify = Boolean(onToggleNotification) && (itemStatus === 'upcoming' || itemStatus === 'future');
 
   const formatTime = (time: string) => {
     const [hours, minutes] = time.split(':');
     return `${hours}:${minutes}`;
   };
 
-  // 상태별 스타일
   const getStatusStyle = () => {
     switch (itemStatus) {
       case 'current':
         return {
-          backgroundColor: '#FFF0F0',
-          borderColor: SoftPopColors.primary,
+          backgroundColor: SoftPopColors.nowSurface,
+          borderColor: SoftPopColors.now,
           borderWidth: 4,
         };
       case 'completed':
         return {
-          backgroundColor: '#F0FFF4',
-          borderColor: SoftPopColors.success,
+          backgroundColor: SoftPopColors.completeSurface,
+          borderColor: SoftPopColors.complete,
           opacity: 0.9,
         };
       case 'missed':
@@ -75,7 +87,7 @@ export default function TodayScheduleItem({
       case 'current':
         return {
           text: '지금 할 시간',
-          color: SoftPopColors.primary,
+          color: SoftPopColors.now,
           icon: 'play-circle' as const,
         };
       case 'missed':
@@ -95,28 +107,88 @@ export default function TodayScheduleItem({
     }
   };
 
-  const isDisabled = itemStatus === 'future' || itemStatus === 'completed';
-
+  // swipeEnabled is true only on the editable day (today): there a completed
+  // item can be tapped to un-complete; past stays read-only, future disabled.
+  const checkbox = getCheckboxState({
+    isCompleted,
+    itemStatus,
+    isEditableDay: swipeEnabled,
+  });
+  const isDisabled = checkbox.disabled;
   const statusBadge = getStatusBadge();
 
-  return (
-    <View style={[styles.card, getStatusStyle()]}>
-      {/* Left: Checkbox */}
+  const closeSoon = () => {
+    requestAnimationFrame(() => swipeRef.current?.close());
+  };
+
+  const runOnce = (fn: () => void) => {
+    if (handlingRef.current) return;
+    handlingRef.current = true;
+    fn();
+    closeSoon();
+    setTimeout(() => {
+      handlingRef.current = false;
+    }, 400);
+  };
+
+  const renderLeftActions = () => {
+    if (!canComplete) return null;
+    return (
+      <View style={[styles.action, styles.completeAction, { borderRadius: cardRadius }]}>
+        <MaterialIcons
+          name={isCompleted ? 'undo' : 'check-circle'}
+          size={28}
+          color={SoftPopColors.white}
+        />
+        <Text style={styles.actionText}>{isCompleted ? '되돌리기' : '완료'}</Text>
+      </View>
+    );
+  };
+
+  const renderRightActions = () => {
+    if (!canNotify) return null;
+    return (
+      <View style={[styles.action, styles.notifyAction, { borderRadius: cardRadius }]}>
+        <MaterialIcons
+          name={notificationEnabled ? 'notifications-off' : 'notifications-active'}
+          size={28}
+          color={SoftPopColors.white}
+        />
+        <Text style={styles.actionText}>{notificationEnabled ? '알림 끄기' : '알림'}</Text>
+      </View>
+    );
+  };
+
+  const card = (
+    <View
+      style={[
+        styles.card,
+        getStatusStyle(),
+        getClayShadow(isCompact),
+        isCompact && styles.cardCompact,
+        { borderRadius: cardRadius },
+      ]}
+    >
       <Pressable
         style={({ pressed }) => [
           styles.checkboxContainer,
           isDisabled && styles.checkboxContainerDisabled,
-          pressed && !isDisabled && styles.checkboxContainerPressed
+          pressed && !isDisabled && styles.checkboxContainerPressed,
         ]}
         onPress={onToggleComplete}
         disabled={isDisabled}
-        accessibilityLabel={scheduleItem.status === 'completed' ? '완료 취소' : itemStatus === 'future' ? '미래 일정 (비활성화)' : '완료 표시'}
+        hitSlop={4}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: isCompleted, disabled: isDisabled }}
+        accessibilityLabel={checkbox.accessibilityLabel}
       >
-        <View style={[
-          styles.checkbox,
-          scheduleItem.status === 'completed' && styles.checkboxChecked,
-          isDisabled && styles.checkboxDisabled
-        ]}>
+        <View
+          style={[
+            styles.checkbox,
+            scheduleItem.status === 'completed' && styles.checkboxChecked,
+            isDisabled && styles.checkboxDisabled,
+          ]}
+        >
           {scheduleItem.status === 'completed' && (
             <MaterialIcons
               name="check"
@@ -127,27 +199,26 @@ export default function TodayScheduleItem({
         </View>
       </Pressable>
 
-      {/* Center: Info */}
       <View style={styles.infoContainer}>
-        {/* Emoji/Icon */}
         <View style={styles.emojiWrapper}>
           <ActivityIcon
             activity={activity}
-            size={44}
+            size={isCompact ? 36 : 44}
             color={SoftPopColors.text}
           />
         </View>
 
         <View style={styles.textInfo}>
-          {/* Name */}
-          <Text style={[
-            styles.name,
-            scheduleItem.status === 'completed' && styles.nameCompleted
-          ]}>
+          <Text
+            style={[
+              styles.name,
+              isCompact && styles.nameCompact,
+              scheduleItem.status === 'completed' && styles.nameCompleted,
+            ]}
+          >
             {activity.name}
           </Text>
 
-          {/* Time */}
           <View style={styles.timeContainer}>
             <MaterialIcons
               name="access-time"
@@ -162,7 +233,6 @@ export default function TodayScheduleItem({
             </Text>
           </View>
 
-          {/* Status Badge */}
           {statusBadge && (
             <View style={[styles.statusBadge, { backgroundColor: `${statusBadge.color}20` }]}>
               <MaterialIcons
@@ -178,12 +248,11 @@ export default function TodayScheduleItem({
         </View>
       </View>
 
-      {/* Right: Notification Toggle */}
       {(itemStatus === 'upcoming' || itemStatus === 'future') && (
         <Pressable
           style={({ pressed }) => [
             styles.notificationButton,
-            pressed && styles.notificationButtonPressed
+            pressed && styles.notificationButtonPressed,
           ]}
           onPress={onToggleNotification}
           accessibilityLabel="알림 설정"
@@ -197,26 +266,75 @@ export default function TodayScheduleItem({
       )}
     </View>
   );
+
+  if (!canComplete && !canNotify) {
+    return <View style={styles.swipeContainer}>{card}</View>;
+  }
+
+  return (
+    <Swipeable
+      ref={swipeRef}
+      containerStyle={styles.swipeContainer}
+      friction={2}
+      leftThreshold={56}
+      rightThreshold={56}
+      overshootLeft={false}
+      overshootRight={false}
+      renderLeftActions={canComplete ? renderLeftActions : undefined}
+      renderRightActions={canNotify ? renderRightActions : undefined}
+      onSwipeableOpen={(direction) => {
+        if (direction === 'left') {
+          runOnce(onSwipeComplete ?? onToggleComplete);
+        } else if (canNotify && onToggleNotification) {
+          runOnce(onToggleNotification);
+        } else {
+          closeSoon();
+        }
+      }}
+    >
+      {card}
+    </Swipeable>
+  );
 }
 
 const styles = StyleSheet.create({
+  swipeContainer: {
+    marginBottom: 12,
+  },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 24, // rounded-3xl
+    borderRadius: 24,
     padding: 20,
-    marginBottom: 12,
     gap: 16,
     backgroundColor: SoftPopColors.white,
     borderWidth: 2,
     borderColor: SoftPopColors.white,
-    // Soft floating effect
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
     minHeight: 100,
+  },
+  cardCompact: {
+    padding: 14,
+    minHeight: 80,
+    gap: 10,
+  },
+  action: {
+    width: 96,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+  },
+  completeAction: {
+    backgroundColor: SoftPopColors.complete,
+    marginRight: 8,
+  },
+  notifyAction: {
+    backgroundColor: SoftPopColors.primary,
+    marginLeft: 8,
+  },
+  actionText: {
+    color: SoftPopColors.white,
+    fontSize: 13,
+    fontFamily: 'BMJUA',
   },
   checkboxContainer: {
     padding: 8,
@@ -230,13 +348,12 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 40,
     height: 40,
-    borderRadius: 20, // rounded-full
+    borderRadius: 20,
     borderWidth: 3,
     borderColor: SoftPopColors.textSecondary,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: SoftPopColors.white,
-    // 3D effect
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -244,10 +361,9 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   checkboxChecked: {
-    backgroundColor: SoftPopColors.success,
-    borderColor: SoftPopColors.success,
-    // Stronger shadow when checked
-    shadowColor: SoftPopColors.success,
+    backgroundColor: SoftPopColors.complete,
+    borderColor: SoftPopColors.complete,
+    shadowColor: SoftPopColors.complete,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
@@ -276,6 +392,10 @@ const styles = StyleSheet.create({
     color: SoftPopColors.text,
     lineHeight: 24,
     fontFamily: 'BMJUA',
+  },
+  nameCompact: {
+    fontSize: 16,
+    lineHeight: 22,
   },
   nameCompleted: {
     textDecorationLine: 'line-through',
@@ -307,12 +427,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 12,
     alignSelf: 'flex-start',
-    // Soft shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
-    // Android: 투명 배경에서 elevation 제거
     ...(Platform.OS !== 'android' && {
       elevation: 2,
     }),
@@ -328,8 +446,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: SoftPopColors.background,
-    borderRadius: 24, // rounded-full
-    // 3D pressable effect
+    borderRadius: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
@@ -344,4 +461,3 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
 });
-

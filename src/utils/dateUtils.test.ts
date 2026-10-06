@@ -6,8 +6,12 @@ import {
   combineLocalDateAndTime,
   getActivityNotificationTime,
   getWeekdayDatesInWeek,
+  getWeekDatesInWeek,
+  getShiftedWeekDate,
+  formatWeekRangeKo,
 } from './dateUtils';
-import { isToday, isPast, isFuture } from './statsUtils';
+import { countCompleteDays, getWeekOverview, isToday, isPast, isFuture } from './statsUtils';
+import { Schedule } from '../types';
 
 describe('toLocalDateString', () => {
   it('returns local calendar date at 01:00, not the UTC ISO date', () => {
@@ -71,6 +75,55 @@ describe('getWeekdayDatesInWeek', () => {
       days.map(toLocalDateString),
       ['2026-08-17', '2026-08-18', '2026-08-19', '2026-08-20', '2026-08-21'],
     );
+  });
+});
+
+describe('getWeekDatesInWeek', () => {
+  it('returns Mon–Sun for a Sunday', () => {
+    const days = getWeekDatesInWeek(new Date(2026, 7, 23));
+    assert.deepEqual(
+      days.map(toLocalDateString),
+      ['2026-08-17', '2026-08-18', '2026-08-19', '2026-08-20', '2026-08-21', '2026-08-22', '2026-08-23'],
+    );
+  });
+});
+
+describe('getWeekOverview', () => {
+  const week = getWeekDatesInWeek(new Date(2026, 7, 19));
+
+  const schedule = (
+    date: string,
+    completed: number,
+    total: number,
+  ): Schedule => ({
+    id: `schedule-${date}`,
+    userId: 'u',
+    childProfileId: 'c',
+    date,
+    items: Array.from({ length: total }, (_, index) => ({
+      id: `${date}-${index}`,
+      scheduleId: `schedule-${date}`,
+      activityId: 'a',
+      startTime: '09:00',
+      endTime: '09:30',
+      status: index < completed ? 'completed' : 'planned',
+      orderIndex: index,
+      createdAt: '',
+      updatedAt: '',
+    })),
+    createdAt: '',
+    updatedAt: '',
+  });
+
+  it('marks empty / partial / complete days and counts kept days', () => {
+    const overview = getWeekOverview(week, [
+      schedule('2026-08-17', 2, 2),
+      schedule('2026-08-18', 1, 2),
+    ]);
+    assert.equal(overview[0].status, 'complete');
+    assert.equal(overview[1].status, 'partial');
+    assert.equal(overview[2].status, 'empty');
+    assert.equal(countCompleteDays(overview), 1);
   });
 });
 
@@ -167,5 +220,46 @@ describe('migrateUtcSlicedScheduleDates', () => {
     assert.equal(migrated[0].date, '2026-08-25');
     assert.equal(migrated[0].dateKind, 'local');
     assert.equal(migrated[0].createdAt, '2026-08-19T22:00:00.000Z');
+  });
+});
+
+describe('getShiftedWeekDate (phone week strip arrows)', () => {
+  const today = new Date(2026, 9, 5, 15, 0); // Mon 2026-10-05 15:00
+
+  it('moves to the same weekday of the previous / next week', () => {
+    const wed = new Date(2026, 9, 7);
+    assert.equal(toLocalDateString(getShiftedWeekDate(wed, -1, today)!), '2026-09-30');
+    assert.equal(toLocalDateString(getShiftedWeekDate(wed, 1, today)!), '2026-10-14');
+  });
+
+  it('lands on today when the target week contains today', () => {
+    const lastWeekFri = new Date(2026, 9, 2);
+    assert.equal(toLocalDateString(getShiftedWeekDate(lastWeekFri, 1, today)!), '2026-10-05');
+  });
+
+  it('clamps into the 30-day past range and stops beyond it', () => {
+    // 2026-09-07 is a Monday; today - 30 = 2026-09-05 (Sat).
+    const mon = new Date(2026, 8, 7);
+    assert.equal(toLocalDateString(getShiftedWeekDate(mon, -1, today)!), '2026-09-05');
+    const sat = new Date(2026, 8, 5);
+    assert.equal(getShiftedWeekDate(sat, -1, today), null);
+  });
+
+  it('clamps into the 90-day future range and stops beyond it', () => {
+    // today + 90 = 2027-01-03 (Sun).
+    const sun = new Date(2026, 11, 27);
+    assert.equal(toLocalDateString(getShiftedWeekDate(sun, 1, today)!), '2027-01-03');
+    const fri = new Date(2027, 0, 1);
+    assert.equal(getShiftedWeekDate(fri, 1, today), null);
+  });
+});
+
+describe('formatWeekRangeKo', () => {
+  it('formats a week within one month', () => {
+    assert.equal(formatWeekRangeKo(getWeekDatesInWeek(new Date(2026, 9, 5))), '10월 5일 ~ 11일');
+  });
+
+  it('formats a week that spans two months', () => {
+    assert.equal(formatWeekRangeKo(getWeekDatesInWeek(new Date(2026, 9, 1))), '9월 28일 ~ 10월 4일');
   });
 });

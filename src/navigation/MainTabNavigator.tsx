@@ -7,7 +7,6 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Platform, Pressable, View, StyleSheet } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MainTabParamList } from '../types';
 
 // 화면 임포트
@@ -16,12 +15,12 @@ import PlanScheduleScreen from '../screens/PlanScheduleScreen';
 import ActivitiesScreen from '../screens/ActivitiesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { SoftPopColors } from '../constants/theme';
-import { TAB_BAR_HEIGHT, useLayout } from '../hooks/useLayout';
+import { useLayout } from '../hooks/useLayout';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 // 커스텀 탭 바 버튼 (3D 효과)
-const CustomTabBarButton = ({ children, onPress, accessibilityState, style }: any) => {
+const CustomTabBarButton = ({ children, onPress, accessibilityState, style, minHeight }: any) => {
   const isSelected = accessibilityState?.selected;
 
   return (
@@ -29,6 +28,7 @@ const CustomTabBarButton = ({ children, onPress, accessibilityState, style }: an
       style={({ pressed }) => [
         tabBarStyles.tabButton,
         style, // React Navigation 기본 스타일 (flex: 1 등)은 유지
+        minHeight != null && { minHeight },
         isSelected && tabBarStyles.tabButtonActive,
         pressed && tabBarStyles.tabButtonPressed,
       ]}
@@ -40,12 +40,9 @@ const CustomTabBarButton = ({ children, onPress, accessibilityState, style }: an
 };
 
 export const MainTabNavigator: React.FC = () => {
-  const insets = useSafeAreaInsets();
-  const { isCompact } = useLayout();
-
-  const tabBarPaddingBottom = Platform.OS === 'ios'
-    ? Math.max(insets.bottom, 10)
-    : Math.max(insets.bottom, 16);
+  // Tier + safe-area aware geometry (SE/home-button: tighter bar with an 8pt
+  // floor; notched phones and iPad unchanged). See getTabBarChrome.
+  const { tabBarChrome } = useLayout();
 
   return (
     <Tab.Navigator
@@ -59,12 +56,9 @@ export const MainTabNavigator: React.FC = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          paddingBottom: tabBarPaddingBottom,
+          paddingBottom: tabBarChrome.paddingBottom,
           paddingTop: 0,
-          height: TAB_BAR_HEIGHT + (Platform.OS === 'ios'
-            ? Math.max(insets.bottom - 8, 0)
-            : Math.max(insets.bottom, 0)
-          ),
+          height: tabBarChrome.barHeight,
           backgroundColor: 'transparent', // 뒤 배경이 비치도록 투명 처리
           borderTopWidth: 0,
           elevation: 0,
@@ -94,17 +88,17 @@ export const MainTabNavigator: React.FC = () => {
           alignItems: 'center',
           justifyContent: 'center',
         },
-        tabBarButton: (props) => <CustomTabBarButton {...props} />,
+        tabBarButton: (props) => (
+          <CustomTabBarButton {...props} minHeight={tabBarChrome.buttonMinHeight} />
+        ),
         // 플로팅 탭 바 배경 (실제 흰색 바 + 그림자 + 라운드)
         tabBarBackground: () => (
           <View
             style={[
               tabBarStyles.tabBarBackground,
               {
-                marginHorizontal: isCompact ? 8 : 16,
-                marginBottom: Platform.OS === 'ios'
-                  ? Math.max(insets.bottom, 12)
-                  : Math.max(insets.bottom, 16),
+                marginHorizontal: tabBarChrome.pillMarginHorizontal,
+                marginBottom: tabBarChrome.pillMarginBottom,
               },
             ]}
           />

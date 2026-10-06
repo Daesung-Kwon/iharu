@@ -16,13 +16,16 @@ import TodayScheduleItem from '../components/TodayScheduleItem';
 import CelebrationModal from '../components/CelebrationModal';
 import HorizontalDatePicker from '../components/HorizontalDatePicker';
 import ClapAnimation from '../components/ClapAnimation';
+import WeekStrip from '../components/WeekStrip';
 import { getItemStatus, getNextActivity, getCurrentActivity, getMinutesUntil, formatRemainingTime } from '../utils/timeUtils';
 import { calculateDayStats, isToday, isPast, isFuture } from '../utils/statsUtils';
 import { toLocalDateString } from '../utils/dateUtils';
+import { playCompleteFeedback } from '../utils/feedback';
+import { getUndoStatus, planToggleComplete } from '../utils/completionLogic';
 import ActivityIcon from '../components/ActivityIcon';
 import Toast from '../components/Toast';
 import { SoftPopColors } from '../constants/theme';
-import { useLayout } from '../hooks/useLayout';
+import { getClayShadow, getInFlowBottomLayout, useLayout } from '../hooks/useLayout';
 import {
   getNotificationPermissionStatus,
   requestNotificationPermissions,
@@ -41,9 +44,15 @@ export default function TodayScreen() {
     space,
     titleSize,
     dateCardWidth,
-    adBannerBottom,
-    contentPadWithAd,
+    tabBarOffset,
+    insets,
+    cardPad,
+    cardRadius,
+    isPhone,
+    isSmallPhone,
+    showDatePicker,
   } = useLayout();
+  const clayShadow = getClayShadow(isCompact);
   const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   const {
     selectedDate,
@@ -56,12 +65,16 @@ export default function TodayScreen() {
   const selectedSchedule = getScheduleForDate(selectedDate);
   const scheduleItems = selectedSchedule?.items || [];
   const [showCelebration, setShowCelebration] = useState(false);
-  const [celebrationShown, setCelebrationShown] = useState(false); // 한 번 표시된 완료 팝업 추적
+  const celebrationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Ad sits in layout flow; 0 until the banner has actually loaded (or failed → null).
+  const [adHeight, setAdHeight] = useState(0);
   const [showClapAnimation, setShowClapAnimation] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [notifications, setNotifications] = useState<Record<string, boolean>>({});
   const [toastMessage, setToastMessage] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
+  const [toastActionLabel, setToastActionLabel] = useState<string | undefined>();
+  const toastActionRef = useRef<(() => void) | undefined>(undefined);
 
   const selectedDateString = toLocalDateString(selectedDate);
   const isViewingToday = isToday(selectedDateString);
@@ -128,52 +141,73 @@ export default function TodayScreen() {
   const currentActivity = getCurrentActivity(scheduleItems, currentTime);
   const nextActivity = getNextActivity(scheduleItems, currentTime);
 
+  // Celebration is triggered by the completing action itself (button or swipe,
+  // see planToggleComplete) so both paths behave the same and it never fires
+  // twice or just from opening an already-finished day. Here we only close it
+  // (and cancel a pending open) when the day is no longer fully completed.
   useEffect(() => {
-    if (allCompleted && !showCelebration && !celebrationShown) {
-      // 모든 일정이 완료되면 축하 모달 표시 (한 번만)
-      const timer = setTimeout(() => {
-        setShowCelebration(true);
-        setCelebrationShown(true);
-      }, 300);
-      return () => clearTimeout(timer);
-    } else if (!allCompleted) {
-      // 완료가 해제되면 모달 닫기 및 플래그 리셋
-      setShowCelebration(false);
-      setCelebrationShown(false);
-    }
-  }, [allCompleted, showCelebration, celebrationShown]);
-
-  const handleToggleComplete = (itemId: string) => {
-    const item = scheduleItems.find(i => i.id === itemId);
-    if (item) {
-      const wasCompleted = item.status === 'completed';
-      const newStatus = wasCompleted ? 'planned' : 'completed';
-
-      // 현재 완료된 항목 수 계산
-      const currentCompletedCount = scheduleItems.filter(i => i.status === 'completed').length;
-      const willBeCompletedCount = newStatus === 'completed'
-        ? currentCompletedCount + (wasCompleted ? 0 : 1)
-        : currentCompletedCount - (wasCompleted ? 1 : 0);
-
-      // 마지막 활동 완료인지 확인
-      const isLastActivity = willBeCompletedCount === totalItems && newStatus === 'completed';
-
-      updateScheduleItem(itemId, { status: newStatus });
-
-      // 완료 체크 시 박수 애니메이션 표시 (마지막 활동이 아닐 때만)
-      if (!wasCompleted && newStatus === 'completed' && !isLastActivity) {
-        console.log('🎉 Activity completed, showing clap animation');
-        setShowClapAnimation(true);
-      } else if (isLastActivity) {
-        console.log('🎉 Last activity completed, will show celebration modal');
-        // 마지막 활동이면 박수 팝업은 표시하지 않고, useEffect에서 완료 팝업이 표시됨
+    if (!allCompleted) {
+      if (celebrationTimerRef.current) {
+        clearTimeout(celebrationTimerRef.current);
+        celebrationTimerRef.current = null;
       }
+      setShowCelebration(false);
     }
+  }, [allCompleted]);
+
+  useEffect(() => () => {
+    if (celebrationTimerRef.current) clearTimeout(celebrationTimerRef.current);
+  }, []);
+
+  const bottomLayout = getInFlowBottomLayout({
+    tabBarOffset,
+    adHeight,
+    isCompact,
+    // Android SafeAreaView pads the bottom edge itself (see `edges` below).
+    safeAreaBottomApplied: !isLandscape && Platform.OS === 'android' ? insets.bottom : 0,
+  });
+
+  const showToast = (message: string, action?: { label: string; onPress: () => void }) => {
+    setToastMessage(message);
+    setToastActionLabel(action?.label);
+    toastActionRef.current = action?.onPress;
+    setToastVisible(true);
   };
 
-  const showToast = (message: string) => {
-    setToastMessage(message);
-    setToastVisible(true);
+  const handleToggleComplete = (
+    itemId: string,
+    source: 'button' | 'swipe' = 'button',
+  ) => {
+    const plan = planToggleComplete(scheduleItems, itemId, source);
+    if (!plan) return;
+
+    updateScheduleItem(itemId, { status: plan.nextStatus });
+
+    if (plan.haptic) {
+      playCompleteFeedback();
+    }
+    if (plan.undoToast) {
+      // Undo writes the explicit pre-swipe status. It must not call
+      // handleToggleComplete again: that closure holds this render's
+      // scheduleItems, where the item is still un-completed, so it would
+      // "toggle" it to completed again.
+      const undoStatus = getUndoStatus(plan);
+      showToast('완료했어요', {
+        label: '취소',
+        onPress: () => updateScheduleItem(itemId, { status: undoStatus }),
+      });
+    }
+    if (plan.clap) {
+      setShowClapAnimation(true);
+    }
+    if (plan.celebrate) {
+      if (celebrationTimerRef.current) clearTimeout(celebrationTimerRef.current);
+      // Short delay so the swipe row / checkbox animation settles first.
+      celebrationTimerRef.current = setTimeout(() => {
+        celebrationTimerRef.current = null;
+        setShowCelebration(true);
+      }, 300);
+    }
   };
 
   const handleToggleNotification = async (itemId: string) => {
@@ -309,16 +343,69 @@ export default function TodayScreen() {
           : ['top'] // iOS는 기존 유지
       }
     >
+      <View style={styles.mainColumn}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
           styles.content,
-          { padding: space, paddingBottom: contentPadWithAd },
+          // Viewport already ends above ad + tab bar (in-flow layout below),
+          // so the content only needs breathing room, not chrome height.
+          { padding: space, paddingBottom: bottomLayout.scrollEndGap },
         ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header Section */}
-        <View style={[styles.header, { padding: space, paddingBottom: isCompact ? 12 : 20 }]}>
+        <View style={[
+          styles.header,
+          clayShadow,
+          {
+            padding: isPhone ? cardPad : space,
+            paddingBottom: isPhone ? (isSmallPhone ? 8 : 10) : isCompact ? 12 : 20,
+            borderRadius: cardRadius,
+            marginBottom: isPhone ? space : 20,
+          },
+        ]}>
+          {isPhone ? (
+            /* Phones: one-line title + short date; WeekStrip (full) is the
+               only date UI. 오늘 pill appears when another day is selected. */
+            <View style={styles.phoneHeaderRow}>
+              <View style={styles.phoneTitleGroup}>
+                <Text
+                  style={[styles.phoneTitle, { fontSize: titleSize, lineHeight: titleSize + 8 }]}
+                  accessibilityRole="header"
+                >
+                  {isViewingToday ? '오늘의 일정' : '일정 이력'}
+                </Text>
+                <Text style={styles.phoneDateText}>
+                  {selectedDate.toLocaleDateString('ko-KR', {
+                    month: 'long',
+                    day: 'numeric',
+                    weekday: 'short',
+                  })}
+                </Text>
+              </View>
+              {!isViewingToday && (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.todayButton,
+                    styles.todayButtonPhone,
+                    { backgroundColor: SoftPopColors.today },
+                    pressed && styles.todayButtonPressed
+                  ]}
+                  onPress={handleGoToToday}
+                  accessibilityRole="button"
+                  accessibilityLabel="오늘로 돌아가기"
+                >
+                  <MaterialIcons
+                    name="today"
+                    size={18}
+                    color={SoftPopColors.white}
+                  />
+                  <Text style={[styles.todayButtonText, styles.todayButtonTextPhone]}>오늘</Text>
+                </Pressable>
+              )}
+            </View>
+          ) : (
           <View style={styles.headerContent}>
             <View style={styles.headerTop}>
               <View style={styles.headerTitleContainer}>
@@ -338,6 +425,7 @@ export default function TodayScreen() {
                 <Pressable
                   style={({ pressed }) => [
                     styles.todayButton,
+                    { backgroundColor: SoftPopColors.today },
                     pressed && styles.todayButtonPressed
                   ]}
                   onPress={handleGoToToday}
@@ -357,43 +445,72 @@ export default function TodayScreen() {
               </View>
             )}
           </View>
+          )}
 
-          {/* Horizontal Date Picker - 카드 안으로 이동 */}
-          <View style={styles.datePickerContainer}>
-            <HorizontalDatePicker
-              selectedDate={selectedDate}
-              onDateSelect={handleDateSelect}
-              schedules={schedules}
-              cardWidth={dateCardWidth}
-            />
-          </View>
+          {/* Tablet: horizontal date picker + week summary dots.
+              Phones: a single WeekStrip with day numbers and week arrows. */}
+          {showDatePicker && (
+            <View style={styles.datePickerContainer}>
+              <HorizontalDatePicker
+                selectedDate={selectedDate}
+                onDateSelect={handleDateSelect}
+                schedules={schedules}
+                cardWidth={dateCardWidth}
+              />
+            </View>
+          )}
+
+          <WeekStrip
+            selectedDate={selectedDate}
+            schedules={schedules}
+            onDateSelect={handleDateSelect}
+            variant={showDatePicker ? 'summary' : 'full'}
+            dense={isSmallPhone}
+          />
         </View>
 
         {scheduleItems.length > 0 && isViewingToday && (currentActivity || nextActivity) && (
-          <View style={styles.highlightSection}>
+          <View style={[
+            styles.highlightSection,
+            isCompact && styles.highlightSectionCompact,
+            isPhone && { marginBottom: space, gap: space },
+          ]}>
             {currentActivity && (
-              <View style={styles.currentActivityCard}>
-                <View style={styles.currentActivityHeader}>
+              <View style={[
+                styles.currentActivityCard,
+                isPhone && styles.currentActivityCardPhone,
+                { padding: cardPad, borderRadius: cardRadius },
+              ]}>
+                <View style={[styles.currentActivityHeader, isPhone && styles.currentActivityHeaderPhone]}>
                   <MaterialIcons
                     name="play-circle"
-                    size={28}
-                    color={SoftPopColors.primary}
+                    size={isPhone ? 22 : 28}
+                    color={SoftPopColors.now}
                   />
-                  <Text style={styles.currentActivityTitle}>지금 할 시간!</Text>
+                  <Text style={[
+                    styles.currentActivityTitle,
+                    isPhone && styles.currentActivityTitlePhone,
+                    { color: SoftPopColors.now },
+                  ]}>
+                    지금 할 시간!
+                  </Text>
                 </View>
-                <View style={styles.currentActivityContent}>
+                <View style={[styles.currentActivityContent, isPhone && styles.currentActivityContentPhone]}>
                   <View style={styles.currentActivityIconWrapper}>
                     <ActivityIcon
                       activity={currentActivity.activity}
-                      size={52}
-                      color={SoftPopColors.primary}
+                      size={isSmallPhone ? 36 : isCompact ? 44 : 52}
+                      color={SoftPopColors.now}
                     />
                   </View>
                   <View style={styles.currentActivityInfo}>
-                    <Text style={styles.currentActivityName}>
+                    <Text
+                      style={[styles.currentActivityName, isPhone && styles.currentActivityNamePhone]}
+                      numberOfLines={isPhone ? 2 : undefined}
+                    >
                       {currentActivity.activity?.name}
                     </Text>
-                    <Text style={styles.currentActivityTime}>
+                    <Text style={[styles.currentActivityTime, isPhone && styles.currentActivityTimePhone]}>
                       {currentActivity.startTime} - {currentActivity.endTime}
                     </Text>
                   </View>
@@ -401,10 +518,12 @@ export default function TodayScreen() {
                 <Pressable
                   style={({ pressed }) => [
                     styles.completeNowButton,
+                    isPhone && styles.completeNowButtonPhone,
                     pressed && styles.completeNowButtonPressed,
                   ]}
-                  onPress={() => handleToggleComplete(currentActivity.id)}
+                  onPress={() => handleToggleComplete(currentActivity.id, 'button')}
                   accessibilityLabel="지금 활동 완료"
+                  accessibilityRole="button"
                 >
                   <MaterialIcons name="check-circle" size={22} color={SoftPopColors.white} />
                   <Text style={styles.completeNowButtonText}>완료했어요</Text>
@@ -413,7 +532,7 @@ export default function TodayScreen() {
             )}
 
             {nextActivity && !currentActivity && (
-              <View style={styles.nextActivityCard}>
+              <View style={[styles.nextActivityCard, isPhone && { padding: cardPad, borderRadius: cardRadius }]}>
                 <View style={styles.nextActivityHeader}>
                   <MaterialIcons
                     name="schedule"
@@ -447,8 +566,50 @@ export default function TodayScreen() {
 
         {/* Progress Card with Stats */}
         {scheduleItems.length > 0 && (
-          <View style={[styles.progressCard, { padding: space }]}>
-            <View style={styles.progressCardHeader}>
+          <View style={[
+            styles.progressCard,
+            clayShadow,
+            {
+              padding: isPhone ? cardPad : space,
+              borderRadius: cardRadius,
+              marginBottom: isPhone ? space : isCompact ? 20 : 40,
+            },
+            // Phones: the header / highlight section above already provide the gap.
+            isPhone && { marginTop: 0 },
+          ]}>
+            {isSmallPhone ? (
+              /* iPhone SE class: a single compact row (icon · title · bar · n/m · %). */
+              <View
+                style={styles.progressInlineRow}
+                accessible
+                accessibilityLabel={`${isViewingPast ? '달성 결과' : '진행 상황'} ${dayStats.completedItems}/${dayStats.totalItems}, ${Math.round(dayStats.completionRate)}%`}
+              >
+                <Text style={styles.progressInlineIcon}>{isViewingPast ? '📊' : '⭐'}</Text>
+                <Text style={styles.progressInlineTitle}>
+                  {isViewingPast ? '달성 결과' : '진행 상황'}
+                </Text>
+                <View style={styles.progressBar}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      { width: `${dayStats.completionRate}%` },
+                      dayStats.completionRate === 100 && styles.progressFillPerfect,
+                    ]}
+                  />
+                </View>
+                <Text style={styles.progressInlineCount}>
+                  {dayStats.completedItems}/{dayStats.totalItems}
+                </Text>
+                <Text style={[
+                  styles.progressInlinePercent,
+                  dayStats.completionRate === 100 && styles.progressPercentagePerfect,
+                ]}>
+                  {Math.round(dayStats.completionRate)}%
+                </Text>
+              </View>
+            ) : (
+            <>
+            <View style={[styles.progressCardHeader, isPhone && styles.progressCardHeaderPhone]}>
               <Text style={styles.progressCardIcon}>
                 {isViewingPast ? '📊' : '⭐'}
               </Text>
@@ -469,7 +630,7 @@ export default function TodayScreen() {
                   style={[
                     styles.progressFill,
                     { width: `${dayStats.completionRate}%` },
-                    dayStats.completionRate === 100 && styles.progressFillPerfect
+                    dayStats.completionRate === 100 && styles.progressFillPerfect,
                   ]}
                 />
               </View>
@@ -479,7 +640,7 @@ export default function TodayScreen() {
             </View>
 
             {/* Stats Detail */}
-            <View style={styles.statsDetail}>
+            <View style={[styles.statsDetail, isPhone && styles.statsDetailPhone]}>
               <View style={styles.statItem}>
                 <MaterialIcons
                   name="check-circle"
@@ -513,6 +674,8 @@ export default function TodayScreen() {
                 </Text>
               </View>
             </View>
+            </>
+            )}
 
             {/* Copy Button for Past Days */}
             {isViewingPast && scheduleItems.length > 0 && (
@@ -537,7 +700,14 @@ export default function TodayScreen() {
         )}
 
         {scheduleItems.length === 0 ? (
-          <View style={styles.emptyState}>
+          <View style={[
+            styles.emptyState,
+            clayShadow,
+            {
+              borderRadius: cardRadius,
+              paddingVertical: isCompact ? 32 : 56,
+            },
+          ]}>
             <MaterialIcons
               name="calendar-today"
               size={64}
@@ -562,8 +732,8 @@ export default function TodayScreen() {
           </View>
         ) : (
           <View style={styles.scheduleItemsContainer}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>
+            <View style={[styles.sectionHeader, isPhone && styles.sectionHeaderPhone]}>
+              <Text style={styles.sectionTitle} accessibilityRole="header">
                 {isViewingToday ? '오늘의 할 일' : '일정 목록'}
               </Text>
               {isViewingPast && (
@@ -577,6 +747,12 @@ export default function TodayScreen() {
                 </View>
               )}
             </View>
+
+            {!isViewingPast && (
+              <Text style={[styles.swipeHint, isPhone && styles.swipeHintPhone]}>
+                오른쪽으로 밀면 완료, 왼쪽으로 밀면 알림
+              </Text>
+            )}
 
             {sortedItems.map((item) => {
               const itemStatus = isViewingToday
@@ -592,13 +768,19 @@ export default function TodayScreen() {
                   key={item.id}
                   scheduleItem={item}
                   itemStatus={itemStatus}
+                  swipeEnabled={!isViewingPast && !isViewingFuture}
                   onToggleComplete={() => {
                     if (isViewingPast) {
                       Alert.alert('읽기 전용', '과거 일정은 수정할 수 없습니다.');
                     } else if (isViewingFuture) {
                       Alert.alert('미래 일정', '미래 일정은 아직 완료할 수 없습니다.');
                     } else {
-                      handleToggleComplete(item.id);
+                      handleToggleComplete(item.id, 'button');
+                    }
+                  }}
+                  onSwipeComplete={() => {
+                    if (!isViewingPast && !isViewingFuture) {
+                      handleToggleComplete(item.id, 'swipe');
                     }
                   }}
                   onToggleNotification={(isViewingToday || isViewingFuture) ? () => handleToggleNotification(item.id) : undefined}
@@ -610,16 +792,20 @@ export default function TodayScreen() {
         )}
       </ScrollView>
 
-      {/* Ad Banner - Sticky above TabBar */}
-      <AdBanner
-        style={{
-          position: 'absolute',
-          bottom: adBannerBottom,
-          width: '100%',
-          zIndex: 100,
-          elevation: 10,
+      {/* Ad Banner - in layout flow above the floating tab bar, so it never
+          covers scroll content (e.g. the 완료했어요 CTA on iPhone SE). Takes
+          no space until the banner loads; AdBanner renders null on error. */}
+      <View
+        onLayout={(e) => {
+          const h = Math.round(e.nativeEvent.layout.height);
+          setAdHeight(prev => (prev === h ? prev : h));
         }}
-      />
+      >
+        <AdBanner />
+      </View>
+      {/* Floating tab bar is position:absolute; keep its footprint clear. */}
+      <View style={{ height: bottomLayout.tabBarSpacer }} />
+      </View>
 
       {/* Celebration Modal (Today Only) */}
       {isViewingToday && (
@@ -628,7 +814,7 @@ export default function TodayScreen() {
           onClose={() => {
             console.log('Celebration modal closed');
             setShowCelebration(false);
-            // celebrationShown은 유지하여 다시 열리지 않도록 함
+            // 완료 동작에서만 열리므로 닫은 뒤 다시 열리지 않음
           }}
         />
       )}
@@ -644,7 +830,15 @@ export default function TodayScreen() {
       <Toast
         message={toastMessage}
         visible={toastVisible}
-        onHide={() => setToastVisible(false)}
+        duration={toastActionLabel ? 4000 : 2000}
+        actionLabel={toastActionLabel}
+        onAction={toastActionRef.current}
+        bottomOffset={bottomLayout.toastBottom}
+        onHide={() => {
+          setToastVisible(false);
+          setToastActionLabel(undefined);
+          toastActionRef.current = undefined;
+        }}
       />
     </SafeAreaView>
   );
@@ -654,6 +848,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: SoftPopColors.background, // Cream
+  },
+  mainColumn: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
@@ -665,16 +862,10 @@ const styles = StyleSheet.create({
     padding: 32,
     paddingBottom: 20,
     backgroundColor: SoftPopColors.white,
-    borderRadius: 24, // rounded-3xl
+    borderRadius: 24,
     marginBottom: 20,
     borderWidth: 2,
     borderColor: SoftPopColors.white,
-    // Soft floating effect
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
   },
   headerContent: {
     flex: 1,
@@ -720,6 +911,45 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 5,
   },
+  todayButtonPhone: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    gap: 4,
+    minHeight: 44,
+    borderRadius: 22,
+  },
+  todayButtonTextPhone: {
+    fontSize: 16,
+  },
+  phoneHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  phoneTitleGroup: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'baseline',
+    columnGap: 8,
+  },
+  phoneTitle: {
+    color: SoftPopColors.text,
+    fontFamily: 'BMJUA',
+    ...(Platform.OS === 'ios' && {
+      fontWeight: '700',
+    }),
+    ...(Platform.OS === 'android' && {
+      includeFontPadding: false,
+    }),
+  },
+  phoneDateText: {
+    fontSize: 15,
+    lineHeight: 20,
+    color: SoftPopColors.textSecondary,
+    fontFamily: 'BMJUA',
+  },
   todayButtonPressed: {
     transform: [{ translateY: 2 }],
     shadowOffset: { width: 0, height: 2 },
@@ -759,24 +989,53 @@ const styles = StyleSheet.create({
   },
   progressCard: {
     backgroundColor: SoftPopColors.white,
-    borderRadius: 24, // rounded-3xl
+    borderRadius: 24,
     padding: 32,
     marginTop: 20,
     marginBottom: 40,
     borderWidth: 2,
     borderColor: SoftPopColors.white,
-    // Soft floating effect
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
   },
   progressCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
     gap: 12,
+  },
+  progressCardHeaderPhone: {
+    marginBottom: 10,
+    gap: 8,
+  },
+  statsDetailPhone: {
+    gap: 14,
+    marginTop: 12,
+    paddingTop: 12,
+  },
+  progressInlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 28,
+  },
+  progressInlineIcon: {
+    fontSize: 18,
+  },
+  progressInlineTitle: {
+    fontSize: 16,
+    color: SoftPopColors.text,
+    fontFamily: 'BMJUA',
+  },
+  progressInlineCount: {
+    fontSize: 15,
+    color: SoftPopColors.text,
+    fontFamily: 'BMJUA',
+  },
+  progressInlinePercent: {
+    fontSize: 17,
+    color: SoftPopColors.today,
+    fontFamily: 'BMJUA',
+    minWidth: 40,
+    textAlign: 'right',
   },
   progressCardIcon: {
     fontSize: 28,
@@ -791,14 +1050,14 @@ const styles = StyleSheet.create({
   progressPercentage: {
     fontSize: 24,
     fontWeight: '700',
-    color: SoftPopColors.primary,
+    color: SoftPopColors.today,
     fontFamily: 'BMJUA',
   },
   progressPercentagePerfect: {
-    color: SoftPopColors.success,
+    color: SoftPopColors.complete,
   },
   progressFillPerfect: {
-    backgroundColor: SoftPopColors.success,
+    backgroundColor: SoftPopColors.complete,
   },
   statsDetail: {
     flexDirection: 'row',
@@ -865,7 +1124,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: SoftPopColors.primary,
+    backgroundColor: SoftPopColors.today,
     borderRadius: 6,
   },
   progressText: {
@@ -946,9 +1205,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     marginTop: 16,
-    backgroundColor: SoftPopColors.primary,
+    backgroundColor: SoftPopColors.complete,
     paddingVertical: 14,
     borderRadius: 20,
+  },
+  completeNowButtonPhone: {
+    marginTop: 10,
+    paddingVertical: 12,
+    minHeight: 48,
+    borderRadius: 18,
   },
   completeNowButtonPressed: {
     transform: [{ translateY: 2 }],
@@ -963,16 +1228,18 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     gap: 20,
   },
+  highlightSectionCompact: {
+    marginBottom: 20,
+  },
   currentActivityCard: {
-    backgroundColor: '#FFF0F0',
-    borderRadius: 24, // rounded-3xl
+    backgroundColor: SoftPopColors.nowSurface,
+    borderRadius: 24,
     padding: 24,
     borderWidth: 4,
-    borderColor: SoftPopColors.primary,
-    // Strong shadow for emphasis
-    shadowColor: SoftPopColors.primary,
+    borderColor: SoftPopColors.now,
+    shadowColor: SoftPopColors.now,
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.28,
     shadowRadius: 10,
     elevation: 8,
   },
@@ -982,10 +1249,35 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 16,
   },
+  currentActivityCardPhone: {
+    borderWidth: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+  },
+  currentActivityHeaderPhone: {
+    gap: 6,
+    marginBottom: 8,
+  },
+  currentActivityTitlePhone: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  currentActivityContentPhone: {
+    gap: 12,
+  },
+  currentActivityNamePhone: {
+    fontSize: 18,
+    lineHeight: 24,
+    marginBottom: 2,
+  },
+  currentActivityTimePhone: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
   currentActivityTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: SoftPopColors.primary,
+    color: SoftPopColors.now,
     fontFamily: 'BMJUA',
   },
   currentActivityContent: {
@@ -1046,7 +1338,7 @@ const styles = StyleSheet.create({
   nextActivityTimeUntil: {
     fontSize: 14,
     fontWeight: '700',
-    color: SoftPopColors.primary,
+    color: SoftPopColors.now,
     fontFamily: 'BMJUA',
   },
   nextActivityContent: {
@@ -1087,6 +1379,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: SoftPopColors.text,
     fontFamily: 'BMJUA',
+  },
+  sectionHeaderPhone: {
+    marginBottom: 0,
+  },
+  swipeHintPhone: {
+    marginBottom: 0,
+    marginTop: -4,
+  },
+  swipeHint: {
+    fontSize: 13,
+    color: SoftPopColors.textSecondary,
+    fontFamily: 'BMJUA',
+    marginBottom: 8,
   },
   readOnlyBadge: {
     flexDirection: 'row',

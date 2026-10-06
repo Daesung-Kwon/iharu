@@ -13,7 +13,7 @@ import ActivityCard from '../components/ActivityCard';
 import ActivityFormModal from '../components/ActivityFormModal';
 import { Activity } from '../types';
 import { SoftPopColors } from '../constants/theme';
-import { useLayout } from '../hooks/useLayout';
+import { getClayShadow, useLayout } from '../hooks/useLayout';
 
 export default function ActivitiesScreen() {
   const {
@@ -25,7 +25,9 @@ export default function ActivitiesScreen() {
     activityColumns,
     tabBarOffset,
     contentPad,
+    cardRadius,
   } = useLayout();
+  const clayShadow = getClayShadow(isCompact);
   const { activities, addActivity, updateActivity, deleteActivity } = useActivity();
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -87,11 +89,13 @@ export default function ActivitiesScreen() {
     >
       <View style={[
         styles.header,
+        clayShadow,
         {
           padding: space,
           paddingBottom: isCompact ? 12 : 20,
           marginHorizontal: space,
           marginTop: space,
+          borderRadius: cardRadius,
         },
       ]}>
         <View style={styles.headerText}>
