@@ -14,6 +14,10 @@
   - Apple App Store에 앱을 배포하는 방법
   - Apple Developer 계정 설정부터 심사 제출까지
 
+- **[모바일 확장 전략](./MOBILE_EXPANSION.md)**
+  - 유니버설 바이너리(스마트폰 + 태블릿) 전략
+  - compact 기준, 스토어 게이트, 스크린샷 체크리스트
+
 ### 개발 가이드
 
 - **[Expo Go vs 실제 빌드](./EXPO_GO_VS_BUILD.md)**

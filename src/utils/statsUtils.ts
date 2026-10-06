@@ -3,6 +3,7 @@
  */
 
 import { Schedule, ScheduleItem } from '../types';
+import { toLocalDateString } from './dateUtils';
 
 export interface DayStats {
   date: string;
@@ -95,26 +96,20 @@ export const calculateAverageStats = (schedules: Schedule[]): {
  * 날짜가 오늘인지 확인
  */
 export const isToday = (dateString: string): boolean => {
-  const today = new Date();
-  const todayString = today.toISOString().split('T')[0];
-  return dateString === todayString;
+  return dateString === toLocalDateString(new Date());
 };
 
 /**
  * 날짜가 과거인지 확인
  */
 export const isPast = (dateString: string): boolean => {
-  const today = new Date();
-  const todayString = today.toISOString().split('T')[0];
-  return dateString < todayString;
+  return dateString < toLocalDateString(new Date());
 };
 
 /**
  * 날짜가 미래인지 확인
  */
 export const isFuture = (dateString: string): boolean => {
-  const today = new Date();
-  const todayString = today.toISOString().split('T')[0];
-  return dateString > todayString;
+  return dateString > toLocalDateString(new Date());
 };
 

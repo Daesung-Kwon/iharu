@@ -19,7 +19,7 @@
     <key>CFBundlePackageType</key>
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
+    <string>1.1.0</string>
     <key>CFBundleSignature</key>
     <string>????</string>
     <key>CFBundleURLTypes</key>
@@ -38,19 +38,20 @@
       </dict>
     </array>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>8</string>
     <key>GADApplicationIdentifier</key>
     <string>ca-app-pub-9978285135642181~7551710314</string>
     <key>NSUserTrackingUsageDescription</key>
-    <string>사용자에게 최적화된 광고를 제공하기 위해 기기 식별 정보를 사용합니다.</string>
+    <string>이 앱은 맞춤형 광고를 위한 추적을 사용하지 않습니다. 표시되는 광고는 비맞춤형입니다.</string>
     <key>GADDelayAppMeasurementInit</key>
-    <false/>
+    <true/>
     <key>LSMinimumSystemVersion</key>
     <string>12.0</string>
     <key>LSRequiresIPhoneOS</key>
-    <false/>
+    <true/>
     <key>UIDeviceFamily</key>
     <array>
+      <integer>1</integer>
       <integer>2</integer>
     </array>
     <key>NSAppTransportSecurity</key>
@@ -76,8 +77,6 @@
     <array>
       <string>UIInterfaceOrientationPortrait</string>
       <string>UIInterfaceOrientationPortraitUpsideDown</string>
-      <string>UIInterfaceOrientationLandscapeLeft</string>
-      <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
     <key>UISupportedInterfaceOrientations~ipad</key>
     <array>

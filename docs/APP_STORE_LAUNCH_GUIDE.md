@@ -1,6 +1,6 @@
 # i하루 앱 - App Store 런칭 가이드
 
-> iPad 전용 앱을 App Store에 배포하기 위한 완전한 체크리스트와 가이드
+> 스마트폰 + 태블릿 유니버설 앱을 App Store에 배포하기 위한 완전한 체크리스트와 가이드
 
 ---
 
@@ -32,7 +32,7 @@
 - [ ] **Expo EAS 계정** (무료 플랜 가능)
   - https://expo.dev/ 계정 생성
   
-- [ ] **실제 iPad 디바이스** (테스트용)
+- [ ] **실제 iPhone / iPad 디바이스** (테스트용)
   - 최신 iOS 버전 설치 권장
 
 ### 1.2 소프트웨어 설치
@@ -58,8 +58,8 @@ sudo gem install cocoapods
 
 - [ ] 앱 이름: "i하루"
 - [ ] Bundle Identifier: `com.dailyschedule.app`
-- [ ] 버전: 1.0.0
-- [ ] 타겟 기기: iPad 전용
+- [ ] 버전: 1.1.0
+- [ ] 타겟 기기: iPhone + iPad (유니버설)
 - [ ] 최소 iOS 버전 확인 필요
 
 ---
@@ -71,8 +71,8 @@ sudo gem install cocoapods
 현재 설정 확인:
 - ✅ 앱 이름: "i하루"
 - ✅ Bundle Identifier: "com.dailyschedule.app"
-- ✅ iPad 전용: `"deviceFamily": ["ipad"]`
-- ⚠️ EAS projectId: **설정 필요**
+- ✅ 유니버설: `"deviceFamily": ["iphone", "ipad"]`
+- ✅ EAS projectId: `31a89f46-760d-491d-8ba6-a3ffda29ad8d` (`app.json` extra.eas.projectId)
 
 ### 2.2 EAS 프로젝트 초기화
 
@@ -97,12 +97,12 @@ eas init
   "expo": {
     "name": "i하루",
     "slug": "daily-schedule-app",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.dailyschedule.app",
       "requireFullScreen": false,
-      "deviceFamily": ["ipad"],
+      "deviceFamily": ["iphone", "ipad"],
       "buildNumber": "1",
       "infoPlist": {
         "NSUserNotificationsUsageDescription": "일정 알림을 받기 위해 알림 권한이 필요합니다.",
@@ -182,6 +182,16 @@ eas build:configure
 
 ### 3.2 App Store 스크린샷 (필수)
 
+유니버설 전환 후 **iPhone 6.9"**(필수 ASC 슬롯; 6.7" 1290×2796도 허용)와 **6.1"** 샷이 추가로 필요하다. 기존 iPad 샷은 유지한다. 촬영 체크리스트: [MOBILE_EXPANSION.md](./MOBILE_EXPANSION.md).
+
+#### iPhone 6.9인치 (필수)
+- [ ] 최소 1개, 최대 10개
+- 크기: **1320 x 2868** 또는 **1290 x 2796** (세로). 6.7" 1290×2796도 이 슬롯에 허용
+
+#### iPhone 6.1인치
+- [ ] 권장 (생략 시 스케일 가능)
+- 크기: **1179 x 2556** 픽셀 (세로)
+
 #### iPad Pro 12.9인치 (3세대 이후)
 - [ ] 최소 1개, 최대 10개
 - 크기: **2048 x 2732** 픽셀 (세로) 또는 **2732 x 2048** (가로)
@@ -198,7 +208,7 @@ eas build:configure
 - 크기: **1620 x 2160** 픽셀 (세로) 또는 **2160 x 1620** (가로)
 
 **스크린샷 제작 팁:**
-1. 실제 iPad에서 앱 실행 후 스크린샷 캡처
+1. 실제 iPhone / iPad에서 앱 실행 후 스크린샷 캡처
 2. 또는 Xcode Simulator에서 캡처 (⌘ + S)
 3. 주요 기능 화면 포함:
    - 홈/대시보드 화면
@@ -379,7 +389,7 @@ eas submit --platform ios --id BUILD_ID
 최대 4000자, 주요 내용 포함:
 
 ```
-i하루는 아이들이 스스로 하루 일과를 계획하고 관리할 수 있는 iPad 전용 앱입니다.
+i하루는 아이들이 스스로 하루 일과를 계획하고 관리할 수 있는 스마트폰 + 태블릿 유니버설 앱입니다.
 
 주요 기능:
 • 활동 관리: 자주 하는 활동을 저장하고 재사용
@@ -403,8 +413,9 @@ i하루는 아이들이 스스로 하루 일과를 계획하고 관리할 수 �
 - 예: "일정관리,일과표,스케줄,아이,아동,태블릿,계획,타임라인"
 
 #### 지원 URL (필수)
-- 개인정보처리방침: `https://yourwebsite.com/privacy`
-- 마케팅 URL (선택): `https://yourwebsite.com`
+- 개인정보처리방침: `https://daesung-kwon.github.io/iharu/privacy.html`
+- 마케팅 URL (AdMob 앱 인증): `https://daesung-kwon.github.io/iharu/`
+  - app-ads.txt: `https://daesung-kwon.github.io/iharu/app-ads.txt` (배포 완료)
 
 #### 프로모션 텍스트 (선택)
 - 최대 170자
@@ -430,7 +441,7 @@ i하루는 아이들이 스스로 하루 일과를 계획하고 관리할 수 �
 
 ### 7.7 버전 정보
 
-- **버전**: 1.0.0
+- **버전**: 1.1.0
 - **빌드**: 1 (또는 업로드한 빌드 번호)
 - **Copyright**: © 2025 [회사명 또는 이름]
 - **연락처 정보**: 이메일 주소
@@ -450,8 +461,9 @@ i하루는 아이들이 스스로 하루 일과를 계획하고 관리할 수 �
 #### 참고사항 (선택)
 심사 담당자에게 전달할 정보:
 ```
-이 앱은 iPad 전용입니다.
-모든 데이터는 로컬 디바이스에만 저장되며, 
+기존 iPad 앱을 유니버설(iPhone + iPad)로 확장한 업데이트입니다.
+로컬 데이터와 번들 ID(com.dailyschedule.app)는 그대로입니다.
+모든 데이터는 로컬 디바이스에만 저장되며,
 서버와의 통신은 하지 않습니다.
 ```
 
@@ -609,7 +621,7 @@ i하루는 아이들이 스스로 하루 일과를 계획하고 관리할 수 �
 2. **앱 이름 중복**: 다른 앱과 이름이 중복되면 거부될 수 있습니다.
 3. **심사 지침 준수**: App Store Review Guidelines를 반드시 확인하세요.
 4. **개인정보처리방침**: 개인정보를 수집하지 않더라도 URL 제공이 필요할 수 있습니다.
-5. **테스트 필수**: 실제 iPad에서 충분히 테스트한 후 제출하세요.
+5. **테스트 필수**: 실제 iPhone과 iPad에서 충분히 테스트한 후 제출하세요.
 
 ---
 

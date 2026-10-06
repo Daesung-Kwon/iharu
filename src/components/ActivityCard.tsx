@@ -8,45 +8,47 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Activity } from '../types';
-import { ActivityEmojis } from '../constants/emojis';
+import ActivityIcon from './ActivityIcon';
 import { ActivityMaterialColors } from '../constants/materialDesign';
-
-// Soft Pop 3D 디자인 색상 팔레트
-const SoftPopColors = {
-  background: '#FFF9F0', // Cream
-  primary: '#FF6B6B', // Soft Red
-  secondary: '#FFD93D', // Banana Yellow
-  text: '#2D3436', // Soft Black
-  textSecondary: '#636E72', // Soft Gray
-  white: '#FFFFFF',
-  error: '#FF6B6B',
-};
+import { SoftPopColors } from '../constants/theme';
+import { ACTIVITY_CARD_MIN_WIDTH } from '../hooks/layoutMetrics';
 
 interface ActivityCardProps {
   activity: Activity;
   onEdit: () => void;
   onDelete: () => void;
+  /** 동적 그리드용 카드 너비 (미지정 시 180) */
+  width?: number;
 }
 
-export default function ActivityCard({ activity, onEdit, onDelete }: ActivityCardProps) {
-  const emoji = ActivityEmojis[activity.emojiKey] || activity.emojiKey;
+export default function ActivityCard({ activity, onEdit, onDelete, width }: ActivityCardProps) {
   const colorScheme = ActivityMaterialColors[activity.colorKey];
+  const cardWidth = width !== undefined ? Math.max(width, ACTIVITY_CARD_MIN_WIDTH) : undefined;
 
   return (
     <View
       style={[
         styles.card,
-        { backgroundColor: colorScheme.surface }
+        { backgroundColor: colorScheme.surface },
+        cardWidth !== undefined && { width: cardWidth }
       ]}
     >
-      {/* Emoji Icon - 배경 완전히 투명 */}
+      {/* Emoji/Icon - 배경 완전히 투명 */}
       <View style={styles.emojiContainer}>
-        <Text style={styles.emoji}>{emoji}</Text>
+        <ActivityIcon
+          activity={activity}
+          size={48}
+          color={SoftPopColors.text}
+        />
       </View>
 
       {/* Activity Info - 배경 완전히 투명 */}
       <View style={styles.infoContainer}>
-        <Text style={styles.name} numberOfLines={2}>
+        <Text
+          style={styles.name}
+          numberOfLines={2}
+          lineBreakStrategyIOS="hangul-word"
+        >
           {activity.name}
         </Text>
         <View style={styles.durationContainer}>
@@ -111,7 +113,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 20,
     elevation: 10,
-    marginBottom: 20,
+    // marginBottom은 그리드 gap으로 처리
     // flex-col items-center justify-between
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -128,9 +130,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     width: '100%',
   },
-  emoji: {
-    fontSize: 52,
-  },
   infoContainer: {
     flex: 1,
     marginBottom: 12,
@@ -140,13 +139,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   name: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
     color: SoftPopColors.text,
     marginBottom: 8,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 22,
     fontFamily: 'BMJUA',
+    width: '100%',
+    flexShrink: 1,
   },
   durationContainer: {
     flexDirection: 'row',

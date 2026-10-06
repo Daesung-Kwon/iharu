@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
+import { useAdsReady } from '../contexts/AdsReadyContext';
 
 interface AdBannerProps {
     style?: any;
@@ -18,10 +19,12 @@ const finalAdUnitId = (adUnitId.includes('xxxxxxxxxxxxxxxx') || adUnitId.include
     : adUnitId;
 
 export const AdBanner: React.FC<AdBannerProps> = ({ style }) => {
+    const adsReady = useAdsReady();
     const [error, setError] = useState(false);
     const [isLoaded, setIsLoaded] = useState(false);
 
-    if (error) return null;
+    // 아동 대상 설정 전에 네이티브 loadAd가 나가지 않도록
+    if (!adsReady || error) return null;
 
     return (
         <View style={[

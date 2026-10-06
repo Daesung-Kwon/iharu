@@ -40,13 +40,6 @@ export const OPEN_SOURCE_LICENSES: LicenseInfo[] = [
     description: 'React Native 앱을 위한 라우팅 및 네비게이션 라이브러리'
   },
   {
-    name: '@tanstack/react-query',
-    version: '5.x',
-    license: 'MIT',
-    url: 'https://tanstack.com/query',
-    description: '서버 상태 관리 라이브러리'
-  },
-  {
     name: 'date-fns',
     version: '3.6.0',
     license: 'MIT',
@@ -73,13 +66,6 @@ export const OPEN_SOURCE_LICENSES: LicenseInfo[] = [
     license: 'MIT',
     url: 'https://github.com/software-mansion/react-native-reanimated',
     description: '고성능 애니메이션 라이브러리'
-  },
-  {
-    name: 'React Native Draggable FlatList',
-    version: '4.0.3',
-    license: 'MIT',
-    url: 'https://github.com/computerjazz/react-native-draggable-flatlist',
-    description: '드래그 앤 드롭 가능한 FlatList 컴포넌트'
   },
   {
     name: '@react-native-async-storage/async-storage',

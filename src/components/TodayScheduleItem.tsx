@@ -8,20 +8,9 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { ScheduleItem } from '../types';
-import { ActivityEmojis } from '../constants/emojis';
+import ActivityIcon from './ActivityIcon';
 import { ActivityMaterialColors } from '../constants/materialDesign';
-
-// Soft Pop 3D 디자인 색상 팔레트
-const SoftPopColors = {
-  background: '#FFF9F0', // Cream
-  primary: '#FF6B6B', // Soft Red
-  secondary: '#FFD93D', // Banana Yellow
-  text: '#2D3436', // Soft Black
-  textSecondary: '#636E72', // Soft Gray
-  white: '#FFFFFF',
-  success: '#6BCB77',
-  error: '#FF6B6B',
-};
+import { SoftPopColors } from '../constants/theme';
 
 interface TodayScheduleItemProps {
   scheduleItem: ScheduleItem;
@@ -41,7 +30,6 @@ export default function TodayScheduleItem({
   const activity = scheduleItem.activity;
   if (!activity) return null;
 
-  const emoji = ActivityEmojis[activity.emojiKey] || activity.emojiKey;
   const colorScheme = ActivityMaterialColors[activity.colorKey];
 
   const formatTime = (time: string) => {
@@ -141,8 +129,14 @@ export default function TodayScheduleItem({
 
       {/* Center: Info */}
       <View style={styles.infoContainer}>
-        {/* Emoji */}
-        <Text style={styles.emoji}>{emoji}</Text>
+        {/* Emoji/Icon */}
+        <View style={styles.emojiWrapper}>
+          <ActivityIcon
+            activity={activity}
+            size={44}
+            color={SoftPopColors.text}
+          />
+        </View>
 
         <View style={styles.textInfo}>
           {/* Name */}
@@ -185,7 +179,7 @@ export default function TodayScheduleItem({
       </View>
 
       {/* Right: Notification Toggle */}
-      {itemStatus === 'upcoming' && (
+      {(itemStatus === 'upcoming' || itemStatus === 'future') && (
         <Pressable
           style={({ pressed }) => [
             styles.notificationButton,
@@ -268,8 +262,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 16,
   },
-  emoji: {
-    fontSize: 44,
+  emojiWrapper: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   textInfo: {
     flex: 1,

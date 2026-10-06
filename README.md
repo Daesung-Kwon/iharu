@@ -1,6 +1,6 @@
 # i하루 (iHaru) 📅
 
-> 아이들이 스스로 하루 일과를 계획하고 관리할 수 있는 태블릿 전용 앱
+> 아이들이 스스로 하루 일과를 계획하고 관리할 수 있는 스마트폰 + 태블릿 유니버설 앱
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![React Native](https://img.shields.io/badge/React%20Native-0.81.5-blue.svg)](https://reactnative.dev/)
@@ -10,12 +10,12 @@
 
 ## 🌟 프로젝트 소개
 
-**i하루**는 아이들이 하루 일과를 시각적으로 계획하고, 완료한 일정을 체크하면서 성취감을 느낄 수 있도록 설계된 태블릿 전용 앱입니다.
+**i하루**는 아이들이 하루 일과를 시각적으로 계획하고, 완료한 일정을 체크하면서 성취감을 느낄 수 있도록 설계된 스마트폰 + 태블릿 유니버설 앱입니다.
 
 ### 주요 특징
 
-- 📱 **태블릿 전용**: iPad 및 Android 태블릿에 최적화
-- 🎨 **직관적인 UI**: 드래그 앤 드롭으로 쉬운 일정 관리
+- 📱 **스마트폰 + 태블릿**: iPhone, iPad, Android 폰/태블릿 유니버설 앱
+- 🎨 **직관적인 UI**: 길게 눌러 선택 후 시간을 탭하여 쉬운 일정 관리
 - 🎯 **시각적 타임라인**: 하루 일과를 한눈에 파악
 - 🔔 **스마트 알림**: 활동 시작 전 알림으로 시간 관리 지원
 - 💾 **로컬 저장**: 모든 데이터는 기기에만 저장 (프라이버시 보호)
@@ -31,7 +31,7 @@
 ![오늘의 일정 화면](./docs/images/demo/today-screen.png)
 
 ### 일정 만들기
-드래그 앤 드롭으로 쉽게 타임라인에 활동을 배치할 수 있습니다.
+길게 눌러 선택 후 시간을 탭하여 쉽게 타임라인에 활동을 배치할 수 있습니다.
 
 ![일정 만들기 화면](./docs/images/demo/schedule-creation.png)
 
@@ -60,7 +60,7 @@
 - 활동별 커스텀 설정
 
 ### 2. 일정 만들기
-- 드래그 앤 드롭으로 타임라인에 일정 배치
+- 길게 눌러 선택 후 시간을 탭하여 타임라인에 일정 배치
 - 시간대별 시각적 관리
 - 가로/세로 모드 모두 지원
 
@@ -88,8 +88,8 @@
 - Node.js 18 이상
 - npm 또는 yarn
 - Expo CLI (선택)
-- iOS: Xcode (iPad 시뮬레이터용)
-- Android: Android Studio (태블릿 에뮬레이터용)
+- iOS: Xcode (iPhone / iPad 시뮬레이터용)
+- Android: Android Studio (폰 / 태블릿 에뮬레이터용)
 
 ### 설치 및 실행
 
@@ -104,10 +104,10 @@ npm install
 # 개발 서버 시작
 npm start
 
-# iOS 시뮬레이터 실행 (iPad)
+# iOS 시뮬레이터 실행 (iPhone 또는 iPad)
 npm run ios
 
-# Android 에뮬레이터 실행 (태블릿)
+# Android 에뮬레이터 실행 (폰 또는 태블릿)
 npm run android
 ```
 
@@ -129,7 +129,7 @@ iharu/
 │   │   └── ProfileScreen.tsx
 │   ├── components/       # 재사용 컴포넌트
 │   │   ├── ActivityCard.tsx
-│   │   ├── TimelineView.tsx
+│   │   ├── TimelineViewV2.tsx
 │   │   └── ...
 │   ├── navigation/       # 네비게이션 설정
 │   ├── contexts/         # Context API (상태 관리)
@@ -161,9 +161,9 @@ iharu/
 
 ## 📱 플랫폼 지원
 
-- ✅ **iOS**: iPad (모든 세대)
-- ✅ **Android**: 태블릿 (7인치 이상)
-- ❌ **스마트폰**: 지원하지 않음 (태블릿 전용)
+- ✅ **iOS**: iPhone + iPad (유니버설)
+- ✅ **Android**: 스마트폰 + 태블릿
+- compact 레이아웃: 짧은 변 < 768 — 자세한 전략은 [docs/MOBILE_EXPANSION.md](./docs/MOBILE_EXPANSION.md)
 
 ---
 

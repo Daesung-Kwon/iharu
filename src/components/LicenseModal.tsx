@@ -8,17 +8,7 @@ import { View, Text, StyleSheet, Modal, ScrollView, Pressable, Linking, Platform
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { OPEN_SOURCE_LICENSES, FONT_LICENSES } from '../data/licenses';
-
-// Soft Pop 3D 디자인 색상 팔레트
-const SoftPopColors = {
-  background: '#FFF9F0', // Cream
-  primary: '#FF6B6B', // Soft Red
-  secondary: '#FFD93D', // Banana Yellow
-  text: '#2D3436', // Soft Black
-  textSecondary: '#636E72', // Soft Gray
-  white: '#FFFFFF',
-  link: '#2196F3', // Blue
-};
+import { SoftPopColors } from '../constants/theme';
 
 interface LicenseModalProps {
   visible: boolean;

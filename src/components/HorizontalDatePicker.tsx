@@ -4,17 +4,18 @@
  */
 
 import React, { useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { MaterialColors, Typography, Spacing, Elevation, Shape } from '../constants/materialDesign';
-import { ChildFriendlyShape } from '../constants/childFriendlyColors';
 import { Schedule } from '../types';
 import { calculateDayStats } from '../utils/statsUtils';
+import { toLocalDateString } from '../utils/dateUtils';
 
 interface HorizontalDatePickerProps {
   selectedDate: Date;
   onDateSelect: (date: Date) => void;
   schedules: Schedule[]; // 모든 일정 데이터
   daysToShow?: number; // 표시할 날짜 수 (기본: 30일)
+  cardWidth?: number;
 }
 
 export default function HorizontalDatePicker({
@@ -22,8 +23,10 @@ export default function HorizontalDatePicker({
   onDateSelect,
   schedules,
   daysToShow = 30,
+  cardWidth = 80,
 }: HorizontalDatePickerProps) {
   const scrollViewRef = useRef<ScrollView>(null);
+  const { width: screenWidth } = useWindowDimensions();
   const today = new Date();
   
   // 과거 30일 + 오늘 + 미래 90일 (총 121일)
@@ -39,25 +42,25 @@ export default function HorizontalDatePicker({
 
   // 선택된 날짜의 인덱스
   const selectedIndex = dates.findIndex(
-    date => date.toISOString().split('T')[0] === selectedDate.toISOString().split('T')[0]
+    date => toLocalDateString(date) === toLocalDateString(selectedDate)
   );
 
   // 특정 날짜의 일정 정보 가져오기
   const getScheduleForDate = (date: Date): Schedule | null => {
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = toLocalDateString(date);
     return schedules.find(s => s.date === dateString) || null;
   };
 
-  // 날짜 카드 너비
-  const CARD_WIDTH = 80;
-  const CARD_MARGIN = 8;
+  const CARD_WIDTH = cardWidth;
+  const SLOT_GAP = 16;
+  const SLOT_WIDTH = CARD_WIDTH + SLOT_GAP;
+  const isCompact = CARD_WIDTH <= 64;
+  const sidePad = Math.max(Spacing.md, (screenWidth - CARD_WIDTH) / 2);
 
-  // 선택된 날짜로 자동 스크롤
+  // 선택된 날짜로 자동 스크롤 — 슬롯 너비와 snap 간격을 같게 둬 카드가 반만 잘리지 않게
   useEffect(() => {
     if (selectedIndex !== -1 && scrollViewRef.current) {
-      const screenWidth = Dimensions.get('window').width;
-      const targetX = selectedIndex * (CARD_WIDTH + CARD_MARGIN * 2) - screenWidth / 2 + CARD_WIDTH / 2;
-      
+      const targetX = selectedIndex * SLOT_WIDTH;
       setTimeout(() => {
         scrollViewRef.current?.scrollTo({
           x: Math.max(0, targetX),
@@ -65,14 +68,14 @@ export default function HorizontalDatePicker({
         });
       }, 100);
     }
-  }, [selectedDate]);
+  }, [selectedDate, SLOT_WIDTH, selectedIndex]);
 
   const isToday = (date: Date): boolean => {
-    return date.toISOString().split('T')[0] === today.toISOString().split('T')[0];
+    return toLocalDateString(date) === toLocalDateString(today);
   };
 
   const isSelected = (date: Date): boolean => {
-    return date.toISOString().split('T')[0] === selectedDate.toISOString().split('T')[0];
+    return toLocalDateString(date) === toLocalDateString(selectedDate);
   };
 
   const renderDateCard = (date: Date, index: number) => {
@@ -107,9 +110,8 @@ export default function HorizontalDatePicker({
     }
 
     return (
-      <View key={index} style={styles.dateCardWrapper}>
-        {/* 월 구분선 및 레이블 */}
-        {showMonthLabel && (
+      <View key={index} style={[styles.dateCardWrapper, { width: SLOT_WIDTH }]}>
+        {showMonthLabel && !isCompact && (
           <View style={styles.monthDivider}>
             <View style={styles.monthLabelContainer}>
               <Text style={styles.monthLabel}>
@@ -122,6 +124,8 @@ export default function HorizontalDatePicker({
         <TouchableOpacity
           style={[
             styles.dateCard,
+            { width: CARD_WIDTH },
+            isCompact && styles.dateCardCompact,
             selected && styles.dateCardSelected,
             todayDate && styles.dateCardToday,
             !selected && isSaturday && styles.dateCardSaturday,
@@ -174,7 +178,7 @@ export default function HorizontalDatePicker({
         )}
 
         {/* 월 표시 (카드 상단) */}
-        {showMonthLabel && (
+        {showMonthLabel && !isCompact && (
           <View style={styles.monthBadge}>
             <Text style={styles.monthBadgeText}>
               {date.getMonth() + 1}월
@@ -192,7 +196,11 @@ export default function HorizontalDatePicker({
         ref={scrollViewRef}
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        snapToInterval={SLOT_WIDTH}
+        snapToAlignment="start"
+        decelerationRate="fast"
+        disableIntervalMomentum
+        contentContainerStyle={[styles.scrollContent, { paddingHorizontal: sidePad }]}
         style={styles.scrollView}
       >
         {dates.map((date, index) => renderDateCard(date, index))}
@@ -205,7 +213,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: MaterialColors.surface.default,
     paddingVertical: Spacing.md,
-    borderRadius: ChildFriendlyShape.medium,
+    borderRadius: Shape.extraLarge,
     overflow: 'hidden',
     ...Elevation[1],
   },
@@ -213,11 +221,11 @@ const styles = StyleSheet.create({
     flexGrow: 0,
   },
   scrollContent: {
-    paddingHorizontal: Spacing.md,
-    gap: Spacing.md,
+    alignItems: 'center',
   },
   dateCardWrapper: {
     position: 'relative',
+    alignItems: 'center',
   },
   monthDivider: {
     position: 'absolute',
@@ -273,6 +281,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'transparent',
   },
+  dateCardCompact: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: 6,
+  },
   dateCardSelected: {
     backgroundColor: MaterialColors.primary[500],
     borderColor: MaterialColors.primary[700],
@@ -293,6 +305,7 @@ const styles = StyleSheet.create({
     color: MaterialColors.text.secondary,
     textTransform: 'uppercase',
     fontFamily: 'BMJUA',
+    fontSize: 12,
   },
   dayTextSelected: {
     color: MaterialColors.surface.default,
@@ -304,6 +317,7 @@ const styles = StyleSheet.create({
     color: MaterialColors.text.primary,
     fontWeight: '600',
     fontFamily: 'BMJUA',
+    fontSize: 20,
   },
   dateTextSelected: {
     color: MaterialColors.surface.default,

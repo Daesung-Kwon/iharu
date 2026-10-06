@@ -5,13 +5,21 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Activity, Schedule } from '../types';
+import { AppData, parseBackupData } from './backupData';
+import { NotificationLeadMinutes } from '../utils/dateUtils';
 
-const KEYS = {
+export { AppData, isValidAppData, parseBackupData } from './backupData';
+
+export const KEYS = {
   APP_VERSION: '@app_version',
   USER_ID: '@user_id',
-  ACTIVITIES: '@daily_schedule_activities', // ActivityContext와 동일
-  SCHEDULES: '@daily_schedule_schedules', // ScheduleContext와 동일
+  ACTIVITIES: '@daily_schedule_activities',
+  SCHEDULES: '@daily_schedule_schedules',
+  DELETED_DEFAULTS: '@daily_schedule_deleted_defaults',
+  NOTIFICATIONS: '@daily_schedule_notifications',
+  NOTIFICATIONS_ENABLED: '@settings.notificationsEnabled',
+  NOTIFICATION_LEAD_MINUTES: '@settings.notificationLeadMinutes',
+  SETTINGS_PIN: '@settings.pin',
   SETTINGS: '@settings',
   LAST_SYNC: '@last_sync',
   MIGRATED: '@migrated',
@@ -19,12 +27,16 @@ const KEYS = {
 
 const CURRENT_VERSION = '1.0.0';
 
-export interface AppData {
-  version: string;
-  userId: string;
-  activities: Activity[];
-  schedules: Schedule[];
-  lastSync?: string;
+function parseStoredLeadMinutes(stored: string | null): NotificationLeadMinutes {
+  const parsed = stored ? Number(stored) : 5;
+  if (parsed === 0 || parsed === 5 || parsed === 10) {
+    return parsed;
+  }
+  return 5;
+}
+
+function parseStoredPin(stored: string | null): string | null {
+  return stored && /^\d{4}$/.test(stored) ? stored : null;
 }
 
 /**
@@ -32,10 +44,24 @@ export interface AppData {
  */
 export const exportAllData = async (): Promise<AppData | null> => {
   try {
-    const [activities, schedules, userId] = await Promise.all([
+    const [
+      activities,
+      schedules,
+      userId,
+      deletedDefaultIds,
+      notificationSettings,
+      notificationsEnabled,
+      notificationLeadMinutes,
+      settingsPin,
+    ] = await Promise.all([
       AsyncStorage.getItem(KEYS.ACTIVITIES),
       AsyncStorage.getItem(KEYS.SCHEDULES),
       AsyncStorage.getItem(KEYS.USER_ID),
+      AsyncStorage.getItem(KEYS.DELETED_DEFAULTS),
+      AsyncStorage.getItem(KEYS.NOTIFICATIONS),
+      AsyncStorage.getItem(KEYS.NOTIFICATIONS_ENABLED),
+      AsyncStorage.getItem(KEYS.NOTIFICATION_LEAD_MINUTES),
+      AsyncStorage.getItem(KEYS.SETTINGS_PIN),
     ]);
 
     return {
@@ -43,6 +69,11 @@ export const exportAllData = async (): Promise<AppData | null> => {
       userId: userId || generateUserId(),
       activities: activities ? JSON.parse(activities) : [],
       schedules: schedules ? JSON.parse(schedules) : [],
+      deletedDefaultIds: deletedDefaultIds ? JSON.parse(deletedDefaultIds) : [],
+      notificationSettings: notificationSettings ? JSON.parse(notificationSettings) : {},
+      notificationsEnabled: notificationsEnabled === null ? true : notificationsEnabled === 'true',
+      notificationLeadMinutes: parseStoredLeadMinutes(notificationLeadMinutes),
+      settingsPin: parseStoredPin(settingsPin),
       lastSync: new Date().toISOString(),
     };
   } catch (error) {
@@ -54,15 +85,34 @@ export const exportAllData = async (): Promise<AppData | null> => {
 /**
  * 앱 데이터 전체 가져오기 (복원용)
  */
-export const importAllData = async (data: AppData): Promise<boolean> => {
+export const importAllData = async (data: unknown): Promise<boolean> => {
+  const parsed = parseBackupData(data);
+  if (!parsed) {
+    console.error('Invalid backup data');
+    return false;
+  }
+
   try {
     await Promise.all([
-      AsyncStorage.setItem(KEYS.ACTIVITIES, JSON.stringify(data.activities)),
-      AsyncStorage.setItem(KEYS.SCHEDULES, JSON.stringify(data.schedules)),
-      AsyncStorage.setItem(KEYS.USER_ID, data.userId),
-      AsyncStorage.setItem(KEYS.APP_VERSION, data.version),
+      AsyncStorage.setItem(KEYS.ACTIVITIES, JSON.stringify(parsed.activities)),
+      AsyncStorage.setItem(KEYS.SCHEDULES, JSON.stringify(parsed.schedules)),
+      AsyncStorage.setItem(KEYS.USER_ID, parsed.userId),
+      AsyncStorage.setItem(KEYS.APP_VERSION, parsed.version),
+      AsyncStorage.setItem(KEYS.DELETED_DEFAULTS, JSON.stringify(parsed.deletedDefaultIds)),
+      AsyncStorage.setItem(KEYS.NOTIFICATIONS, JSON.stringify(parsed.notificationSettings)),
+      AsyncStorage.setItem(
+        KEYS.NOTIFICATIONS_ENABLED,
+        parsed.notificationsEnabled ? 'true' : 'false'
+      ),
+      AsyncStorage.setItem(
+        KEYS.NOTIFICATION_LEAD_MINUTES,
+        String(parsed.notificationLeadMinutes)
+      ),
+      parsed.settingsPin
+        ? AsyncStorage.setItem(KEYS.SETTINGS_PIN, parsed.settingsPin)
+        : AsyncStorage.removeItem(KEYS.SETTINGS_PIN),
     ]);
-    
+
     console.log('Data imported successfully');
     return true;
   } catch (error) {
@@ -72,18 +122,22 @@ export const importAllData = async (data: AppData): Promise<boolean> => {
 };
 
 /**
- * 모든 데이터 삭제 (초기화)
+ * 모든 데이터 삭제 (초기화). USER_ID는 유지.
  */
 export const clearAllData = async (): Promise<boolean> => {
   try {
     await AsyncStorage.multiRemove([
       KEYS.ACTIVITIES,
       KEYS.SCHEDULES,
+      KEYS.DELETED_DEFAULTS,
+      KEYS.NOTIFICATIONS,
+      KEYS.NOTIFICATIONS_ENABLED,
+      KEYS.NOTIFICATION_LEAD_MINUTES,
+      KEYS.SETTINGS_PIN,
       KEYS.SETTINGS,
       KEYS.LAST_SYNC,
-      '@daily_schedule_notifications', // 알림 설정도 삭제
     ]);
-    
+
     console.log('All data cleared');
     return true;
   } catch (error) {
@@ -159,4 +213,5 @@ export default {
   isMigrated,
   markAsMigrated,
   checkVersion,
+  parseBackupData,
 };
