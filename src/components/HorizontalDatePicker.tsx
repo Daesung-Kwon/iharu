@@ -6,8 +6,9 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { MaterialColors, Typography, Spacing, Elevation, Shape } from '../constants/materialDesign';
+import { SoftPopColors } from '../constants/theme';
 import { Schedule } from '../types';
-import { calculateDayStats } from '../utils/statsUtils';
+import { calculateDayStats, getDayDotColor, getDayDotStatus } from '../utils/statsUtils';
 import { toLocalDateString } from '../utils/dateUtils';
 
 interface HorizontalDatePickerProps {
@@ -95,19 +96,9 @@ export default function HorizontalDatePicker({
     const isFirstOfMonth = date.getDate() === 1;
     const showMonthLabel = isFirstOfMonth || index === 0;
 
-    // 달성률에 따른 색상
-    let statusColor = MaterialColors.text.disabled;
-    if (hasSchedule) {
-      if (stats.completionRate === 100) {
-        statusColor = MaterialColors.success[500]; // 완전 달성
-      } else if (stats.completionRate >= 50) {
-        statusColor = MaterialColors.primary[500]; // 부분 달성
-      } else if (stats.completionRate > 0) {
-        statusColor = MaterialColors.primary[300]; // 조금 달성
-      } else {
-        statusColor = MaterialColors.error[500]; // 미달성
-      }
-    }
+    // 달성 상태 점: WeekStrip과 같은 규칙과 색 (모두 완료 = complete, 그 외 계획된 날 = partial)
+    const dotStatus = getDayDotStatus(stats);
+    const statusColor = getDayDotColor(dotStatus) ?? MaterialColors.text.disabled;
 
     return (
       <View key={index} style={[styles.dateCardWrapper, { width: SLOT_WIDTH }]}>
@@ -162,7 +153,7 @@ export default function HorizontalDatePicker({
               styles.indicator,
               { backgroundColor: statusColor }
             ]} />
-            {stats.completionRate === 100 && (
+            {dotStatus === 'complete' && (
               <View style={styles.perfectBadge}>
                 <Text style={styles.perfectBadgeText}>✓</Text>
               </View>
@@ -356,7 +347,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: Shape.round,
-    backgroundColor: MaterialColors.success[500],
+    backgroundColor: SoftPopColors.complete,
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -4,6 +4,7 @@
 
 import { Schedule, ScheduleItem } from '../types';
 import { toLocalDateString } from './dateUtils';
+import { SoftPopColors } from '../constants/theme';
 
 export interface DayStats {
   date: string;
@@ -115,6 +116,22 @@ export const isFuture = (dateString: string): boolean => {
 
 export type WeekDotStatus = 'empty' | 'partial' | 'complete';
 
+/**
+ * Single source of truth for a day's completion dot (WeekStrip and the iPad date picker).
+ * Any planned day that is not fully done is 'partial', including 0% (planned, nothing done yet).
+ */
+export const getDayDotStatus = (stats: Pick<DayStats, 'totalItems' | 'completionRate'>): WeekDotStatus => {
+  if (stats.totalItems <= 0) return 'empty';
+  return stats.completionRate >= 100 ? 'complete' : 'partial';
+};
+
+/** Fill colour for a filled dot; `null` for 'empty' (callers draw an outline or nothing). */
+export const getDayDotColor = (status: WeekDotStatus): string | null => {
+  if (status === 'complete') return SoftPopColors.complete;
+  if (status === 'partial') return SoftPopColors.partial;
+  return null;
+};
+
 export type WeekDayOverview = {
   date: Date;
   dateString: string;
@@ -131,10 +148,7 @@ export const getWeekOverview = (
     const dateString = toLocalDateString(date);
     const schedule = schedules.find(item => item.date === dateString) ?? null;
     const stats = calculateDayStats(schedule);
-    let status: WeekDotStatus = 'empty';
-    if (stats.totalItems > 0) {
-      status = stats.completionRate >= 100 ? 'complete' : 'partial';
-    }
+    const status = getDayDotStatus(stats);
     return {
       date,
       dateString,
