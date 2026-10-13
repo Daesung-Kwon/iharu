@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF"
+      "backgroundColor": "#FDF7E9"
     },
     "fonts": [
       "./assets/fonts/BMJUA_ttf.ttf"
