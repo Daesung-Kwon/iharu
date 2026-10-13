@@ -19,6 +19,7 @@ import { SoftPopColors } from '../constants/theme';
 import { getClayShadow, MIN_TOUCH_TARGET, useLayout } from '../hooks/useLayout';
 import { isToday } from '../utils/statsUtils';
 import { toLocalDateString } from '../utils/dateUtils';
+import { confirmDeleteAllSchedule } from '../utils/planActions';
 
 const SELECT_INSTRUCTION = '활동을 길게 누른 뒤 시간을 탭하세요';
 const COMPACT_SELECT_INSTRUCTION = '활동을 탭한 뒤 시간을 탭하세요';
@@ -81,11 +82,20 @@ export default function PlanScheduleScreen() {
     }
   };
 
+  const handleDeleteAll = () => {
+    confirmDeleteAllSchedule({
+      alert: Alert.alert,
+      date: selectedDate,
+      count: scheduleItems.length,
+      onConfirm: () => removeAllScheduleItems(selectedDate),
+    });
+  };
+
   const handleTimeSlotPress = (time: string) => {
     if (draggingActivity) {
       const activity = draggingActivity;
       Alert.alert(
-        `${activity.name} · ${time}`,
+        `${activity.name}, ${time}`,
         '같은 시간에 반복할까요?',
         [
           { text: '취소', style: 'cancel' },
@@ -358,7 +368,7 @@ export default function PlanScheduleScreen() {
                 <View style={styles.selectedChipInfo}>
                   <Text style={styles.selectedChipLabel}>선택한 활동</Text>
                   <Text style={styles.selectedChipName} numberOfLines={1}>
-                    {draggingActivity.name} · {draggingActivity.durationMinutes}분
+                    {draggingActivity.name}, {draggingActivity.durationMinutes}분
                   </Text>
                 </View>
                 <Pressable
@@ -387,7 +397,7 @@ export default function PlanScheduleScreen() {
                     styles.deleteAllButtonCompact,
                     pressed && styles.deleteAllButtonPressed
                   ]}
-                  onPress={() => removeAllScheduleItems(selectedDate)}
+                  onPress={handleDeleteAll}
                   accessibilityLabel="모든 일정 삭제"
                 >
                   <MaterialIcons
@@ -504,7 +514,7 @@ export default function PlanScheduleScreen() {
                     styles.deleteAllButton,
                     pressed && styles.deleteAllButtonPressed
                   ]}
-                  onPress={() => removeAllScheduleItems(selectedDate)}
+                  onPress={handleDeleteAll}
                   accessibilityLabel="모든 일정 삭제"
                 >
                   <MaterialIcons
@@ -834,6 +844,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   deleteAllButton: {
+    minHeight: MIN_TOUCH_TARGET,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -848,6 +859,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   deleteAllButtonCompact: {
+    minHeight: MIN_TOUCH_TARGET,
+    justifyContent: 'center',
     paddingHorizontal: 10,
     paddingVertical: 8,
     gap: 4,
