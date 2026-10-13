@@ -3,7 +3,7 @@
  * Overlaps are shown inline before saving, with a one-tap fix.
  */
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Modal, View, Text, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import ActivityIcon from './ActivityIcon';
@@ -14,6 +14,7 @@ import {
   DAY_END_MIN, MAX_DURATION, MIN_DURATION, SpanItem, TIME_STEP_MIN,
   clampDuration, defaultStart, formatRange, fromMinutes, validateSlot,
 } from '../utils/planList';
+import { filterActivities, shouldShowSearch } from '../utils/activityPicker';
 
 type Props = {
   visible: boolean;
@@ -33,6 +34,11 @@ export default function AddActivitySheet({ visible, activities, items, nowMin, o
   const [duration, setDuration] = useState(30);
   const [start, setStart] = useState(7 * 60);
   const [weekdays, setWeekdays] = useState(false);
+  const [query, setQuery] = useState('');
+  const { height: winH } = useWindowDimensions();
+  // Cap the chip area so time, duration and save stay on screen (about 3 rows on SE)
+  const chipMaxH = Math.max(112, Math.min(200, winH * 0.24));
+  const shown = useMemo(() => filterActivities(activities, query), [activities, query]);
 
   useEffect(() => {
     if (!visible) return;
@@ -42,6 +48,7 @@ export default function AddActivitySheet({ visible, activities, items, nowMin, o
     setDuration(d);
     setStart(defaultStart(items, d, nowMin));
     setWeekdays(false);
+    setQuery('');
   }, [visible]);
 
   const result = useMemo(() => validateSlot(items, start, duration), [items, start, duration]);
@@ -85,22 +92,47 @@ export default function AddActivitySheet({ visible, activities, items, nowMin, o
             <Text style={styles.secondaryText}>활동 탭에서 활동 만들기</Text>
           </Pressable>
         ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-            {activities.map(a => {
-              const on = activity?.id === a.id;
-              return (
-                <Pressable
-                  key={a.id}
-                  onPress={() => pick(a)}
-                  accessibilityState={{ selected: on }}
-                  style={[styles.chip, on && styles.chipOn]}
-                >
-                  <ActivityIcon activity={a} size={22} color={on ? SoftPopColors.white : SoftPopColors.text} />
-                  <Text style={[styles.chipText, on && styles.chipTextOn]} numberOfLines={1}>{a.name}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+          <>
+            {shouldShowSearch(activities.length) && (
+              <View style={styles.search}>
+                <MaterialIcons name="search" size={20} color={SoftPopColors.textSecondary} />
+                <TextInput
+                  value={query}
+                  onChangeText={setQuery}
+                  placeholder="활동 이름 찾기"
+                  placeholderTextColor={SoftPopColors.textSecondary}
+                  style={styles.searchInput}
+                  returnKeyType="done"
+                  accessibilityLabel="활동 이름 찾기"
+                />
+                {query.length > 0 && (
+                  <Pressable onPress={() => setQuery('')} style={styles.searchClear} accessibilityLabel="찾기 지우기">
+                    <MaterialIcons name="cancel" size={20} color={SoftPopColors.textSecondary} />
+                  </Pressable>
+                )}
+              </View>
+            )}
+            <ScrollView style={{ maxHeight: chipMaxH }} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="handled">
+              {shown.length === 0 && <Text style={styles.empty}>'{query.trim()}' 활동이 없어요</Text>}
+              {shown.map(a => {
+                const on = activity?.id === a.id;
+                return (
+                  <Pressable
+                    key={a.id}
+                    onPress={() => pick(a)}
+                    accessibilityState={{ selected: on }}
+                    accessibilityLabel={a.name}
+                    style={[styles.chip, on && styles.chipOn]}
+                  >
+                    {on
+                      ? <MaterialIcons name="check-circle" size={20} color={SoftPopColors.white} />
+                      : <ActivityIcon activity={a} size={22} color={SoftPopColors.text} />}
+                    <Text style={[styles.chipText, on && styles.chipTextOn]} numberOfLines={1}>{a.name}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </>
         )}
 
         <View style={styles.row}>
@@ -176,9 +208,13 @@ const styles = StyleSheet.create({
   title: { ...font, fontSize: 20, color: SoftPopColors.text },
   close: { width: MIN_TOUCH_TARGET, height: MIN_TOUCH_TARGET, alignItems: 'center', justifyContent: 'center' },
   label: { ...font, fontSize: 14, color: SoftPopColors.textSecondary, marginTop: 4 },
-  chips: { gap: 8, paddingVertical: 2 },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: MIN_TOUCH_TARGET, paddingHorizontal: 12, borderRadius: 22, backgroundColor: SoftPopColors.background, maxWidth: 160 },
-  chipOn: { backgroundColor: SoftPopColors.primary },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 2 },
+  search: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: MIN_TOUCH_TARGET, paddingLeft: 12, borderRadius: 14, backgroundColor: SoftPopColors.background },
+  searchInput: { ...font, flex: 1, fontSize: 16, color: SoftPopColors.text, paddingVertical: 8 },
+  searchClear: { width: MIN_TOUCH_TARGET, height: MIN_TOUCH_TARGET, alignItems: 'center', justifyContent: 'center' },
+  empty: { ...font, fontSize: 14, color: SoftPopColors.textSecondary, paddingVertical: 12 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: MIN_TOUCH_TARGET, paddingHorizontal: 12, borderRadius: 22, backgroundColor: SoftPopColors.background, maxWidth: 160, borderWidth: 2, borderColor: 'transparent' },
+  chipOn: { backgroundColor: SoftPopColors.primary, borderColor: SoftPopColors.text },
   chipText: { ...font, fontSize: 15, color: SoftPopColors.text, flexShrink: 1 },
   chipTextOn: { color: SoftPopColors.white },
   row: { flexDirection: 'row', gap: 12 },

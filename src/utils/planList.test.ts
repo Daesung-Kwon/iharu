@@ -42,3 +42,8 @@ test('clamps duration and picks a default start', () => {
     assert.equal(defaultStart(items, 30), 17 * 60 + 10);
   });
 
+
+test('default start is the first free time after the last item', () => {
+  assert.equal(fromMinutes(defaultStart(items, 30)), '17:10');
+  assert.equal(fromMinutes(defaultStart([{ id: '1', startTime: '09:00', endTime: '09:25' }], 30)), '09:30');
+});

@@ -4,7 +4,7 @@
  * Soft Pop 3D (Claymorphism) 디자인 적용
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, Pressable, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -21,6 +21,7 @@ import { isToday } from '../utils/statsUtils';
 import { toLocalDateString } from '../utils/dateUtils';
 import { confirmDeleteAllSchedule } from '../utils/planActions';
 import { sortByStart } from '../utils/planList';
+import { orderByUsage } from '../utils/activityPicker';
 import AddActivitySheet from '../components/AddActivitySheet';
 import { useNavigation } from '@react-navigation/native';
 
@@ -43,6 +44,7 @@ export default function PlanScheduleScreen() {
     selectedDate,
     setSelectedDate,
     getScheduleForDate,
+    schedules,
     addScheduleItem,
     removeScheduleItem,
     removeAllScheduleItems,
@@ -54,6 +56,7 @@ export default function PlanScheduleScreen() {
 
   const currentSchedule = getScheduleForDate(selectedDate);
   const scheduleItems = currentSchedule?.items || [];
+  const pickerActivities = useMemo(() => orderByUsage(activities, schedules), [activities, schedules]);
 
   const handleDateChange = (direction: 'prev' | 'next') => {
     const newDate = new Date(selectedDate);
@@ -336,20 +339,15 @@ export default function PlanScheduleScreen() {
       </View>
 
       {isCompact ? (
-        // Phones: time-ordered list + "+ 추가" sheet (no slot grid, so no partly covered dead slots)
-        <ScrollView
-          style={styles.contentCompact}
-          contentContainerStyle={[
-            styles.contentCompactInner,
-            { paddingHorizontal: space, gap: 12, paddingBottom: tabBarOffset + 16 },
-          ]}
-        >
-          <View style={[styles.schedulePanel, styles.schedulePanelCompact, { padding: space }]}>
-            <View style={styles.panelHeader}>
+        // Phones: time-ordered list + "+ 추가" sheet (no slot grid, so no partly covered dead slots).
+        // Header with '+ 추가' is pinned above the scroll so it stays reachable with many items.
+        <View style={{ flex: 1 }}>
+            <View style={[styles.panelHeader, styles.phonePinnedHeader, { marginHorizontal: space }]}>
               <Text style={styles.panelTitle}>
                 {scheduleItems.length > 0 ? `일정 ${scheduleItems.length}개, ${totalMinutes}분` : '일정표'}
               </Text>
               {scheduleItems.length > 0 && (
+                <View style={styles.phoneHeaderActions}>
                 <Pressable
                   style={({ pressed }) => [
                     styles.deleteAllButton,
@@ -362,8 +360,25 @@ export default function PlanScheduleScreen() {
                   <MaterialIcons name="delete-outline" size={18} color={SoftPopColors.error} />
                   <Text style={styles.deleteAllText}>모두 삭제</Text>
                 </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.phoneHeaderAdd, pressed && styles.dateButtonPressed]}
+                  onPress={() => setSheetOpen(true)}
+                  accessibilityLabel="활동 추가"
+                >
+                  <MaterialIcons name="add" size={20} color={SoftPopColors.white} />
+                  <Text style={styles.phoneHeaderAddText}>추가</Text>
+                </Pressable>
+                </View>
               )}
             </View>
+        <ScrollView
+          style={styles.contentCompact}
+          contentContainerStyle={[
+            styles.contentCompactInner,
+            { paddingHorizontal: space, gap: 12, paddingBottom: tabBarOffset + 16 },
+          ]}
+        >
+          <View style={[styles.schedulePanel, styles.schedulePanelCompact, { padding: space }]}>
             {scheduleItems.length === 0 ? (
               <View style={styles.phoneEmpty}>
                 <MaterialIcons name="event-available" size={48} color={SoftPopColors.textSecondary} />
@@ -386,20 +401,12 @@ export default function PlanScheduleScreen() {
                     onRemove={() => removeScheduleItem(item.id)}
                   />
                 ))}
-                <Pressable
-                  style={({ pressed }) => [styles.phoneAddButton, pressed && styles.dateButtonPressed]}
-                  onPress={() => setSheetOpen(true)}
-                  accessibilityLabel="활동 추가"
-                >
-                  <MaterialIcons name="add" size={22} color={SoftPopColors.white} />
-                  <Text style={styles.phoneAddText}>추가</Text>
-                </Pressable>
               </View>
             )}
           </View>
           <AddActivitySheet
             visible={sheetOpen}
-            activities={activities}
+            activities={pickerActivities}
             items={scheduleItems.map(i => ({ id: i.id, startTime: i.startTime, endTime: i.endTime, name: i.activity?.name }))}
             nowMin={isToday(toLocalDateString(selectedDate)) ? new Date().getHours() * 60 + new Date().getMinutes() : undefined}
             onClose={() => setSheetOpen(false)}
@@ -407,6 +414,7 @@ export default function PlanScheduleScreen() {
             onManageActivities={() => { setSheetOpen(false); navigation.navigate('Activities' as never); }}
           />
         </ScrollView>
+        </View>
       ) : (
         <View style={[styles.content, { padding: space, gap: space }]}>
           <View style={[styles.activityListPanel, { padding: 24 }]}>
@@ -930,6 +938,30 @@ const styles = StyleSheet.create({
   dropZoneTextActive: {
     color: SoftPopColors.primary,
     fontWeight: '700',
+    fontFamily: 'BMJUA',
+  },
+  phonePinnedHeader: {
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  phoneHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  phoneHeaderAdd: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    minHeight: 44,
+    minWidth: 44,
+    paddingHorizontal: 14,
+    borderRadius: 22,
+    backgroundColor: SoftPopColors.primary,
+  },
+  phoneHeaderAddText: {
+    fontSize: 16,
+    color: SoftPopColors.white,
     fontFamily: 'BMJUA',
   },
   phoneList: {
