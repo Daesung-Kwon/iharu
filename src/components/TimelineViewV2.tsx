@@ -11,6 +11,13 @@ import { ScheduleItem, Activity } from '../types';
 import ActivityIcon from './ActivityIcon';
 import { ActivityMaterialColors } from '../constants/materialDesign';
 import { SoftPopColors } from '../constants/theme';
+import { layoutTimelineItems, minuteToY, slotOverlapsSpan, toMinutes } from '../utils/timelineLayout';
+
+// Gap between a block and the slot grid lines, and the smallest block we still draw (10-min items).
+const BLOCK_INSET = 4;
+const MIN_BLOCK_HEIGHT = 22;
+// timeLabel (80) + timelineContainer (32) + contentArea paddingLeft (12)
+const BLOCK_LAYER_LEFT = 124;
 
 interface TimelineViewV2Props {
   scheduleItems: ScheduleItem[];
@@ -48,29 +55,6 @@ export default function TimelineViewV2({
     }
   }
 
-  // 특정 시간에 시작하는 일정 아이템 찾기
-  const getScheduleItemForTime = (time: string): ScheduleItem | undefined => {
-    return scheduleItems.find(item => item.startTime === time);
-  };
-
-  // 특정 시간이 일정 아이템에 포함되는지 확인 (중간 시간)
-  const isTimeOccupied = (time: string): ScheduleItem | null => {
-    const [hours, minutes] = time.split(':').map(Number);
-    const timeMinutes = hours * 60 + minutes;
-
-    for (const item of scheduleItems) {
-      const [startHours, startMins] = item.startTime.split(':').map(Number);
-      const [endHours, endMins] = item.endTime.split(':').map(Number);
-      const startMinutes = startHours * 60 + startMins;
-      const endMinutes = endHours * 60 + endMins;
-
-      if (timeMinutes >= startMinutes && timeMinutes < endMinutes) {
-        return item;
-      }
-    }
-    return null;
-  };
-
   // 드래그 중인 활동이 특정 시간에 놓이면 겹치는지 확인
   const wouldConflict = (time: string, draggingActivity: Activity | null): boolean => {
     if (!draggingActivity) return false;
@@ -102,11 +86,31 @@ export default function TimelineViewV2({
     return `${hours}:${minutes}`;
   };
 
-  // 일정 아이템의 높이 계산 (30분당 SLOT_HEIGHT)
-  const calculateItemHeight = (item: ScheduleItem): number => {
-    const duration = item.activity?.durationMinutes || 0;
-    const slots = Math.ceil(duration / TIMELINE_CONFIG.INTERVAL_MINUTES);
-    return slots * TIMELINE_CONFIG.SLOT_HEIGHT;
+  const grid = {
+    startHour: TIMELINE_CONFIG.START_HOUR,
+    endHour: TIMELINE_CONFIG.END_HOUR,
+    slotMinutes: TIMELINE_CONFIG.INTERVAL_MINUTES,
+    slotHeight: TIMELINE_CONFIG.SLOT_HEIGHT,
+  };
+
+  // Items sit at their true minute offset (e.g. 15:50), not only on 30-minute slots.
+  const blocks = useMemo(
+    () => layoutTimelineItems(
+      scheduleItems.map(item => ({
+        id: item.id,
+        startTime: item.startTime,
+        endTime: item.endTime,
+        durationMinutes: item.activity?.durationMinutes,
+      })),
+      grid,
+    ),
+    [scheduleItems],
+  );
+  const itemById = new Map(scheduleItems.map(item => [item.id, item]));
+
+  const isSlotCovered = (time: string): boolean => {
+    const slotMin = toMinutes(time);
+    return blocks.some(b => slotOverlapsSpan(slotMin, grid.slotMinutes, b.startMin, b.endMin));
   };
 
   // 특정 시간의 인덱스 찾기
@@ -116,37 +120,8 @@ export default function TimelineViewV2({
 
   const nowLineOffset = useMemo(() => {
     if (!showNowLine) return 0;
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    let y = 0;
-    for (const time of timeSlots) {
-      const [h, m] = time.split(':').map(Number);
-      const slotMin = h * 60 + m;
-      const startItem = getScheduleItemForTime(time);
-      if (startItem) {
-        const height = calculateItemHeight(startItem);
-        const [endH, endM] = startItem.endTime.split(':').map(Number);
-        const endMin = endH * 60 + endM;
-        if (nowMin <= slotMin) break;
-        if (nowMin < endMin) {
-          y += ((nowMin - slotMin) / Math.max(endMin - slotMin, 1)) * height;
-          break;
-        }
-        y += height;
-        continue;
-      }
-      const occupied = isTimeOccupied(time);
-      if (occupied && occupied.startTime !== time) {
-        continue;
-      }
-      if (nowMin <= slotMin) break;
-      if (nowMin < slotMin + TIMELINE_CONFIG.INTERVAL_MINUTES) {
-        y += ((nowMin - slotMin) / TIMELINE_CONFIG.INTERVAL_MINUTES) * TIMELINE_CONFIG.SLOT_HEIGHT;
-        break;
-      }
-      y += TIMELINE_CONFIG.SLOT_HEIGHT;
-    }
-    return y;
-  }, [showNowLine, now, scheduleItems]);
+    return Math.max(0, minuteToY(now.getHours() * 60 + now.getMinutes(), grid));
+  }, [showNowLine, now]);
 
   useEffect(() => {
     const targetY = showNowLine
@@ -180,87 +155,8 @@ export default function TimelineViewV2({
         </View>
       )}
       {timeSlots.map((time, index) => {
-        const scheduleItem = getScheduleItemForTime(time);
-        const occupiedItem = isTimeOccupied(time);
-
-        // 이 시간에 시작하는 일정이 있으면 블록으로 표시
-        if (scheduleItem) {
-          const colorScheme = ActivityMaterialColors[scheduleItem.activity?.colorKey || 'blue'];
-          const blockHeight = calculateItemHeight(scheduleItem);
-          // timeSlot의 높이는 활동 블록의 높이와 동일하게 설정
-          const slotHeight = blockHeight;
-
-          return (
-            <View key={time} style={[styles.timeSlot, { height: slotHeight }]}>
-              {/* Time Label */}
-              <View style={styles.timeLabel}>
-                <Text style={styles.timeText}>
-                  {formatTime(time)}
-                </Text>
-              </View>
-
-              {/* Timeline Line */}
-              <View style={styles.timelineContainer}>
-                <View style={[styles.timelineDot, styles.timelineDotActive]} />
-                {index < timeSlots.length - 1 && (
-                  <View style={[styles.timelineLine, styles.timelineLineActive]} />
-                )}
-              </View>
-
-              {/* Schedule Block */}
-              <View style={styles.contentArea}>
-                <View style={[
-                  styles.scheduleBlock,
-                  {
-                    backgroundColor: colorScheme.surface,
-                    borderLeftColor: colorScheme.main,
-                    height: blockHeight - 8, // 약간의 여백
-                  }
-                ]}>
-                  <View style={styles.scheduleBlockHeader}>
-                    <View style={styles.scheduleEmojiWrapper}>
-                      <ActivityIcon
-                        activity={scheduleItem.activity}
-                        size={32}
-                        color={SoftPopColors.text}
-                      />
-                    </View>
-                    <View style={styles.scheduleInfo}>
-                      <Text
-                        style={styles.scheduleName}
-                        // A one-slot (30 min) block only has room for one line.
-                        numberOfLines={blockHeight > TIMELINE_CONFIG.SLOT_HEIGHT ? 2 : 1}
-                        ellipsizeMode="tail"
-                        lineBreakStrategyIOS="hangul-word"
-                      >
-                        {scheduleItem.activity?.name || '활동'}
-                      </Text>
-                      <Text style={styles.scheduleTime}>
-                        {formatTime(scheduleItem.startTime)} - {formatTime(scheduleItem.endTime)}
-                      </Text>
-                    </View>
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.removeButton,
-                        pressed && styles.removeButtonPressed
-                      ]}
-                      onPress={() => onRemoveItem?.(scheduleItem.id)}
-                    >
-                      <Text style={styles.removeButtonText}>✕</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              </View>
-            </View>
-          );
-        }
-
-        // 이 시간이 다른 일정에 포함되어 있으면 건너뛰기 (블록 중간)
-        if (occupiedItem && occupiedItem.startTime !== time) {
-          return null;
-        }
-
-        // 빈 슬롯 - 드롭 가능
+        const covered = isSlotCovered(time);
+        // 빈 슬롯 - 드롭 가능 (일정 블록은 아래 오버레이에 실제 분 단위 위치로 그림)
         const hasConflict = draggingActivity ? wouldConflict(time, draggingActivity) : false;
 
         return (
@@ -274,9 +170,9 @@ export default function TimelineViewV2({
 
             {/* Timeline Line */}
             <View style={styles.timelineContainer}>
-              <View style={styles.timelineDot} />
+              <View style={[styles.timelineDot, covered && styles.timelineDotActive]} />
               {index < timeSlots.length - 1 && (
-                <View style={styles.timelineLine} />
+                <View style={[styles.timelineLine, covered && styles.timelineLineActive]} />
               )}
             </View>
 
@@ -309,6 +205,78 @@ export default function TimelineViewV2({
           </View>
         );
       })}
+
+      {/* Schedule blocks at their true minute offset; overlapping items share the width in lanes */}
+      <View pointerEvents="box-none" style={styles.blockLayer}>
+        {blocks.map(block => {
+          const scheduleItem = itemById.get(block.id);
+          if (!scheduleItem) return null;
+          const colorScheme = ActivityMaterialColors[scheduleItem.activity?.colorKey || 'blue'];
+          const blockHeight = block.height;
+          const isShort = blockHeight < TIMELINE_CONFIG.SLOT_HEIGHT;
+          return (
+            <View
+              key={block.id}
+              pointerEvents="box-none"
+              style={[
+                styles.blockSlot,
+                {
+                  top: block.top + BLOCK_INSET,
+                  height: Math.max(blockHeight - BLOCK_INSET * 2, MIN_BLOCK_HEIGHT),
+                  left: `${(block.lane / block.laneCount) * 100}%`,
+                  width: `${100 / block.laneCount}%`,
+                },
+              ]}
+            >
+              <View style={[
+                styles.scheduleBlock,
+                isShort && styles.scheduleBlockShort,
+                {
+                  backgroundColor: colorScheme.surface,
+                  borderLeftColor: colorScheme.main,
+                  flex: 1,
+                }
+              ]}>
+                <View style={styles.scheduleBlockHeader}>
+                  <View style={styles.scheduleEmojiWrapper}>
+                    <ActivityIcon
+                      activity={scheduleItem.activity}
+                      size={isShort ? 20 : 32}
+                      color={SoftPopColors.text}
+                    />
+                  </View>
+                  <View style={[styles.scheduleInfo, isShort && styles.scheduleInfoShort]}>
+                    <Text
+                      style={[styles.scheduleName, isShort && styles.scheduleNameShort]}
+                      // A block of one slot (30 min) or less only has room for one line.
+                      numberOfLines={blockHeight > TIMELINE_CONFIG.SLOT_HEIGHT ? 2 : 1}
+                      ellipsizeMode="tail"
+                      lineBreakStrategyIOS="hangul-word"
+                    >
+                      {scheduleItem.activity?.name || '활동'}
+                    </Text>
+                    <Text style={[styles.scheduleTime, isShort && styles.scheduleTimeShort]} numberOfLines={1}>
+                      {formatTime(scheduleItem.startTime)} - {formatTime(scheduleItem.endTime)}
+                    </Text>
+                  </View>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.removeButton,
+                      isShort && styles.removeButtonShort,
+                      pressed && styles.removeButtonPressed
+                    ]}
+                    hitSlop={isShort ? 8 : undefined}
+                    onPress={() => onRemoveItem?.(scheduleItem.id)}
+                    accessibilityLabel={`${scheduleItem.activity?.name || '활동'} 삭제`}
+                  >
+                    <Text style={[styles.removeButtonText, isShort && styles.removeButtonTextShort]}>✕</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          );
+        })}
+      </View>
       </View>
     </ScrollView>
   );
@@ -432,6 +400,46 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
     justifyContent: 'center',
+  },
+  blockLayer: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: BLOCK_LAYER_LEFT,
+    right: 0,
+    zIndex: 5,
+  },
+  blockSlot: {
+    position: 'absolute',
+    paddingRight: 4,
+  },
+  scheduleBlockShort: {
+    paddingVertical: 2,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+  },
+  scheduleInfoShort: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  scheduleNameShort: {
+    fontSize: 15,
+    lineHeight: 18,
+    marginBottom: 0,
+    flexShrink: 1,
+  },
+  scheduleTimeShort: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  removeButtonShort: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  removeButtonTextShort: {
+    fontSize: 14,
   },
   scheduleBlockHeader: {
     flexDirection: 'row',
