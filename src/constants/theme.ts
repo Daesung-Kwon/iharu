@@ -2,7 +2,8 @@
  * Soft Pop 3D (Claymorphism) palette shared across screens and components.
  *
  * Role colors so a child can read status without reading labels:
- * today = orange, now = teal, complete = green, alert/primary = coral.
+ * today = orange, now = teal, complete = green, partial = soft blue,
+ * alert/primary = coral.
  */
 export const SoftPopColors = {
   background: '#FFF9F0', // Cream
@@ -20,4 +21,7 @@ export const SoftPopColors = {
   nowSurface: '#E6FAF8',
   complete: '#6BCB77',
   completeSurface: '#F0FFF4',
+  // Partly done day (WeekStrip dot). Must not reuse today's orange, or a
+  // child reads "partly done" as "today".
+  partial: '#5B8DEF',
 };

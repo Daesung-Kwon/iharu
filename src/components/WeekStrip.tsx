@@ -19,6 +19,7 @@ import {
   toLocalDateString,
 } from '../utils/dateUtils';
 import { countCompleteDays, getWeekOverview } from '../utils/statsUtils';
+import { MIN_TOUCH_TARGET } from '../hooks/layoutMetrics';
 
 const WEEKDAY_LABELS = ['월', '화', '수', '목', '금', '토', '일'];
 
@@ -117,6 +118,9 @@ export default function WeekStrip({
                 isToday && !isSelected && styles.dayToday,
               ]}
               onPress={() => onDateSelect(day.date)}
+              // dayFull has a 1pt side margin; give it back to the touch area so
+              // the whole column (>= 44pt wide even on SE) is tappable.
+              hitSlop={isFull ? { left: 1, right: 1 } : undefined}
               accessibilityRole="button"
               accessibilityState={{ selected: isSelected }}
               accessibilityLabel={`${day.date.getMonth() + 1}월 ${day.date.getDate()}일 ${WEEKDAY_LABELS[index]}요일${isToday ? ', 오늘' : ''}${statusLabel ? `, ${statusLabel}` : ''}`}
@@ -228,7 +232,9 @@ const styles = StyleSheet.create({
   },
   day: {
     flex: 1,
+    minHeight: MIN_TOUCH_TARGET,
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 6,
     borderRadius: 12,
     gap: 6,
@@ -288,7 +294,7 @@ const styles = StyleSheet.create({
     borderColor: SoftPopColors.textSecondary,
   },
   dotPartial: {
-    backgroundColor: SoftPopColors.today,
+    backgroundColor: SoftPopColors.partial,
   },
   dotComplete: {
     backgroundColor: SoftPopColors.complete,

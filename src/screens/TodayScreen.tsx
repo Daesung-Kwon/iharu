@@ -506,7 +506,9 @@ export default function TodayScreen() {
                   <View style={styles.currentActivityInfo}>
                     <Text
                       style={[styles.currentActivityName, isPhone && styles.currentActivityNamePhone]}
-                      numberOfLines={isPhone ? 2 : undefined}
+                      numberOfLines={2}
+                      ellipsizeMode="tail"
+                      lineBreakStrategyIOS="hangul-word"
                     >
                       {currentActivity.activity?.name}
                     </Text>
@@ -552,7 +554,12 @@ export default function TodayScreen() {
                       color={SoftPopColors.text}
                     />
                   </View>
-                  <Text style={styles.nextActivityName}>
+                  <Text
+                    style={styles.nextActivityName}
+                    numberOfLines={2}
+                    ellipsizeMode="tail"
+                    lineBreakStrategyIOS="hangul-word"
+                  >
                     {nextActivity.activity?.name}
                   </Text>
                   <Text style={styles.nextActivityTime}>
