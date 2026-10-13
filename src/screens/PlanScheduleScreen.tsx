@@ -20,6 +20,9 @@ import { getClayShadow, MIN_TOUCH_TARGET, useLayout } from '../hooks/useLayout';
 import { isToday } from '../utils/statsUtils';
 import { toLocalDateString } from '../utils/dateUtils';
 import { confirmDeleteAllSchedule } from '../utils/planActions';
+import { sortByStart } from '../utils/planList';
+import AddActivitySheet from '../components/AddActivitySheet';
+import { useNavigation } from '@react-navigation/native';
 
 const SELECT_INSTRUCTION = '활동을 길게 누른 뒤 시간을 탭하세요';
 const COMPACT_SELECT_INSTRUCTION = '활동을 탭한 뒤 시간을 탭하세요';
@@ -46,6 +49,8 @@ export default function PlanScheduleScreen() {
   } = useSchedule();
   const [viewMode, setViewMode] = useState<'summary' | 'timeline'>('timeline');
   const [draggingActivity, setDraggingActivity] = useState<Activity | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const navigation = useNavigation();
 
   const currentSchedule = getScheduleForDate(selectedDate);
   const scheduleItems = currentSchedule?.items || [];
@@ -80,6 +85,14 @@ export default function PlanScheduleScreen() {
         `${time}부터 ${endTime}까지 다른 활동과 겹칩니다.\n\n다른 시간을 선택해주세요.`
       );
     }
+  };
+
+  const saveFromSheet = (activity: Activity, time: string, weekdays: boolean) => {
+    const ok = addScheduleItem(selectedDate, activity, time, { weekdays });
+    if (ok && weekdays) {
+      Alert.alert('월~금 반복', '이번 주 월~금에 같은 시간으로 넣었어요. 이미 일정이 있는 날은 건너뛰었습니다.');
+    }
+    return ok;
   };
 
   const handleDeleteAll = () => {
@@ -323,73 +336,19 @@ export default function PlanScheduleScreen() {
       </View>
 
       {isCompact ? (
-        // Phone widths cannot fit activity list + timeline side by side
+        // Phones: time-ordered list + "+ 추가" sheet (no slot grid, so no partly covered dead slots)
         <ScrollView
           style={styles.contentCompact}
           contentContainerStyle={[
             styles.contentCompactInner,
-            { paddingHorizontal: space, gap: 12 },
+            { paddingHorizontal: space, gap: 12, paddingBottom: tabBarOffset + 16 },
           ]}
-          nestedScrollEnabled
-          keyboardShouldPersistTaps="handled"
         >
-          <View style={[styles.activityChipsPanel, { padding: 12 }]}>
-            <View style={[styles.instructionBanner, styles.instructionBannerCompact]}>
-              <MaterialIcons
-                name="info-outline"
-                size={18}
-                color={SoftPopColors.primary}
-              />
-              <Text style={[styles.instructionText, styles.instructionTextCompact]}>
-                {instructionText}
-              </Text>
-            </View>
-            {activities.length === 0 ? (
-              <Text style={styles.emptyChipsText}>활동 목록이 여기에 표시됩니다</Text>
-            ) : (
-              <ScrollView
-                horizontal
-                nestedScrollEnabled
-                scrollEnabled={!draggingActivity}
-                keyboardShouldPersistTaps="handled"
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.activityChipsContent}
-              >
-                {renderActivityCards('chip')}
-              </ScrollView>
-            )}
-            {draggingActivity && (
-              <View style={styles.selectedChipBar}>
-                <ActivityIcon
-                  activity={draggingActivity}
-                  size={28}
-                  color={SoftPopColors.primary}
-                />
-                <View style={styles.selectedChipInfo}>
-                  <Text style={styles.selectedChipLabel}>선택한 활동</Text>
-                  <Text style={styles.selectedChipName} numberOfLines={1}>
-                    {draggingActivity.name}, {draggingActivity.durationMinutes}분
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={handleCancelDrag}
-                  accessibilityLabel="선택 취소"
-                  hitSlop={8}
-                >
-                  <MaterialIcons name="close" size={22} color={SoftPopColors.white} />
-                </Pressable>
-              </View>
-            )}
-          </View>
-
           <View style={[styles.schedulePanel, styles.schedulePanelCompact, { padding: space }]}>
             <View style={styles.panelHeader}>
-              <MaterialIcons
-                name="calendar-today"
-                size={24}
-                color={SoftPopColors.secondary}
-              />
-              <Text style={styles.panelTitle}>일정표</Text>
+              <Text style={styles.panelTitle}>
+                {scheduleItems.length > 0 ? `일정 ${scheduleItems.length}개, ${totalMinutes}분` : '일정표'}
+              </Text>
               {scheduleItems.length > 0 && (
                 <Pressable
                   style={({ pressed }) => [
@@ -400,57 +359,53 @@ export default function PlanScheduleScreen() {
                   onPress={handleDeleteAll}
                   accessibilityLabel="모든 일정 삭제"
                 >
-                  <MaterialIcons
-                    name="delete-outline"
-                    size={18}
-                    color={SoftPopColors.error}
-                  />
+                  <MaterialIcons name="delete-outline" size={18} color={SoftPopColors.error} />
                   <Text style={styles.deleteAllText}>모두 삭제</Text>
                 </Pressable>
               )}
-              <View style={styles.viewModeButtons}>
+            </View>
+            {scheduleItems.length === 0 ? (
+              <View style={styles.phoneEmpty}>
+                <MaterialIcons name="event-available" size={48} color={SoftPopColors.textSecondary} />
+                <Text style={styles.phoneEmptyText}>이날은 아직 일정이 없어요</Text>
                 <Pressable
-                  style={({ pressed }) => [
-                    styles.viewModeButton,
-                    styles.viewModeButtonCompact,
-                    viewMode === 'summary' && styles.viewModeButtonActive,
-                    pressed && styles.viewModeButtonPressed,
-                  ]}
-                  onPress={() => setViewMode('summary')}
-                  accessibilityLabel="요약 보기"
+                  style={({ pressed }) => [styles.phoneAddButton, pressed && styles.dateButtonPressed]}
+                  onPress={() => setSheetOpen(true)}
+                  accessibilityLabel="첫 활동 추가"
                 >
-                  <Text
-                    style={[
-                      styles.viewModeButtonText,
-                      viewMode === 'summary' && styles.viewModeButtonTextActive,
-                    ]}
-                  >
-                    요약
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.viewModeButton,
-                    styles.viewModeButtonCompact,
-                    viewMode === 'timeline' && styles.viewModeButtonActive,
-                    pressed && styles.viewModeButtonPressed,
-                  ]}
-                  onPress={() => setViewMode('timeline')}
-                  accessibilityLabel="타임라인 보기"
-                >
-                  <Text
-                    style={[
-                      styles.viewModeButtonText,
-                      viewMode === 'timeline' && styles.viewModeButtonTextActive,
-                    ]}
-                  >
-                    타임라인
-                  </Text>
+                  <MaterialIcons name="add" size={22} color={SoftPopColors.white} />
+                  <Text style={styles.phoneAddText}>첫 활동 추가</Text>
                 </Pressable>
               </View>
-            </View>
-            {renderScheduleBody()}
+            ) : (
+              <View style={styles.phoneList}>
+                {sortByStart(scheduleItems).map((item) => (
+                  <ScheduleItemCard
+                    key={item.id}
+                    scheduleItem={item}
+                    onRemove={() => removeScheduleItem(item.id)}
+                  />
+                ))}
+                <Pressable
+                  style={({ pressed }) => [styles.phoneAddButton, pressed && styles.dateButtonPressed]}
+                  onPress={() => setSheetOpen(true)}
+                  accessibilityLabel="활동 추가"
+                >
+                  <MaterialIcons name="add" size={22} color={SoftPopColors.white} />
+                  <Text style={styles.phoneAddText}>추가</Text>
+                </Pressable>
+              </View>
+            )}
           </View>
+          <AddActivitySheet
+            visible={sheetOpen}
+            activities={activities}
+            items={scheduleItems.map(i => ({ id: i.id, startTime: i.startTime, endTime: i.endTime, name: i.activity?.name }))}
+            nowMin={isToday(toLocalDateString(selectedDate)) ? new Date().getHours() * 60 + new Date().getMinutes() : undefined}
+            onClose={() => setSheetOpen(false)}
+            onSave={saveFromSheet}
+            onManageActivities={() => { setSheetOpen(false); navigation.navigate('Activities' as never); }}
+          />
         </ScrollView>
       ) : (
         <View style={[styles.content, { padding: space, gap: space }]}>
@@ -975,6 +930,35 @@ const styles = StyleSheet.create({
   dropZoneTextActive: {
     color: SoftPopColors.primary,
     fontWeight: '700',
+    fontFamily: 'BMJUA',
+  },
+  phoneList: {
+    gap: 12,
+  },
+  phoneEmpty: {
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 32,
+  },
+  phoneEmptyText: {
+    fontSize: 17,
+    color: SoftPopColors.textSecondary,
+    fontFamily: 'BMJUA',
+  },
+  phoneAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 52,
+    paddingHorizontal: 24,
+    borderRadius: 18,
+    backgroundColor: SoftPopColors.primary,
+    alignSelf: 'stretch',
+  },
+  phoneAddText: {
+    fontSize: 18,
+    color: SoftPopColors.white,
     fontFamily: 'BMJUA',
   },
   scheduleItemsList: {
