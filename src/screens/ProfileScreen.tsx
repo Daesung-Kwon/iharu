@@ -12,7 +12,6 @@ import Constants from 'expo-constants';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
-import { AdBanner } from '../components/AdBanner';
 import { exportAllData, importAllData, clearAllData, parseBackupData } from '../services/storage';
 import {
   requestNotificationPermissions,
@@ -38,7 +37,7 @@ import { useLayout } from '../hooks/useLayout';
 import { useFocusEffect } from '@react-navigation/native';
 
 export default function ProfileScreen() {
-  const { isCompact, isLandscape, space, adBannerBottom, contentPadWithAd } = useLayout();
+  const { isCompact, isLandscape, space, contentPad } = useLayout();
   const { resetActivities, reloadFromStorage: reloadActivities } = useActivity();
   const { resetSchedules, schedules, reloadFromStorage: reloadSchedules } = useSchedule();
   const [notificationEnabled, setNotificationEnabled] = useState(false);
@@ -395,7 +394,7 @@ export default function ProfileScreen() {
         style={styles.scrollView}
         contentContainerStyle={[
           styles.content,
-          { padding: space, paddingBottom: contentPadWithAd },
+          { padding: space, paddingBottom: contentPad },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -612,14 +611,6 @@ export default function ProfileScreen() {
       </ScrollView>
       )}
 
-      {/* Ad Banner */}
-      <AdBanner
-        style={{
-          position: 'absolute',
-          bottom: adBannerBottom,
-          width: '100%',
-        }}
-      />
 
       {/* 약관 모달 */}
       <TermsModal

@@ -11,7 +11,6 @@ import { MainTabParamList } from '../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSchedule } from '../contexts/ScheduleContext';
-import { AdBanner } from '../components/AdBanner';
 import TodayScheduleItem from '../components/TodayScheduleItem';
 import CelebrationModal from '../components/CelebrationModal';
 import HorizontalDatePicker from '../components/HorizontalDatePicker';
@@ -21,7 +20,7 @@ import { getItemStatus, getNextActivity, getCurrentActivity, getMinutesUntil, fo
 import { calculateDayStats, isToday, isPast, isFuture } from '../utils/statsUtils';
 import { toLocalDateString } from '../utils/dateUtils';
 import { playCompleteFeedback } from '../utils/feedback';
-import { getUndoStatus, planToggleComplete } from '../utils/completionLogic';
+import { getLockedItemToast, getUndoStatus, planToggleComplete } from '../utils/completionLogic';
 import ActivityIcon from '../components/ActivityIcon';
 import Toast from '../components/Toast';
 import { SoftPopColors } from '../constants/theme';
@@ -67,7 +66,6 @@ export default function TodayScreen() {
   const [showCelebration, setShowCelebration] = useState(false);
   const celebrationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Ad sits in layout flow; 0 until the banner has actually loaded (or failed → null).
-  const [adHeight, setAdHeight] = useState(0);
   const [showClapAnimation, setShowClapAnimation] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [notifications, setNotifications] = useState<Record<string, boolean>>({});
@@ -161,7 +159,8 @@ export default function TodayScreen() {
 
   const bottomLayout = getInFlowBottomLayout({
     tabBarOffset,
-    adHeight,
+    // The shared ad banner is already inside tabBarOffset (useLayout).
+    adHeight: 0,
     isCompact,
     // Android SafeAreaView pads the bottom edge itself (see `edges` below).
     safeAreaBottomApplied: !isLandscape && Platform.OS === 'android' ? insets.bottom : 0,
@@ -301,9 +300,9 @@ export default function TodayScreen() {
               const success = copyScheduleToDate(selectedDate, today, { overwrite: true });
               if (success) {
                 setSelectedDate(today);
-                Alert.alert('완료', '일정을 오늘로 복사했습니다.');
+                showToast('오늘로 복사했어요');
               } else {
-                Alert.alert('오류', '일정 복사에 실패했습니다.');
+                showToast('일정을 복사하지 못했어요');
               }
             }
           },
@@ -322,9 +321,9 @@ export default function TodayScreen() {
               const success = copyScheduleToDate(selectedDate, today);
               if (success) {
                 setSelectedDate(today);
-                Alert.alert('완료', '일정을 오늘로 복사했습니다. 오늘 날짜로 이동합니다.');
+                showToast('오늘로 복사했어요');
               } else {
-                Alert.alert('오류', '일정 복사에 실패했습니다.');
+                showToast('일정을 복사하지 못했어요');
               }
             }
           },
@@ -777,13 +776,15 @@ export default function TodayScreen() {
                   itemStatus={itemStatus}
                   swipeEnabled={!isViewingPast && !isViewingFuture}
                   onToggleComplete={() => {
-                    if (isViewingPast) {
-                      Alert.alert('읽기 전용', '과거 일정은 수정할 수 없습니다.');
-                    } else if (isViewingFuture) {
-                      Alert.alert('미래 일정', '미래 일정은 아직 완료할 수 없습니다.');
-                    } else {
-                      handleToggleComplete(item.id, 'button');
-                    }
+                    const locked = getLockedItemToast({ isViewingPast, isViewingFuture });
+                    if (locked) showToast(locked);
+                    else handleToggleComplete(item.id, 'button');
+                  }}
+                  onDisabledPress={() => {
+                    showToast(
+                      getLockedItemToast({ isViewingPast, isViewingFuture })
+                        ?? '이미 완료한 일정이에요',
+                    );
                   }}
                   onSwipeComplete={() => {
                     if (!isViewingPast && !isViewingFuture) {
@@ -799,18 +800,7 @@ export default function TodayScreen() {
         )}
       </ScrollView>
 
-      {/* Ad Banner - in layout flow above the floating tab bar, so it never
-          covers scroll content (e.g. the 완료했어요 CTA on iPhone SE). Takes
-          no space until the banner loads; AdBanner renders null on error. */}
-      <View
-        onLayout={(e) => {
-          const h = Math.round(e.nativeEvent.layout.height);
-          setAdHeight(prev => (prev === h ? prev : h));
-        }}
-      >
-        <AdBanner />
-      </View>
-      {/* Floating tab bar is position:absolute; keep its footprint clear. */}
+      {/* Floating tab bar + ad are position:absolute; keep their footprint clear. */}
       <View style={{ height: bottomLayout.tabBarSpacer }} />
       </View>
 

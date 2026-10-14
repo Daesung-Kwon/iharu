@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { BottomTabBar, BottomTabBarProps, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Platform, Pressable, View, StyleSheet } from 'react-native';
 import { MainTabParamList } from '../types';
@@ -16,6 +16,9 @@ import ActivitiesScreen from '../screens/ActivitiesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { SoftPopColors } from '../constants/theme';
 import { useLayout } from '../hooks/useLayout';
+import { shouldShowAdForRoute, MIN_TOUCH_TARGET } from '../hooks/layoutMetrics';
+import { AdSlotProvider, useAdSlot } from '../contexts/AdSlotContext';
+import { AdBanner } from '../components/AdBanner';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -39,23 +42,62 @@ const CustomTabBarButton = ({ children, onPress, accessibilityState, style, minH
   );
 };
 
-export const MainTabNavigator: React.FC = () => {
+/**
+ * Tab bar + the app's single ad banner directly above it. The whole stack
+ * floats (position absolute); its ad height goes to AdSlotContext so screens
+ * pad by it. Hidden (but kept mounted) on Settings.
+ */
+const TabBarWithAd = (props: BottomTabBarProps) => {
+  const { setAdHeight } = useAdSlot();
+  const routeName = props.state.routes[props.state.index]?.name ?? '';
+  const showAd = shouldShowAdForRoute(routeName);
+  React.useEffect(() => {
+    if (!showAd) setAdHeight(0);
+  }, [showAd, setAdHeight]);
+
+  return (
+    <View style={tabBarStyles.bottomStack} pointerEvents="box-none">
+      <View
+        style={showAd ? undefined : tabBarStyles.hidden}
+        onLayout={(e) => {
+          if (showAd) setAdHeight(e.nativeEvent.layout.height);
+        }}
+      >
+        <AdBanner />
+      </View>
+      <BottomTabBar {...props} />
+    </View>
+  );
+};
+
+// Icon with a pill behind it when selected (clear active state, same size).
+const TabIcon = ({ name, color, focused }: { name: keyof typeof MaterialIcons.glyphMap; color: string; focused: boolean }) => (
+  <View style={[tabBarStyles.iconPill, focused && tabBarStyles.iconPillActive]}>
+    <MaterialIcons name={name} size={24} color={color} />
+  </View>
+);
+
+export const MainTabNavigator: React.FC = () => (
+  <AdSlotProvider>
+    <MainTabs />
+  </AdSlotProvider>
+);
+
+const MainTabs: React.FC = () => {
   // Tier + safe-area aware geometry (SE/home-button: tighter bar with an 8pt
   // floor; notched phones and iPad unchanged). See getTabBarChrome.
   const { tabBarChrome } = useLayout();
 
   return (
     <Tab.Navigator
+      tabBar={(props) => <TabBarWithAd {...props} />}
       screenOptions={{
         headerShown: false, // 각 화면에서 자체 헤더 사용
         tabBarActiveTintColor: SoftPopColors.primary,
         tabBarInactiveTintColor: SoftPopColors.textSecondary,
         // 실제 탭 컨텐츠는 투명/플랫하게 두고, 배경은 tabBarBackground에서만 처리
+        // The wrapper in TabBarWithAd floats; the bar itself stays in its flow.
         tabBarStyle: {
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
           paddingBottom: tabBarChrome.paddingBottom,
           paddingTop: 0,
           height: tabBarChrome.barHeight,
@@ -110,12 +152,10 @@ export const MainTabNavigator: React.FC = () => {
         component={TodayScreen}
         options={{
           title: '오늘의 일정',
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialIcons
-              name="today"
-              size={focused ? 28 : 24}
-              color={color}
-            />
+          tabBarLabel: '오늘',
+          tabBarAccessibilityLabel: '오늘의 일정',
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="today" color={color} focused={focused} />
           ),
         }}
       />
@@ -124,12 +164,10 @@ export const MainTabNavigator: React.FC = () => {
         component={PlanScheduleScreen}
         options={{
           title: '일정 만들기',
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialIcons
-              name="event-note"
-              size={focused ? 28 : 24}
-              color={color}
-            />
+          tabBarLabel: '계획',
+          tabBarAccessibilityLabel: '일정 만들기',
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="event-note" color={color} focused={focused} />
           ),
         }}
       />
@@ -138,12 +176,10 @@ export const MainTabNavigator: React.FC = () => {
         component={ActivitiesScreen}
         options={{
           title: '활동 관리',
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialIcons
-              name="star"
-              size={focused ? 28 : 24}
-              color={color}
-            />
+          tabBarLabel: '활동',
+          tabBarAccessibilityLabel: '활동 관리',
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="format-list-bulleted" color={color} focused={focused} />
           ),
         }}
       />
@@ -152,12 +188,10 @@ export const MainTabNavigator: React.FC = () => {
         component={ProfileScreen}
         options={{
           title: '설정',
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialIcons
-              name="settings"
-              size={focused ? 28 : 24}
-              color={color}
-            />
+          tabBarLabel: '설정',
+          tabBarAccessibilityLabel: '설정',
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name="settings" color={color} focused={focused} />
           ),
         }}
       />
@@ -166,6 +200,25 @@ export const MainTabNavigator: React.FC = () => {
 };
 
 const tabBarStyles = StyleSheet.create({
+  bottomStack: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  hidden: {
+    display: 'none',
+  },
+  iconPill: {
+    width: 56,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconPillActive: {
+    backgroundColor: `${SoftPopColors.primary}26`,
+  },
   tabBarBackground: {
     flex: 1,
     marginHorizontal: 16,
@@ -185,7 +238,7 @@ const tabBarStyles = StyleSheet.create({
     paddingHorizontal: 0,
     borderRadius: 20,
     marginHorizontal: 2,
-    minHeight: 56,
+    minHeight: Math.max(56, MIN_TOUCH_TARGET),
     // iOS 전용 shadow (Android에서는 elevation 제거)
     ...(Platform.OS === 'ios' && {
       shadowColor: '#000',

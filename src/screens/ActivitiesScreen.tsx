@@ -137,7 +137,7 @@ export default function ActivitiesScreen() {
         {activities.length === 0 ? (
           <View style={styles.emptyState}>
             <MaterialIcons
-              name="star-outline"
+              name="format-list-bulleted"
               size={64}
               color={SoftPopColors.textSecondary}
             />
