@@ -23,6 +23,8 @@ interface TodayScheduleItemProps {
   onToggleNotification?: () => void;
   notificationEnabled?: boolean;
   swipeEnabled?: boolean;
+  /** Tap on a dimmed (locked) checkbox: explain why instead of doing nothing. */
+  onDisabledPress?: () => void;
 }
 
 export default function TodayScheduleItem({
@@ -33,6 +35,7 @@ export default function TodayScheduleItem({
   onToggleNotification,
   notificationEnabled = false,
   swipeEnabled = true,
+  onDisabledPress,
 }: TodayScheduleItemProps) {
   const { isCompact, cardRadius } = useLayout();
   const swipeRef = useRef<Swipeable>(null);
@@ -175,8 +178,8 @@ export default function TodayScheduleItem({
           isDisabled && styles.checkboxContainerDisabled,
           pressed && !isDisabled && styles.checkboxContainerPressed,
         ]}
-        onPress={onToggleComplete}
-        disabled={isDisabled}
+        onPress={isDisabled ? onDisabledPress : onToggleComplete}
+        disabled={isDisabled && !onDisabledPress}
         hitSlop={4}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: isCompleted, disabled: isDisabled }}

@@ -107,3 +107,19 @@ export function getCheckboxState({
   }
   return { disabled: false, accessibilityLabel: '완료 표시' };
 }
+
+/**
+ * Why a Today item can't be checked, as a short toast (no dead-end Alert).
+ * null when the item is interactive.
+ */
+export function getLockedItemToast({
+  isViewingPast,
+  isViewingFuture,
+}: {
+  isViewingPast: boolean;
+  isViewingFuture: boolean;
+}): string | null {
+  if (isViewingPast) return '지난 날 일정은 기록만 볼 수 있어요';
+  if (isViewingFuture) return '그날이 되면 완료할 수 있어요';
+  return null;
+}

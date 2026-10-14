@@ -4,8 +4,10 @@
 
 import { Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAdSlot } from '../contexts/AdSlotContext';
 import {
   AD_BANNER_HEIGHT,
+  getBottomChromeOffset,
   getLayoutMetrics,
   getTabBarChrome,
   type LayoutTier,
@@ -54,22 +56,23 @@ export function useLayout() {
   const insets = useSafeAreaInsets();
   const metrics = getLayoutMetrics(width, height);
   const tabBarChrome = getTabBarChrome(metrics.tier, insets.bottom, Platform.OS);
-  const tabBarOffset = tabBarChrome.offset;
+  const { adHeight } = useAdSlot();
+  // tabBarOffset = tab bar + the shared ad banner above it, so every screen
+  // that pads by it keeps its content clear of both.
+  const tabBarOffset = getBottomChromeOffset(tabBarChrome.offset, adHeight);
+  const contentPad = getScrollBottomPadding(insets.bottom, {
+    isCompact: metrics.isCompact,
+    tier: metrics.tier,
+  }) + adHeight;
 
   return {
     ...metrics,
     insets,
     tabBarChrome,
     tabBarOffset,
-    adBannerBottom: tabBarOffset,
-    contentPad: getScrollBottomPadding(insets.bottom, {
-      isCompact: metrics.isCompact,
-      tier: metrics.tier,
-    }),
-    contentPadWithAd: getScrollBottomPadding(insets.bottom, {
-      includeAd: true,
-      isCompact: metrics.isCompact,
-      tier: metrics.tier,
-    }),
+    adHeight,
+    adBannerBottom: tabBarChrome.offset,
+    contentPad,
+    contentPadWithAd: contentPad,
   };
 }
