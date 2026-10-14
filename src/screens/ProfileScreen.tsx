@@ -35,9 +35,14 @@ import LicenseModal from '../components/LicenseModal';
 import { SoftPopColors } from '../constants/theme';
 import { useLayout } from '../hooks/useLayout';
 import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Toast from '../components/Toast';
+import { formatLastBackup } from '../utils/lastBackup';
+
+const LAST_BACKUP_KEY = '@settings.lastBackupAt';
 
 export default function ProfileScreen() {
-  const { isCompact, isLandscape, space, contentPad } = useLayout();
+  const { isCompact, isLandscape, space, contentPad, tabBarOffset } = useLayout();
   const { resetActivities, reloadFromStorage: reloadActivities } = useActivity();
   const { resetSchedules, schedules, reloadFromStorage: reloadSchedules } = useSchedule();
   const [notificationEnabled, setNotificationEnabled] = useState(false);
@@ -50,6 +55,13 @@ export default function ProfileScreen() {
   const [pinModal, setPinModal] = useState<'unlock' | 'set' | 'confirm' | 'remove' | null>(null);
   const [pendingPin, setPendingPin] = useState('');
   const [pinError, setPinError] = useState('');
+  const [lastBackupAt, setLastBackupAt] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastVisible, setToastVisible] = useState(false);
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setToastVisible(true);
+  };
 
   const appVersion = Constants.expoConfig?.version || '1.0.0';
   const appName = Constants.expoConfig?.name || 'i하루';
@@ -62,6 +74,7 @@ export default function ProfileScreen() {
       const pin = await loadSettingsPin();
       setStoredPin(pin);
       setUnlocked(!pin);
+      setLastBackupAt(await AsyncStorage.getItem(LAST_BACKUP_KEY));
     };
     loadSettings();
   }, []);
@@ -131,7 +144,7 @@ export default function ProfileScreen() {
       setStoredPin(pin);
       setUnlocked(true);
       setPinModal(null);
-      Alert.alert('잠금 설정', '설정이 비밀번호로 잠겼어요.');
+      showToast('설정을 잠갔어요');
       return;
     }
     if (pinModal === 'remove') {
@@ -143,7 +156,7 @@ export default function ProfileScreen() {
       setStoredPin(null);
       setUnlocked(true);
       setPinModal(null);
-      Alert.alert('잠금 해제', '설정 잠금을 풀었어요.');
+      showToast('설정 잠금을 껐어요');
     }
   };
 
@@ -154,7 +167,7 @@ export default function ProfileScreen() {
       const data = await exportAllData();
 
       if (!data) {
-        Alert.alert('백업 실패', '데이터를 백업할 수 없습니다.');
+        showToast('백업하지 못했어요. 다시 시도해 주세요');
         return;
       }
 
@@ -175,7 +188,7 @@ export default function ProfileScreen() {
         && !hasNonDefaultLead
         && !hasPin
       ) {
-        Alert.alert('백업할 데이터 없음', '저장된 활동이나 일정이 없습니다.');
+        showToast('백업할 활동이나 일정이 아직 없어요');
         return;
       }
 
@@ -195,10 +208,7 @@ export default function ProfileScreen() {
 
       if (!directory) {
         // 웹 환경 등의 경우
-        Alert.alert(
-          '백업 불가',
-          '이 기기에서는 파일 저장이 지원되지 않습니다.\n\n다른 기기나 앱에서 시도해주세요.'
-        );
+        showToast('이 기기에서는 백업 파일을 만들 수 없어요');
         return;
       }
 
@@ -212,6 +222,10 @@ export default function ProfileScreen() {
       });
 
       console.log('파일 저장 완료:', fileUri);
+      const backedUpAt = new Date().toISOString();
+      await AsyncStorage.setItem(LAST_BACKUP_KEY, backedUpAt);
+      setLastBackupAt(backedUpAt);
+      const doneMessage = `백업했어요. 활동 ${activityCount}개, 일정 ${scheduleCount}개`;
 
       // 파일 공유 (이메일, 클라우드 스토리지, 파일 앱 등으로 저장)
       const isSharingAvailable = await Sharing.isAvailableAsync();
@@ -225,30 +239,18 @@ export default function ProfileScreen() {
             UTI: 'public.json', // iOS
           });
 
-          Alert.alert(
-            '백업 완료',
-            `백업 파일이 생성되었습니다.\n\n활동 ${activityCount}개, 일정 ${scheduleCount}개가 백업되었습니다.\n\n파일을 원하는 위치에 저장하세요.`
-          );
+          showToast(doneMessage);
         } catch (shareError: any) {
           console.error('공유 오류:', shareError);
-          Alert.alert(
-            '백업 완료',
-            `백업 파일이 생성되었습니다.\n\n활동 ${activityCount}개, 일정 ${scheduleCount}개\n\n파일 위치: ${fileUri}\n\n파일 앱에서 확인하거나 다른 앱으로 공유할 수 있습니다.`
-          );
+          showToast(doneMessage);
         }
       } else {
-        Alert.alert(
-          '백업 완료',
-          `백업 파일이 생성되었습니다.\n\n활동 ${activityCount}개, 일정 ${scheduleCount}개\n\n파일 위치: ${fileUri}`
-        );
+        showToast(doneMessage);
       }
     } catch (error: any) {
       console.error('Backup error:', error);
       const errorMessage = error?.message || '알 수 없는 오류';
-      Alert.alert(
-        '백업 실패',
-        `데이터 백업 중 오류가 발생했습니다.\n\n오류: ${errorMessage}\n\n다시 시도해주세요.`
-      );
+      showToast(`백업하지 못했어요: ${errorMessage}`);
     }
   };
 
@@ -273,7 +275,7 @@ export default function ProfileScreen() {
                 if (result.canceled) return;
 
                 if (!result.assets || result.assets.length === 0) {
-                  Alert.alert('복원 실패', '파일을 선택할 수 없습니다.');
+                  showToast('파일을 고르지 못했어요');
                   return;
                 }
 
@@ -287,7 +289,7 @@ export default function ProfileScreen() {
 
                 const data = parseBackupData(fileContent);
                 if (!data) {
-                  Alert.alert('복원 실패', '유효하지 않은 백업 파일입니다.');
+                  showToast('i하루 백업 파일이 아니에요');
                   return;
                 }
 
@@ -310,17 +312,13 @@ export default function ProfileScreen() {
                       data.notificationSettings
                     );
                   }
-                  Alert.alert(
-                    '복원 완료',
-                    '데이터가 복원되었습니다.',
-                    [{ text: '확인' }]
-                  );
+                  showToast('복원했어요');
                 } else {
-                  Alert.alert('복원 실패', '데이터 복원 중 오류가 발생했습니다.');
+                  showToast('복원하지 못했어요. 다시 시도해 주세요');
                 }
               } catch (error) {
                 console.error('Restore error:', error);
-                Alert.alert('복원 실패', '백업 파일을 읽을 수 없습니다. 파일 형식을 확인해주세요.');
+                showToast('백업 파일을 읽지 못했어요');
               }
             }
           }
@@ -328,7 +326,7 @@ export default function ProfileScreen() {
       );
     } catch (error) {
       console.error('Restore error:', error);
-      Alert.alert('복원 실패', '데이터 복원 중 오류가 발생했습니다.');
+      showToast('복원하지 못했어요. 다시 시도해 주세요');
     }
   };
 
@@ -399,16 +397,13 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* 앱 정보 카드 */}
-        <View style={[styles.appInfoCard, isCompact && styles.appInfoCardCompact]}>
-          <View style={styles.avatarContainer}>
-            <Image
-              source={require('../../assets/icon.png')}
-              style={styles.appIcon}
-              resizeMode="contain"
-            />
-          </View>
-          <Text style={styles.appName}>{appName}</Text>
-          <Text style={styles.appVersion}>버전 {appVersion}</Text>
+        <View style={styles.appHeader}>
+          <Image
+            source={require('../../assets/icon.png')}
+            style={styles.appHeaderIcon}
+            resizeMode="contain"
+          />
+          <Text style={styles.appHeaderName}>{appName}</Text>
         </View>
 
         {/* 설정 섹션 */}
@@ -463,12 +458,13 @@ export default function ProfileScreen() {
             }}
           >
             <MaterialIcons
-              name={storedPin ? 'lock-open' : 'lock'}
+              name={storedPin ? 'lock' : 'lock-open'}
               size={28}
               color={SoftPopColors.textSecondary}
             />
-            <Text style={styles.settingText}>
-              {storedPin ? '설정 잠금 해제' : '설정 잠금'}
+            <Text style={styles.settingText}>설정 잠금</Text>
+            <Text style={[styles.stateText, storedPin && styles.stateTextOn]}>
+              {storedPin ? '켜짐' : '꺼짐'}
             </Text>
             <MaterialIcons
               name="chevron-right"
@@ -494,7 +490,10 @@ export default function ProfileScreen() {
               size={28}
               color={SoftPopColors.textSecondary}
             />
-            <Text style={styles.settingText}>데이터 백업</Text>
+            <View style={styles.settingTextBlock}>
+              <Text style={[styles.settingText, styles.settingTextInBlock]}>데이터 백업</Text>
+              <Text style={styles.settingSubText}>{formatLastBackup(lastBackupAt)}</Text>
+            </View>
             <MaterialIcons
               name="chevron-right"
               size={24}
@@ -607,10 +606,24 @@ export default function ProfileScreen() {
               color={SoftPopColors.textSecondary}
             />
           </Pressable>
+
+          <View style={styles.settingItem} accessible accessibilityLabel={`버전 ${appVersion}`}>
+            <MaterialIcons name="info-outline" size={28} color={SoftPopColors.textSecondary} />
+            <Text style={styles.settingText}>버전</Text>
+            <Text style={styles.stateText}>{appVersion}</Text>
+          </View>
         </View>
       </ScrollView>
       )}
 
+
+      <Toast
+        message={toastMessage}
+        visible={toastVisible}
+        duration={2600}
+        bottomOffset={tabBarOffset + 12}
+        onHide={() => setToastVisible(false)}
+      />
 
       {/* 약관 모달 */}
       <TermsModal
@@ -656,6 +669,43 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  appHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  appHeaderIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+  },
+  appHeaderName: {
+    fontSize: 24,
+    color: SoftPopColors.text,
+    fontFamily: 'BMJUA',
+  },
+  stateText: {
+    fontSize: 16,
+    color: SoftPopColors.textSecondary,
+    fontFamily: 'BMJUA',
+    marginRight: 4,
+  },
+  stateTextOn: {
+    color: SoftPopColors.primary,
+  },
+  settingTextBlock: {
+    flex: 1,
+  },
+  settingTextInBlock: {
+    flex: 0,
+  },
+  settingSubText: {
+    fontSize: 13,
+    color: SoftPopColors.textSecondary,
+    fontFamily: 'BMJUA',
+    marginTop: 2,
+  },
   container: {
     flex: 1,
     backgroundColor: SoftPopColors.background, // Cream

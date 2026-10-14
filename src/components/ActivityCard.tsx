@@ -15,8 +15,10 @@ import { ACTIVITY_CARD_MIN_WIDTH } from '../hooks/layoutMetrics';
 
 interface ActivityCardProps {
   activity: Activity;
+  /** Tap: open the edit sheet. */
   onEdit: () => void;
-  onDelete: () => void;
+  /** Long-press: delete shortcut (confirmed by the screen). */
+  onDelete?: () => void;
   /** 동적 그리드용 카드 너비 (미지정 시 180) */
   width?: number;
 }
@@ -26,12 +28,19 @@ export default function ActivityCard({ activity, onEdit, onDelete, width }: Acti
   const cardWidth = width !== undefined ? Math.max(width, ACTIVITY_CARD_MIN_WIDTH) : undefined;
 
   return (
-    <View
-      style={[
+    <Pressable
+      style={({ pressed }) => [
         styles.card,
         { backgroundColor: colorScheme.surface },
-        cardWidth !== undefined && { width: cardWidth }
+        cardWidth !== undefined && { width: cardWidth },
+        pressed && styles.cardPressed,
       ]}
+      onPress={onEdit}
+      onLongPress={onDelete}
+      delayLongPress={500}
+      accessibilityRole="button"
+      accessibilityLabel={`${activity.name}, ${activity.durationMinutes}분`}
+      accessibilityHint="눌러서 수정"
     >
       {/* Emoji/Icon - 배경 완전히 투명 */}
       <View style={styles.emojiContainer}>
@@ -63,44 +72,15 @@ export default function ActivityCard({ activity, onEdit, onDelete, width }: Acti
         </View>
       </View>
 
-      {/* Action Buttons - 배경 완전히 투명 */}
-      <View style={styles.actionsContainer}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.actionButton,
-            pressed && styles.actionButtonPressed
-          ]}
-          onPress={onEdit}
-          accessibilityLabel="활동 수정"
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <MaterialIcons
-            name="edit"
-            size={20}
-            color={SoftPopColors.textSecondary}
-          />
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [
-            styles.actionButton,
-            pressed && styles.actionButtonPressed
-          ]}
-          onPress={onDelete}
-          accessibilityLabel="활동 삭제"
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <MaterialIcons
-            name="delete-outline"
-            size={20}
-            color={SoftPopColors.error}
-          />
-        </Pressable>
-      </View>
-    </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  cardPressed: {
+    transform: [{ scale: 0.97 }],
+    opacity: 0.9,
+  },
   card: {
     width: 180,
     minHeight: 180,
