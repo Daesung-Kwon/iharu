@@ -5,6 +5,11 @@ import { lockReducer, lockView, LockState, LockEvent } from './lockState';
 const run = (s: LockState, ...evs: LockEvent[]) => evs.reduce(lockReducer, s);
 
 describe('lockReducer', () => {
+  it('forgot PIN: the parent check opens settings with the lock off', () => {
+    assert.equal(run('locked', { type: 'RECOVERED' }), 'off');
+    assert.equal(run('loading', { type: 'RECOVERED' }), 'loading');
+    assert.equal(run('locked', { type: 'RECOVERED' }, { type: 'ENABLED' }), 'locked');
+  });
   it('shows neither settings nor gate until the PIN is read', () => {
     assert.equal(lockView('loading'), 'placeholder');
     assert.equal(run('loading', { type: 'LEAVE' }), 'loading');

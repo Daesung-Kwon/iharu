@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Keyboard, Modal, View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Modal, Platform, View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
 import { SoftPopColors } from '../constants/theme';
 import { normalizePin, PIN_LENGTH } from '../utils/pinFlow';
 
@@ -11,6 +11,8 @@ interface PinLockModalProps {
   message?: string;
   confirmLabel?: string;
   onCancel?: () => void;
+  /** Unlock step only: forgot-PIN recovery. */
+  onForgot?: () => void;
   onSubmit: (pin: string) => void;
   errorText?: string;
 }
@@ -29,6 +31,7 @@ export default function PinLockModal({
   message,
   confirmLabel = '확인',
   onCancel,
+  onForgot,
   onSubmit,
   errorText,
 }: PinLockModalProps) {
@@ -68,7 +71,11 @@ export default function PinLockModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.backdrop}>
+      {/* Keep 취소 / 확인 above the number pad on small phones (SE). */}
+      <KeyboardAvoidingView
+        style={styles.backdrop}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <View style={styles.card}>
           <Text style={styles.title}>{title}</Text>
           {message ? <Text style={styles.message}>{message}</Text> : null}
@@ -99,6 +106,11 @@ export default function PinLockModal({
             />
           </Pressable>
           {errorText ? <Text style={styles.error}>{errorText}</Text> : null}
+          {onForgot ? (
+            <Pressable onPress={onForgot} style={styles.forgot} accessibilityRole="button">
+              <Text style={styles.forgotText}>비밀번호를 잊었어요</Text>
+            </Pressable>
+          ) : null}
           <View style={styles.actions}>
             {onCancel && (
               <Pressable onPress={onCancel} style={styles.secondary}>
@@ -113,12 +125,24 @@ export default function PinLockModal({
             </Pressable>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  forgot: {
+    minHeight: 44,
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  forgotText: {
+    fontFamily: 'BMJUA',
+    fontSize: 15,
+    color: SoftPopColors.textSecondary,
+    textDecorationLine: 'underline',
+  },
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.35)',

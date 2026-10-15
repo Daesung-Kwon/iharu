@@ -17,6 +17,8 @@ export type LockEvent =
   | { type: 'UNLOCK_OK' }
   | { type: 'ENABLED' }
   | { type: 'DISABLED' }
+  /** Forgot PIN: the parent check passed and the PIN was removed. */
+  | { type: 'RECOVERED' }
   /** Restore or reset finished: follow the PIN the data now has. */
   | { type: 'DATA_REPLACED'; hasPin: boolean };
 
@@ -33,6 +35,8 @@ export function lockReducer(state: LockState, event: LockEvent): LockState {
     case 'DISABLED':
       // From locked too: rolls back a lock whose save failed.
       return state === 'unlocked' || state === 'locked' ? 'off' : state;
+    case 'RECOVERED':
+      return state === 'locked' ? 'off' : state;
     case 'DATA_REPLACED':
       if (state === 'loading' || state === 'locked') return state;
       return event.hasPin ? 'locked' : 'off';

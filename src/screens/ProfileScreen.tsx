@@ -25,6 +25,8 @@ import {
 } from '../services/notificationService';
 import { loadSettingsPin, saveSettingsPin, clearSettingsPin } from '../services/pinLock';
 import PinLockModal from '../components/PinLockModal';
+import ParentCheckModal from '../components/ParentCheckModal';
+import { initialRecovery, RecoveryState } from '../utils/parentCheck';
 import { NOTIFICATION_LEAD_OPTIONS, NotificationLeadMinutes } from '../utils/dateUtils';
 import { useActivity } from '../contexts/ActivityContext';
 import { useSchedule } from '../contexts/ScheduleContext';
@@ -55,14 +57,17 @@ export default function ProfileScreen() {
   const [storedPin, setStoredPin] = useState<string | null>(null);
   const [lockState, dispatchLock] = useReducer(lockReducer, 'loading');
   const view = lockView(lockState);
-  const [pinModal, setPinModal] = useState<'unlock' | 'set' | 'confirm' | 'remove' | null>(null);
+  const [pinModal, setPinModal] = useState<'unlock' | 'set' | 'confirm' | 'remove' | 'recover' | null>(null);
+  const [recovery, setRecovery] = useState<RecoveryState>(initialRecovery);
   const [pendingPin, setPendingPin] = useState('');
   const [pinError, setPinError] = useState('');
   const [lastBackupAt, setLastBackupAt] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
-  const showToast = (message: string) => {
+  const [toastAction, setToastAction] = useState<{ label: string; onPress: () => void } | undefined>();
+  const showToast = (message: string, action?: { label: string; onPress: () => void }) => {
     setToastMessage(message);
+    setToastAction(action);
     setToastVisible(true);
   };
 
@@ -104,6 +109,40 @@ export default function ProfileScreen() {
     setPinModal('unlock');
   };
 
+  // Forgot PIN. From the unlock modal, let it finish closing first: iOS
+  // won't present a second modal while one is still dismissing.
+  const openRecover = (fromModal: boolean) => {
+    setPinError('');
+    if (!fromModal) {
+      setPinModal('recover');
+      return;
+    }
+    setPinModal(null);
+    setTimeout(() => setPinModal('recover'), 450);
+  };
+
+  const openSetPin = () => {
+    setPinError('');
+    setPinModal('set');
+  };
+
+  const handleRecovered = async () => {
+    setStoredPin(null);
+    setPendingPin('');
+    dispatchLock({ type: 'RECOVERED' });
+    setPinModal(null);
+    setRecovery(initialRecovery);
+    showToast('잠금을 껐어요. 새 비밀번호를 정해 주세요', {
+      label: '정하기',
+      onPress: openSetPin,
+    });
+    try {
+      await clearSettingsPin();
+    } catch {
+      showToast('잠금을 끄지 못했어요. 다시 시도해 주세요');
+    }
+  };
+
   const handleNotificationToggle = async (value: boolean) => {
     if (value) {
       const hasPermission = await requestNotificationPermissions();
@@ -133,7 +172,7 @@ export default function ProfileScreen() {
   };
 
   const handlePinSubmit = async (pin: string) => {
-    const decision = decidePinStep({ mode: pinModal, pin, storedPin, pendingPin });
+    const decision = decidePinStep({ mode: pinModal === 'recover' ? null : pinModal, pin, storedPin, pendingPin });
     switch (decision.kind) {
       case 'ignore':
         return;
@@ -413,6 +452,14 @@ export default function ProfileScreen() {
           <View style={styles.lockButton}>
             <Text style={styles.lockButtonText}>잠금 풀기</Text>
           </View>
+          <Pressable
+            onPress={() => openRecover(false)}
+            style={styles.forgotLink}
+            accessibilityRole="button"
+            hitSlop={8}
+          >
+            <Text style={styles.forgotLinkText}>비밀번호를 잊었어요</Text>
+          </Pressable>
         </Pressable>
       ) : (
       <ScrollView
@@ -647,9 +694,14 @@ export default function ProfileScreen() {
       <Toast
         message={toastMessage}
         visible={toastVisible}
-        duration={2600}
+        duration={toastAction ? 5000 : 2600}
+        actionLabel={toastAction?.label}
+        onAction={toastAction?.onPress}
         bottomOffset={tabBarOffset + 12}
-        onHide={() => setToastVisible(false)}
+        onHide={() => {
+          setToastVisible(false);
+          setToastAction(undefined);
+        }}
       />
 
       {/* 약관 모달 */}
@@ -671,7 +723,8 @@ export default function ProfileScreen() {
       />
 
       <PinLockModal
-        visible={pinModal !== null}
+        visible={pinModal !== null && pinModal !== 'recover'}
+        onForgot={pinModal === 'unlock' ? () => openRecover(true) : undefined}
         stepKey={pinModal ?? 'closed'}
         title={
           pinModal === 'unlock' ? '잠금 풀기'
@@ -693,6 +746,13 @@ export default function ProfileScreen() {
           setPinError('');
         }}
         onSubmit={handlePinSubmit}
+      />
+      <ParentCheckModal
+        visible={pinModal === 'recover'}
+        recovery={recovery}
+        onRecoveryChange={setRecovery}
+        onPass={handleRecovered}
+        onCancel={() => setPinModal(null)}
       />
     </SafeAreaView>
   );
@@ -765,6 +825,18 @@ const styles = StyleSheet.create({
     fontFamily: 'BMJUA',
     color: SoftPopColors.textSecondary,
     textAlign: 'center',
+  },
+  forgotLink: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    marginTop: 4,
+  },
+  forgotLinkText: {
+    fontFamily: 'BMJUA',
+    fontSize: 15,
+    color: SoftPopColors.textSecondary,
+    textDecorationLine: 'underline',
   },
   lockButton: {
     marginTop: 12,
