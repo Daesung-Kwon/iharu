@@ -4,11 +4,13 @@
  * Soft Pop 3D (Claymorphism) 디자인 적용
  */
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useActivity } from '../contexts/ActivityContext';
+import { useSchedule } from '../contexts/ScheduleContext';
+import { groupActivitiesByUsage } from '../utils/activityGroups';
 import ActivityCard from '../components/ActivityCard';
 import ActivityFormModal from '../components/ActivityFormModal';
 import { Activity } from '../types';
@@ -23,12 +25,13 @@ export default function ActivitiesScreen() {
     space,
     titleSize,
     activityColumns,
-    tabBarOffset,
     contentPad,
     cardRadius,
   } = useLayout();
   const clayShadow = getClayShadow(isCompact);
   const { activities, addActivity, updateActivity, deleteActivity } = useActivity();
+  const { schedules } = useSchedule();
+  const groups = useMemo(() => groupActivitiesByUsage(activities, schedules), [activities, schedules]);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
@@ -71,7 +74,11 @@ export default function ActivitiesScreen() {
         {
           text: '삭제',
           style: 'destructive',
-          onPress: () => deleteActivity(activityId),
+          onPress: () => {
+            deleteActivity(activityId);
+            setModalVisible(false);
+            setEditingActivity(null);
+          },
         },
       ]
     );
@@ -102,25 +109,16 @@ export default function ActivitiesScreen() {
           <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleSize + 8 }]}>
             활동 관리
           </Text>
-          <Text style={styles.subtitle}>자주 하는 활동들을 저장해두세요</Text>
         </View>
-        {!isCompact && (
-          <Pressable
-            style={({ pressed }) => [
-              styles.fab,
-              pressed && styles.fabPressed
-            ]}
-            onPress={handleAddActivity}
-            accessibilityLabel="새 활동 추가"
-            accessibilityRole="button"
-          >
-            <MaterialIcons
-              name="add"
-              size={28}
-              color={SoftPopColors.white}
-            />
-          </Pressable>
-        )}
+        <Pressable
+          style={({ pressed }) => [styles.addButton, pressed && styles.fabPressed]}
+          onPress={handleAddActivity}
+          accessibilityLabel="활동 추가"
+          accessibilityRole="button"
+        >
+          <MaterialIcons name="add" size={22} color={SoftPopColors.white} />
+          <Text style={styles.addButtonText}>활동 추가</Text>
+        </Pressable>
       </View>
 
       <ScrollView
@@ -129,7 +127,7 @@ export default function ActivitiesScreen() {
           styles.content,
           {
             padding: space,
-            paddingBottom: contentPad + (isCompact ? 80 : 0),
+            paddingBottom: contentPad,
           }
         ]}
         showsVerticalScrollIndicator={false}
@@ -147,40 +145,30 @@ export default function ActivitiesScreen() {
             </Text>
           </View>
         ) : (
-          <View style={[styles.activityGrid, { gap: GAP }]}>
-            {activities.map((activity) => (
-              <ActivityCard
-                key={activity.id}
-                activity={activity}
-                onEdit={() => handleEditActivity(activity.id)}
-                onDelete={() => handleDeleteActivity(activity.id)}
-                width={cardWidth}
-              />
+          <View style={{ gap: GAP + 4 }}>
+            {groups.map((group) => (
+              <View key={group.key} style={{ gap: 10 }}>
+                {group.label && (
+                  <Text style={styles.groupTitle} accessibilityRole="header">
+                    {group.label}
+                  </Text>
+                )}
+                <View style={[styles.activityGrid, { gap: GAP }]}>
+                  {group.items.map((activity) => (
+                    <ActivityCard
+                      key={activity.id}
+                      activity={activity}
+                      onEdit={() => handleEditActivity(activity.id)}
+                      onDelete={() => handleDeleteActivity(activity.id)}
+                      width={cardWidth}
+                    />
+                  ))}
+                </View>
+              </View>
             ))}
           </View>
         )}
       </ScrollView>
-
-      {isCompact && (
-        <Pressable
-          // Thumb-zone: header FAB is out of reach on phones
-          style={({ pressed }) => [
-            styles.fab,
-            styles.fabCompact,
-            { right: space, bottom: tabBarOffset + 12 },
-            pressed && styles.fabPressed
-          ]}
-          onPress={handleAddActivity}
-          accessibilityLabel="새 활동 추가"
-          accessibilityRole="button"
-        >
-          <MaterialIcons
-            name="add"
-            size={28}
-            color={SoftPopColors.white}
-          />
-        </Pressable>
-      )}
 
       <ActivityFormModal
         visible={modalVisible}
@@ -190,12 +178,32 @@ export default function ActivitiesScreen() {
           setEditingActivity(null);
         }}
         onSubmit={handleSubmitActivity}
+        onDelete={editingActivity ? () => handleDeleteActivity(editingActivity.id) : undefined}
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    minHeight: 44,
+    paddingHorizontal: 14,
+    borderRadius: 22,
+    backgroundColor: SoftPopColors.primary,
+  },
+  addButtonText: {
+    color: SoftPopColors.white,
+    fontSize: 16,
+    fontFamily: 'BMJUA',
+  },
+  groupTitle: {
+    fontSize: 16,
+    color: SoftPopColors.textSecondary,
+    fontFamily: 'BMJUA',
+  },
   container: {
     flex: 1,
     backgroundColor: SoftPopColors.background, // Cream

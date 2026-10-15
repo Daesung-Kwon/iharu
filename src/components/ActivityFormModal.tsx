@@ -29,6 +29,8 @@ interface ActivityFormModalProps {
   activity?: Activity | null; // null이면 추가 모드, 있으면 수정 모드
   onClose: () => void;
   onSubmit: (activity: Omit<Activity, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  /** Edit mode only: asks for confirmation, then deletes. */
+  onDelete?: () => void;
 }
 
 const COLOR_OPTIONS: ActivityColor[] = [
@@ -53,6 +55,7 @@ export default function ActivityFormModal({
   activity,
   onClose,
   onSubmit,
+  onDelete,
 }: ActivityFormModalProps) {
   const insets = useSafeAreaInsets();
   const { isCompact, space } = useLayout();
@@ -297,6 +300,17 @@ export default function ActivityFormModal({
                 ))}
               </View>
             </View>
+            {isEditMode && onDelete && (
+              <Pressable
+                style={({ pressed }) => [styles.deleteRow, pressed && styles.buttonPressed]}
+                onPress={onDelete}
+                accessibilityRole="button"
+                accessibilityLabel="이 활동 삭제"
+              >
+                <MaterialIcons name="delete-outline" size={20} color={SoftPopColors.error} />
+                <Text style={styles.deleteRowText}>이 활동 삭제</Text>
+              </Pressable>
+            )}
           </ScrollView>
 
           {/* Footer Buttons */}
@@ -337,6 +351,20 @@ export default function ActivityFormModal({
 }
 
 const styles = StyleSheet.create({
+  deleteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 44,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  deleteRowText: {
+    color: SoftPopColors.error,
+    fontSize: 16,
+    fontFamily: 'BMJUA',
+  },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
