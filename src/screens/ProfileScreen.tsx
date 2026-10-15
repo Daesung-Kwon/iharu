@@ -4,7 +4,7 @@
  * 필수 기능만 구현 (개인정보 수집 최소화)
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Switch, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -38,6 +38,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from '../components/Toast';
 import { formatLastBackup } from '../utils/lastBackup';
+import { decidePinStep } from '../utils/pinFlow';
 
 const LAST_BACKUP_KEY = '@settings.lastBackupAt';
 
@@ -79,17 +80,22 @@ export default function ProfileScreen() {
     loadSettings();
   }, []);
 
+  // Latest PIN for the blur cleanup. Depending on storedPin re-ran the
+  // effect on every lock change and fired the old cleanup mid-flow.
+  const storedPinRef = useRef<string | null>(null);
+  storedPinRef.current = storedPin;
   useFocusEffect(
     useCallback(() => {
       return () => {
-        if (storedPin) {
+        if (storedPinRef.current) {
           setUnlocked(false);
           setPinModal(null);
           setPinError('');
         }
       };
-    }, [storedPin])
+    }, [])
   );
+
 
   const handleNotificationToggle = async (value: boolean) => {
     if (value) {
@@ -120,43 +126,54 @@ export default function ProfileScreen() {
   };
 
   const handlePinSubmit = async (pin: string) => {
-    setPinError('');
-    if (pinModal === 'unlock') {
-      if (pin === storedPin) {
+    const decision = decidePinStep({ mode: pinModal, pin, storedPin, pendingPin });
+    switch (decision.kind) {
+      case 'ignore':
+        return;
+      case 'error':
+        setPinError(decision.message);
+        return;
+      case 'unlocked':
+        setPinError('');
         setUnlocked(true);
         setPinModal(null);
-      } else {
-        setPinError('비밀번호가 달라요');
-      }
-      return;
-    }
-    if (pinModal === 'set') {
-      setPendingPin(pin);
-      setPinModal('confirm');
-      return;
-    }
-    if (pinModal === 'confirm') {
-      if (pin !== pendingPin) {
-        setPinError('다시 입력한 숫자가 달라요');
+        return;
+      case 'toConfirm':
+        setPinError('');
+        setPendingPin(decision.pendingPin);
+        setPinModal('confirm');
+        return;
+      case 'save': {
+        // Close first so the screen responds at once; then persist.
+        setPinError('');
+        setPendingPin('');
+        setStoredPin(decision.pin);
+        setUnlocked(true);
+        setPinModal(null);
+        showToast('설정을 잠갔어요');
+        try {
+          await saveSettingsPin(decision.pin);
+        } catch {
+          setStoredPin(null);
+          showToast('잠금을 저장하지 못했어요. 다시 시도해 주세요');
+        }
         return;
       }
-      await saveSettingsPin(pin);
-      setStoredPin(pin);
-      setUnlocked(true);
-      setPinModal(null);
-      showToast('설정을 잠갔어요');
-      return;
-    }
-    if (pinModal === 'remove') {
-      if (pin !== storedPin) {
-        setPinError('비밀번호가 달라요');
+      case 'clear': {
+        const previous = storedPin;
+        setPinError('');
+        setStoredPin(null);
+        setUnlocked(true);
+        setPinModal(null);
+        showToast('설정 잠금을 껐어요');
+        try {
+          await clearSettingsPin();
+        } catch {
+          setStoredPin(previous);
+          showToast('잠금을 끄지 못했어요. 다시 시도해 주세요');
+        }
         return;
       }
-      await clearSettingsPin();
-      setStoredPin(null);
-      setUnlocked(true);
-      setPinModal(null);
-      showToast('설정 잠금을 껐어요');
     }
   };
 
@@ -645,6 +662,7 @@ export default function ProfileScreen() {
 
       <PinLockModal
         visible={pinModal !== null}
+        stepKey={pinModal ?? 'closed'}
         title={
           pinModal === 'unlock' ? '비밀번호'
             : pinModal === 'set' ? '잠금 숫자 4자리'
