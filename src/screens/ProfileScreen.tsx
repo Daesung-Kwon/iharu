@@ -4,8 +4,8 @@
  * 필수 기능만 구현 (개인정보 수집 최소화)
  */
 
-import React, { useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Switch, Image, Platform } from 'react-native';
+import React, { useState, useCallback, useRef, useReducer, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Switch, Image, Platform, AppState } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
@@ -39,6 +39,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from '../components/Toast';
 import { formatLastBackup } from '../utils/lastBackup';
 import { decidePinStep } from '../utils/pinFlow';
+import { lockReducer, lockView } from '../utils/lockState';
 
 const LAST_BACKUP_KEY = '@settings.lastBackupAt';
 
@@ -52,7 +53,8 @@ export default function ProfileScreen() {
   const [showLicense, setShowLicense] = useState(false);
   const [leadMinutes, setLeadMinutes] = useState<NotificationLeadMinutes>(5);
   const [storedPin, setStoredPin] = useState<string | null>(null);
-  const [unlocked, setUnlocked] = useState(true);
+  const [lockState, dispatchLock] = useReducer(lockReducer, 'loading');
+  const view = lockView(lockState);
   const [pinModal, setPinModal] = useState<'unlock' | 'set' | 'confirm' | 'remove' | null>(null);
   const [pendingPin, setPendingPin] = useState('');
   const [pinError, setPinError] = useState('');
@@ -69,33 +71,38 @@ export default function ProfileScreen() {
 
   React.useEffect(() => {
     const loadSettings = async () => {
+      // PIN first: until it is known the screen shows a neutral placeholder.
+      const pin = await loadSettingsPin();
+      setStoredPin(pin);
+      dispatchLock({ type: 'LOADED', hasPin: Boolean(pin) });
       const enabled = await loadNotificationsMasterEnabled();
       setNotificationEnabled(enabled);
       setLeadMinutes(await loadNotificationLeadMinutes());
-      const pin = await loadSettingsPin();
-      setStoredPin(pin);
-      setUnlocked(!pin);
       setLastBackupAt(await AsyncStorage.getItem(LAST_BACKUP_KEY));
     };
     loadSettings();
   }, []);
 
-  // Latest PIN for the blur cleanup. Depending on storedPin re-ran the
-  // effect on every lock change and fired the old cleanup mid-flow.
-  const storedPinRef = useRef<string | null>(null);
-  storedPinRef.current = storedPin;
-  useFocusEffect(
-    useCallback(() => {
-      return () => {
-        if (storedPinRef.current) {
-          setUnlocked(false);
-          setPinModal(null);
-          setPinError('');
-        }
-      };
-    }, [])
-  );
+  // Leaving the tab or backgrounding the app re-locks and closes any PIN
+  // step, so the gate is already up when the screen is seen again.
+  const leave = useCallback(() => {
+    dispatchLock({ type: 'LEAVE' });
+    setPinModal(null);
+    setPendingPin('');
+    setPinError('');
+  }, []);
+  useFocusEffect(useCallback(() => leave, [leave]));
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'background') leave();
+    });
+    return () => sub.remove();
+  }, [leave]);
 
+  const openUnlock = () => {
+    setPinError('');
+    setPinModal('unlock');
+  };
 
   const handleNotificationToggle = async (value: boolean) => {
     if (value) {
@@ -135,7 +142,7 @@ export default function ProfileScreen() {
         return;
       case 'unlocked':
         setPinError('');
-        setUnlocked(true);
+        dispatchLock({ type: 'UNLOCK_OK' });
         setPinModal(null);
         return;
       case 'toConfirm':
@@ -148,13 +155,14 @@ export default function ProfileScreen() {
         setPinError('');
         setPendingPin('');
         setStoredPin(decision.pin);
-        setUnlocked(true);
+        dispatchLock({ type: 'ENABLED' });
         setPinModal(null);
         showToast('설정을 잠갔어요');
         try {
           await saveSettingsPin(decision.pin);
         } catch {
           setStoredPin(null);
+          dispatchLock({ type: 'DISABLED' });
           showToast('잠금을 저장하지 못했어요. 다시 시도해 주세요');
         }
         return;
@@ -163,13 +171,14 @@ export default function ProfileScreen() {
         const previous = storedPin;
         setPinError('');
         setStoredPin(null);
-        setUnlocked(true);
+        dispatchLock({ type: 'DISABLED' });
         setPinModal(null);
         showToast('설정 잠금을 껐어요');
         try {
           await clearSettingsPin();
         } catch {
           setStoredPin(previous);
+          dispatchLock({ type: 'ENABLED' });
           showToast('잠금을 끄지 못했어요. 다시 시도해 주세요');
         }
         return;
@@ -321,7 +330,7 @@ export default function ProfileScreen() {
                   setLeadMinutes(await loadNotificationLeadMinutes());
                   const pin = await loadSettingsPin();
                   setStoredPin(pin);
-                  setUnlocked(!pin);
+                  dispatchLock({ type: 'DATA_REPLACED', hasPin: Boolean(pin) });
                   await cancelAllNotifications();
                   if (enabled) {
                     await rescheduleUpcomingNotifications(
@@ -366,7 +375,7 @@ export default function ProfileScreen() {
               setLeadMinutes(await loadNotificationLeadMinutes());
               const pin = await loadSettingsPin();
               setStoredPin(pin);
-              setUnlocked(!pin);
+              dispatchLock({ type: 'DATA_REPLACED', hasPin: Boolean(pin) });
               await cancelAllNotifications();
               Alert.alert('완료', '모든 데이터가 삭제되었습니다.');
             } catch (error) {
@@ -389,21 +398,22 @@ export default function ProfileScreen() {
           : ['top'] // iOS는 기존 유지
       }
     >
-      {!unlocked ? (
-        <View style={[styles.lockGate, { padding: space }]}>
+      {view === 'placeholder' ? (
+        <View style={styles.lockGate} accessibilityLabel="설정 불러오는 중" />
+      ) : view === 'gate' ? (
+        <Pressable
+          style={[styles.lockGate, { padding: space }]}
+          onPress={openUnlock}
+          accessibilityRole="button"
+          accessibilityLabel="설정이 잠겨 있어요. 잠금 풀기"
+        >
           <MaterialIcons name="lock" size={48} color={SoftPopColors.primary} />
           <Text style={styles.lockTitle}>설정이 잠겨 있어요</Text>
           <Text style={styles.lockMessage}>부모님만 바꿀 수 있게 잠가 두었어요.</Text>
-          <Pressable
-            style={styles.lockButton}
-            onPress={() => {
-              setPinError('');
-              setPinModal('unlock');
-            }}
-          >
-            <Text style={styles.lockButtonText}>비밀번호 입력</Text>
-          </Pressable>
-        </View>
+          <View style={styles.lockButton}>
+            <Text style={styles.lockButtonText}>잠금 풀기</Text>
+          </View>
+        </Pressable>
       ) : (
       <ScrollView
         style={styles.scrollView}
@@ -664,17 +674,19 @@ export default function ProfileScreen() {
         visible={pinModal !== null}
         stepKey={pinModal ?? 'closed'}
         title={
-          pinModal === 'unlock' ? '비밀번호'
+          pinModal === 'unlock' ? '잠금 풀기'
             : pinModal === 'set' ? '잠금 숫자 4자리'
               : pinModal === 'confirm' ? '한 번 더 입력'
-                : '잠금 해제'
+                : '잠금 끄기'
         }
         message={
-          pinModal === 'set' ? '아이가 설정을 바꾸지 못하게 잠가 두세요.'
+          pinModal === 'unlock' ? '잠금 숫자 4자리를 눌러 주세요.'
+            : pinModal === 'remove' ? '끄려면 지금 잠금 숫자 4자리를 눌러 주세요.'
+            : pinModal === 'set' ? '아이가 설정을 바꾸지 못하게 잠가 두세요.'
             : pinModal === 'confirm' ? '같은 숫자 4자리를 다시 눌러 주세요.'
               : undefined
         }
-        confirmLabel={pinModal === 'remove' ? '잠금 풀기' : '확인'}
+        confirmLabel={pinModal === 'remove' ? '잠금 끄기' : '확인'}
         errorText={pinError}
         onCancel={() => {
           setPinModal(null);

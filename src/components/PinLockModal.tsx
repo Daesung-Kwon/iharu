@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
+import { Keyboard, Modal, View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
 import { SoftPopColors } from '../constants/theme';
 import { normalizePin, PIN_LENGTH } from '../utils/pinFlow';
 
@@ -43,6 +43,12 @@ export default function PinLockModal({
     setPin('');
     submittedRef.current = false;
   }, [visible, stepKey]);
+
+  // Closing the modal does not always take the number pad with it on iOS;
+  // drop it so the screen underneath shows cleanly.
+  useEffect(() => {
+    if (!visible) Keyboard.dismiss();
+  }, [visible]);
 
   const submit = (value: string) => {
     if (value.length !== PIN_LENGTH || submittedRef.current) return;
