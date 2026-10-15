@@ -17,6 +17,7 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getSheetBottomPadding, SHEET_MAX_WIDTH } from '../utils/safeArea';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Activity, ActivityColor, ActivityCategory } from '../types';
 import { ActivityEmojis, EmojiList, EmojiToMaterialIcon } from '../constants/emojis';
@@ -316,10 +317,8 @@ export default function ActivityFormModal({
           {/* Footer Buttons */}
           <View style={[
             styles.footer,
-            { padding: space },
-            Platform.OS === 'android' && {
-              marginBottom: Math.max(insets.bottom, 16),
-            }
+            // Same rule on iOS and Android: clear the home indicator / nav bar.
+            { padding: space, paddingBottom: getSheetBottomPadding(insets.bottom) },
           ]}>
             <Pressable
               style={({ pressed }) => [
@@ -371,6 +370,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContainer: {
+    width: '100%',
+    maxWidth: SHEET_MAX_WIDTH,
+    alignSelf: 'center',
     backgroundColor: SoftPopColors.white,
     borderTopLeftRadius: 32, // rounded-3xl
     borderTopRightRadius: 32,

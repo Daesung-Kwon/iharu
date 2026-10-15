@@ -5,9 +5,9 @@
 import { Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAdSlot } from '../contexts/AdSlotContext';
+import { getBottomChrome, getScrollEndPadding, getSheetBottomPadding } from '../utils/safeArea';
 import {
   AD_BANNER_HEIGHT,
-  getBottomChromeOffset,
   getLayoutMetrics,
   getTabBarChrome,
   type LayoutTier,
@@ -19,7 +19,6 @@ export {
   computeTabBarOffset,
   getClayShadow,
   getFittedActivityColumns,
-  getInFlowBottomLayout,
   getLayoutMetrics,
   getLayoutTier,
   getTabBarChrome,
@@ -57,22 +56,23 @@ export function useLayout() {
   const metrics = getLayoutMetrics(width, height);
   const tabBarChrome = getTabBarChrome(metrics.tier, insets.bottom, Platform.OS);
   const { adHeight } = useAdSlot();
-  // tabBarOffset = tab bar + the shared ad banner above it, so every screen
-  // that pads by it keeps its content clear of both.
-  const tabBarOffset = getBottomChromeOffset(tabBarChrome.offset, adHeight);
-  const contentPad = getScrollBottomPadding(insets.bottom, {
-    isCompact: metrics.isCompact,
-    tier: metrics.tier,
-  }) + adHeight;
+  // bottomChrome = tab bar + the shared ad above it (see utils/safeArea).
+  // Screens never add the bottom inset themselves: it is already inside.
+  const bottomChrome = getBottomChrome(tabBarChrome.offset, adHeight);
+  const scrollEndPadding = getScrollEndPadding(bottomChrome);
 
   return {
     ...metrics,
     insets,
     tabBarChrome,
-    tabBarOffset,
+    /** Same as bottomChrome; kept for floating buttons and toasts. */
+    tabBarOffset: bottomChrome,
+    bottomChrome,
     adHeight,
     adBannerBottom: tabBarChrome.offset,
-    contentPad,
-    contentPadWithAd: contentPad,
+    /** The one paddingBottom for every tab screen's scroll content. */
+    scrollEndPadding,
+    contentPad: scrollEndPadding,
+    sheetBottomPadding: getSheetBottomPadding(insets.bottom),
   };
 }
