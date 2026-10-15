@@ -25,7 +25,7 @@ export default function PrivacyModal({ visible, onClose }: PrivacyModalProps) {
     >
       <SafeAreaView
         style={styles.container}
-        edges={Platform.OS === 'android' ? ['top', 'bottom'] : ['top']}
+        edges={['top', 'bottom']}
       >
         {/* Header */}
         <View style={styles.header}>

@@ -6,7 +6,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, Pressable, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenContainer from '../components/ScreenContainer';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useActivity } from '../contexts/ActivityContext';
 import { useSchedule } from '../contexts/ScheduleContext';
@@ -36,6 +36,7 @@ export default function PlanScheduleScreen() {
     space,
     titleSize,
     tabBarOffset,
+    scrollEndPadding,
     cardRadius,
   } = useLayout();
   const clayShadow = getClayShadow(isCompact);
@@ -214,7 +215,7 @@ export default function PlanScheduleScreen() {
             style={styles.scheduleItemsList}
             contentContainerStyle={[
               styles.scheduleItemsListContent,
-              { paddingBottom: tabBarOffset + 8 },
+              { paddingBottom: scrollEndPadding },
             ]}
             showsVerticalScrollIndicator={false}
           >
@@ -235,7 +236,7 @@ export default function PlanScheduleScreen() {
         onTimeSlotPress={handleTimeSlotPress}
         onRemoveItem={removeScheduleItem}
         draggingActivity={draggingActivity}
-        contentPaddingBottom={tabBarOffset + 8}
+        contentPaddingBottom={scrollEndPadding}
         showNowLine={isToday(toLocalDateString(selectedDate))}
         initialScrollTime={isToday(toLocalDateString(selectedDate)) ? undefined : '07:00'}
       />
@@ -243,15 +244,7 @@ export default function PlanScheduleScreen() {
   );
 
   return (
-    <SafeAreaView
-      style={[styles.container, isLandscape && styles.containerLandscape]}
-      edges={isLandscape
-        ? []
-        : Platform.OS === 'android'
-          ? ['top', 'bottom']
-          : ['top']
-      }
-    >
+    <ScreenContainer style={isLandscape && styles.containerLandscape}>
       {draggingActivity && !isCompact && (
         <View style={[
           styles.draggingIndicator,
@@ -375,7 +368,7 @@ export default function PlanScheduleScreen() {
           style={styles.contentCompact}
           contentContainerStyle={[
             styles.contentCompactInner,
-            { paddingHorizontal: space, gap: 12, paddingBottom: tabBarOffset + 16 },
+            { paddingHorizontal: space, gap: 12, paddingBottom: scrollEndPadding },
           ]}
         >
           <View style={[styles.schedulePanel, styles.schedulePanelCompact, { padding: space }]}>
@@ -531,7 +524,7 @@ export default function PlanScheduleScreen() {
           </View>
         </View>
       )}
-    </SafeAreaView>
+    </ScreenContainer>
   );
 }
 

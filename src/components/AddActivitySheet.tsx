@@ -5,6 +5,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, View, Text, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getSheetBottomPadding, SHEET_MAX_WIDTH } from '../utils/safeArea';
 import { MaterialIcons } from '@expo/vector-icons';
 import ActivityIcon from './ActivityIcon';
 import { Activity } from '../types';
@@ -78,7 +79,7 @@ export default function AddActivitySheet({ visible, activities, items, nowMin, o
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="닫기" />
-      <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
+      <View style={[styles.sheet, { paddingBottom: getSheetBottomPadding(insets.bottom) }]}>
         <View style={styles.headerRow}>
           <Text style={styles.title}>활동 추가</Text>
           <Pressable onPress={onClose} style={styles.close} accessibilityLabel="닫기">
@@ -203,7 +204,7 @@ export default function AddActivitySheet({ visible, activities, items, nowMin, o
 const font = { fontFamily: 'BMJUA' } as const;
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
-  sheet: { backgroundColor: SoftPopColors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 16, paddingTop: 8, gap: 8 },
+  sheet: { width: '100%', maxWidth: SHEET_MAX_WIDTH, alignSelf: 'center', backgroundColor: SoftPopColors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 16, paddingTop: 8, gap: 8 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { ...font, fontSize: 20, color: SoftPopColors.text },
   close: { width: MIN_TOUCH_TARGET, height: MIN_TOUCH_TARGET, alignItems: 'center', justifyContent: 'center' },
