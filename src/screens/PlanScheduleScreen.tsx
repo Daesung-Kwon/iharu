@@ -522,7 +522,12 @@ export default function PlanScheduleScreen() {
                         : SELECT_INSTRUCTION}
                     </Text>
                   </View>
-                  <View style={styles.activityCardsWrapper}>
+                  {/* Past day: cards are visibly inactive, not silently dead. */}
+                  <View
+                    style={[styles.activityCardsWrapper, !canEdit && { opacity: 0.4 }]}
+                    pointerEvents={canEdit ? 'auto' : 'none'}
+                    accessibilityElementsHidden={!canEdit}
+                  >
                     {renderActivityCards('list')}
                   </View>
                 </View>
