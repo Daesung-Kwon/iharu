@@ -9,6 +9,8 @@ import { View, Text, StyleSheet, Modal, Pressable, Animated, Platform } from 're
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SoftPopColors } from '../constants/theme';
+import ModalBackdrop from './ModalBackdrop';
+import { modalStyles } from '../constants/modalStyle';
 
 interface CelebrationModalProps {
   visible: boolean;
@@ -114,8 +116,9 @@ export default function CelebrationModal({ visible, onClose }: CelebrationModalP
       animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
-        <Animated.View style={[styles.modalContainer, modalStyle]}>
+      <View style={modalStyles.dialogOverlay}>
+        <ModalBackdrop onPress={onClose} />
+        <Animated.View style={[modalStyles.dialog, styles.modalContainer, modalStyle]}>
           {/* Confetti Effect */}
           <Animated.View style={[styles.confettiContainer, confettiStyle]}>
             {[...Array(12)].map((_, i) => {
@@ -183,26 +186,10 @@ export default function CelebrationModal({ visible, onClose }: CelebrationModalP
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   modalContainer: {
-    backgroundColor: SoftPopColors.white,
-    borderRadius: 32, // rounded-3xl (더 크게)
     padding: 40,
     alignItems: 'center',
     maxWidth: 400,
-    borderWidth: 2,
-    borderColor: SoftPopColors.white,
-    // Strong floating effect
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
   },
   confettiContainer: {
     position: 'absolute',

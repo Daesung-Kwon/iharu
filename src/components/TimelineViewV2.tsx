@@ -27,12 +27,15 @@ interface TimelineViewV2Props {
   initialScrollTime?: string;
   contentPaddingBottom?: number;
   showNowLine?: boolean;
+  /** Past day: no '+ 활동 추가' slots and no delete buttons. */
+  readOnly?: boolean;
 }
 
 export default function TimelineViewV2({
   scheduleItems,
   onTimeSlotPress,
   onRemoveItem,
+  readOnly = false,
   draggingActivity,
   initialScrollTime = '07:00',
   contentPaddingBottom,
@@ -183,17 +186,20 @@ export default function TimelineViewV2({
                   styles.dropZone,
                   draggingActivity && !hasConflict && styles.dropZoneActive,
                   hasConflict && styles.dropZoneConflict,
-                  pressed && !hasConflict && styles.dropZonePressed
+                  pressed && !hasConflict && styles.dropZonePressed,
+                  readOnly && styles.dropZoneReadOnly,
                 ]}
                 onPress={() => onTimeSlotPress?.(time)}
-                disabled={hasConflict}
+                disabled={hasConflict || readOnly}
               >
                 <Text style={[
                   styles.dropZoneText,
                   draggingActivity && !hasConflict && styles.dropZoneTextActive,
                   hasConflict && styles.dropZoneTextConflict
                 ]}>
-                  {hasConflict
+                  {readOnly
+                    ? ''
+                    : hasConflict
                     ? '⚠️ 시간 겹침'
                     : draggingActivity
                       ? `${draggingActivity.name} 추가`
@@ -259,7 +265,7 @@ export default function TimelineViewV2({
                       {formatTime(scheduleItem.startTime)} - {formatTime(scheduleItem.endTime)}
                     </Text>
                   </View>
-                  <Pressable
+                  {!readOnly && <Pressable
                     style={({ pressed }) => [
                       styles.removeButton,
                       isShort && styles.removeButtonShort,
@@ -270,7 +276,7 @@ export default function TimelineViewV2({
                     accessibilityLabel={`${scheduleItem.activity?.name || '활동'} 삭제`}
                   >
                     <Text style={[styles.removeButtonText, isShort && styles.removeButtonTextShort]}>✕</Text>
-                  </Pressable>
+                  </Pressable>}
                 </View>
               </View>
             </View>
@@ -493,6 +499,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: SoftPopColors.error,
     fontFamily: 'BMJUA',
+  },
+  dropZoneReadOnly: {
+    borderColor: 'transparent',
+    backgroundColor: 'transparent',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   dropZone: {
     flex: 1,

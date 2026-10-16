@@ -5,11 +5,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, View, Text, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getSheetBottomPadding, SHEET_MAX_WIDTH } from '../utils/safeArea';
+import { getSheetBottomPadding } from '../utils/safeArea';
 import { MaterialIcons } from '@expo/vector-icons';
 import ActivityIcon from './ActivityIcon';
 import { Activity } from '../types';
 import { SoftPopColors } from '../constants/theme';
+import ModalBackdrop from './ModalBackdrop';
+import { modalStyles } from '../constants/modalStyle';
 import { MIN_TOUCH_TARGET } from '../hooks/useLayout';
 import {
   DAY_END_MIN, MAX_DURATION, MIN_DURATION, SpanItem, TIME_STEP_MIN,
@@ -78,11 +80,16 @@ export default function AddActivitySheet({ visible, activities, items, nowMin, o
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="닫기" />
-      <View style={[styles.sheet, { paddingBottom: getSheetBottomPadding(insets.bottom) }]}>
+      <View style={modalStyles.sheetOverlay}>
+      <ModalBackdrop onPress={onClose} />
+      <View style={[modalStyles.sheet, styles.sheet, { paddingBottom: getSheetBottomPadding(insets.bottom) }]}>
         <View style={styles.headerRow}>
-          <Text style={styles.title}>활동 추가</Text>
-          <Pressable onPress={onClose} style={styles.close} accessibilityLabel="닫기">
+          <Text style={modalStyles.title}>활동 추가</Text>
+          <Pressable
+            onPress={onClose}
+            style={({ pressed }) => [modalStyles.closeButton, pressed && modalStyles.closeButtonPressed]}
+            accessibilityLabel="닫기"
+          >
             <MaterialIcons name="close" size={24} color={SoftPopColors.text} />
           </Pressable>
         </View>
@@ -197,17 +204,15 @@ export default function AddActivitySheet({ visible, activities, items, nowMin, o
           </Text>
         </Pressable>
       </View>
+      </View>
     </Modal>
   );
 }
 
 const font = { fontFamily: 'BMJUA' } as const;
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
-  sheet: { width: '100%', maxWidth: SHEET_MAX_WIDTH, alignSelf: 'center', backgroundColor: SoftPopColors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 16, paddingTop: 8, gap: 8 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { ...font, fontSize: 20, color: SoftPopColors.text },
-  close: { width: MIN_TOUCH_TARGET, height: MIN_TOUCH_TARGET, alignItems: 'center', justifyContent: 'center' },
+  sheet: { paddingHorizontal: 20, paddingTop: 16, gap: 8 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   label: { ...font, fontSize: 14, color: SoftPopColors.textSecondary, marginTop: 4 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 2 },
   search: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: MIN_TOUCH_TARGET, paddingLeft: 12, borderRadius: 14, backgroundColor: SoftPopColors.background },
