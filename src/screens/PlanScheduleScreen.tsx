@@ -4,7 +4,7 @@
  * Soft Pop 3D (Claymorphism) 디자인 적용
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, Pressable, Platform } from 'react-native';
 import ScreenContainer from '../components/ScreenContainer';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -19,7 +19,13 @@ import { SoftPopColors } from '../constants/theme';
 import { getClayShadow, MIN_TOUCH_TARGET, useLayout } from '../hooks/useLayout';
 import { isToday } from '../utils/statsUtils';
 import { toLocalDateString } from '../utils/dateUtils';
-import { confirmDeleteAllSchedule } from '../utils/planActions';
+import {
+  confirmCopyToToday,
+  confirmDeleteAllSchedule,
+  isPlanDayEditable,
+  PAST_DAY_NOTICE,
+  WEEKDAYS_ADDED_MESSAGE,
+} from '../utils/planActions';
 import { sortByStart } from '../utils/planList';
 import { orderByUsage } from '../utils/activityPicker';
 import AddActivitySheet from '../components/AddActivitySheet';
@@ -49,6 +55,7 @@ export default function PlanScheduleScreen() {
     addScheduleItem,
     removeScheduleItem,
     removeAllScheduleItems,
+    copyScheduleToDate,
   } = useSchedule();
   const [viewMode, setViewMode] = useState<'summary' | 'timeline'>('timeline');
   const [draggingActivity, setDraggingActivity] = useState<Activity | null>(null);
@@ -57,6 +64,34 @@ export default function PlanScheduleScreen() {
 
   const currentSchedule = getScheduleForDate(selectedDate);
   const scheduleItems = currentSchedule?.items || [];
+  // Past days are read-only, like the Today tab. Today itself (even items
+  // whose time has passed) and future days stay editable.
+  const canEdit = isPlanDayEditable(selectedDate);
+
+  useEffect(() => {
+    if (!canEdit) {
+      setDraggingActivity(null);
+      setSheetOpen(false);
+    }
+  }, [canEdit]);
+
+  const handleCopyToToday = () => {
+    const today = new Date();
+    confirmCopyToToday({
+      alert: Alert.alert,
+      date: selectedDate,
+      todayHasItems: (getScheduleForDate(today)?.items.length ?? 0) > 0,
+      onCopy: (overwrite) => {
+        if (copyScheduleToDate(selectedDate, today, { overwrite })) {
+          setSelectedDate(today);
+        } else {
+          Alert.alert('일정을 복사하지 못했어요', '잠시 후 다시 시도해 주세요.');
+        }
+      },
+    });
+  };
+
+  const removeItem = canEdit ? removeScheduleItem : undefined;
   const pickerActivities = useMemo(() => orderByUsage(activities, schedules), [activities, schedules]);
 
   const handleDateChange = (direction: 'prev' | 'next') => {
@@ -74,7 +109,7 @@ export default function PlanScheduleScreen() {
     if (success) {
       setDraggingActivity(null);
       if (weekdays) {
-        Alert.alert('월~금 반복', '이번 주 월~금에 같은 시간으로 넣었어요. 이미 일정이 있는 날은 건너뛰었습니다.');
+        Alert.alert('월~금 반복', WEEKDAYS_ADDED_MESSAGE);
       }
     } else {
       const duration = activity.durationMinutes;
@@ -94,7 +129,7 @@ export default function PlanScheduleScreen() {
   const saveFromSheet = (activity: Activity, time: string, weekdays: boolean) => {
     const ok = addScheduleItem(selectedDate, activity, time, { weekdays });
     if (ok && weekdays) {
-      Alert.alert('월~금 반복', '이번 주 월~금에 같은 시간으로 넣었어요. 이미 일정이 있는 날은 건너뛰었습니다.');
+      Alert.alert('월~금 반복', WEEKDAYS_ADDED_MESSAGE);
     }
     return ok;
   };
@@ -109,6 +144,7 @@ export default function PlanScheduleScreen() {
   };
 
   const handleTimeSlotPress = (time: string) => {
+    if (!canEdit) return;
     if (draggingActivity) {
       const activity = draggingActivity;
       Alert.alert(
@@ -131,6 +167,7 @@ export default function PlanScheduleScreen() {
   };
 
   const handleSelectActivity = (activity: Activity) => {
+    if (!canEdit) return;
     console.log('드래그 모드 시작:', activity.name);
     setDraggingActivity(activity);
   };
@@ -180,7 +217,11 @@ export default function PlanScheduleScreen() {
           </View>
         </View>
 
-        {scheduleItems.length === 0 ? (
+        {scheduleItems.length === 0 && !canEdit ? (
+          <View style={[styles.dropZone, isCompact && styles.dropZoneCompact]}>
+            <Text style={styles.dropZoneText}>이날은 일정이 없었어요</Text>
+          </View>
+        ) : scheduleItems.length === 0 ? (
           <Pressable
             style={({ pressed }) => [
               styles.dropZone,
@@ -223,7 +264,7 @@ export default function PlanScheduleScreen() {
               <ScheduleItemCard
                 key={item.id}
                 scheduleItem={item}
-                onRemove={() => removeScheduleItem(item.id)}
+                onRemove={removeItem && (() => removeItem(item.id))}
                 compact={isCompact}
               />
             ))}
@@ -233,8 +274,9 @@ export default function PlanScheduleScreen() {
     ) : (
       <TimelineViewV2
         scheduleItems={scheduleItems}
-        onTimeSlotPress={handleTimeSlotPress}
-        onRemoveItem={removeScheduleItem}
+        onTimeSlotPress={canEdit ? handleTimeSlotPress : undefined}
+        onRemoveItem={removeItem}
+        readOnly={!canEdit}
         draggingActivity={draggingActivity}
         contentPaddingBottom={scrollEndPadding}
         showNowLine={isToday(toLocalDateString(selectedDate))}
@@ -331,6 +373,31 @@ export default function PlanScheduleScreen() {
         </View>
       </View>
 
+      {!canEdit && (
+        <View style={[styles.pastNotice, { marginHorizontal: space, marginTop: isCompact ? 8 : space }]}>
+          <MaterialIcons name="lock-outline" size={18} color={SoftPopColors.textSecondary} />
+          <Text style={styles.pastNoticeText} numberOfLines={1}>{PAST_DAY_NOTICE}</Text>
+          {scheduleItems.length > 0 ? (
+            <Pressable
+              style={({ pressed }) => [styles.pastNoticeAction, pressed && styles.dateButtonPressed]}
+              onPress={handleCopyToToday}
+              accessibilityLabel="이 일정을 오늘로 복사"
+            >
+              <MaterialIcons name="content-copy" size={16} color={SoftPopColors.primary} />
+              <Text style={styles.pastNoticeActionText}>오늘로 복사</Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              style={({ pressed }) => [styles.pastNoticeAction, pressed && styles.dateButtonPressed]}
+              onPress={() => setSelectedDate(new Date())}
+              accessibilityLabel="오늘로 이동"
+            >
+              <Text style={styles.pastNoticeActionText}>오늘로 가기</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+
       {isCompact ? (
         // Phones: time-ordered list + "+ 추가" sheet (no slot grid, so no partly covered dead slots).
         // Header with '+ 추가' is pinned above the scroll so it stays reachable with many items.
@@ -339,7 +406,7 @@ export default function PlanScheduleScreen() {
               <Text style={styles.panelTitle}>
                 {scheduleItems.length > 0 ? `일정 ${scheduleItems.length}개, ${totalMinutes}분` : '일정표'}
               </Text>
-              {scheduleItems.length > 0 && (
+              {canEdit && scheduleItems.length > 0 && (
                 <View style={styles.phoneHeaderActions}>
                 <Pressable
                   style={({ pressed }) => [
@@ -372,7 +439,12 @@ export default function PlanScheduleScreen() {
           ]}
         >
           <View style={[styles.schedulePanel, styles.schedulePanelCompact, { padding: space }]}>
-            {scheduleItems.length === 0 ? (
+            {scheduleItems.length === 0 && !canEdit ? (
+              <View style={styles.phoneEmpty}>
+                <MaterialIcons name="event-busy" size={48} color={SoftPopColors.textSecondary} />
+                <Text style={styles.phoneEmptyText}>이날은 일정이 없었어요</Text>
+              </View>
+            ) : scheduleItems.length === 0 ? (
               <View style={styles.phoneEmpty}>
                 <MaterialIcons name="event-available" size={48} color={SoftPopColors.textSecondary} />
                 <Text style={styles.phoneEmptyText}>이날은 아직 일정이 없어요</Text>
@@ -391,7 +463,7 @@ export default function PlanScheduleScreen() {
                   <ScheduleItemCard
                     key={item.id}
                     scheduleItem={item}
-                    onRemove={() => removeScheduleItem(item.id)}
+                    onRemove={removeItem && (() => removeItem(item.id))}
                   />
                 ))}
               </View>
@@ -443,7 +515,9 @@ export default function PlanScheduleScreen() {
                       color={SoftPopColors.primary}
                     />
                     <Text style={styles.instructionText}>
-                      {draggingActivity
+                      {!canEdit
+                        ? PAST_DAY_NOTICE
+                        : draggingActivity
                         ? '✨ 타임라인에서 원하는 시간을 탭하세요!'
                         : SELECT_INSTRUCTION}
                     </Text>
@@ -464,7 +538,7 @@ export default function PlanScheduleScreen() {
                 color={SoftPopColors.secondary}
               />
               <Text style={styles.panelTitle}>일정표</Text>
-              {scheduleItems.length > 0 && (
+              {canEdit && scheduleItems.length > 0 && (
                 <Pressable
                   style={({ pressed }) => [
                     styles.deleteAllButton,
@@ -798,6 +872,36 @@ const styles = StyleSheet.create({
   instructionTextCompact: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  pastNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingLeft: 14,
+    paddingRight: 6,
+    minHeight: 48,
+    borderRadius: 16,
+    backgroundColor: SoftPopColors.white,
+  },
+  pastNoticeText: {
+    flex: 1,
+    fontFamily: 'BMJUA',
+    fontSize: 15,
+    color: SoftPopColors.textSecondary,
+  },
+  pastNoticeAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    minHeight: MIN_TOUCH_TARGET,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: '#FFF0F0',
+  },
+  pastNoticeActionText: {
+    fontFamily: 'BMJUA',
+    fontSize: 14,
+    color: SoftPopColors.primary,
   },
   deleteAllButton: {
     minHeight: MIN_TOUCH_TARGET,

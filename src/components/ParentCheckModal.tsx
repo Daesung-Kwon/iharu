@@ -5,6 +5,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Modal, Platform, View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
 import { SoftPopColors } from '../constants/theme';
+import ModalBackdrop from './ModalBackdrop';
+import { modalStyles } from '../constants/modalStyle';
 import {
   cooldownSecondsLeft,
   isCorrectAnswer,
@@ -89,11 +91,12 @@ export default function ParentCheckModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       {/* Keep 취소 / 확인 above the number pad on small phones (SE). */}
       <KeyboardAvoidingView
-        style={styles.backdrop}
+        style={modalStyles.dialogOverlay}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.card}>
-          <Text style={styles.title}>어른 확인</Text>
+        <ModalBackdrop />
+        <View style={modalStyles.dialog}>
+          <Text style={[modalStyles.title, styles.title]}>어른 확인</Text>
           <Text style={styles.body}>
             문제를 풀면 잠금이 꺼져요. 그다음 새 비밀번호를 정할 수 있어요.
           </Text>
@@ -145,9 +148,7 @@ export default function ParentCheckModal({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', padding: 32 },
-  card: { backgroundColor: SoftPopColors.white, borderRadius: 24, padding: 24 },
-  title: { fontSize: 22, fontFamily: 'BMJUA', color: SoftPopColors.text, marginBottom: 8 },
+  title: { marginBottom: 8 },
   body: { fontSize: 15, fontFamily: 'BMJUA', color: SoftPopColors.textSecondary, lineHeight: 22, marginBottom: 16 },
   problem: { fontSize: 32, fontFamily: 'BMJUA', color: SoftPopColors.text, textAlign: 'center', marginBottom: 12 },
   input: {

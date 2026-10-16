@@ -17,12 +17,14 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getSheetBottomPadding, SHEET_MAX_WIDTH } from '../utils/safeArea';
+import { getSheetBottomPadding } from '../utils/safeArea';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Activity, ActivityColor, ActivityCategory } from '../types';
 import { ActivityEmojis, EmojiList, EmojiToMaterialIcon } from '../constants/emojis';
 import { ActivityMaterialColors } from '../constants/materialDesign';
 import { SoftPopColors } from '../constants/theme';
+import ModalBackdrop from './ModalBackdrop';
+import { modalStyles } from '../constants/modalStyle';
 import { useLayout } from '../hooks/useLayout';
 
 interface ActivityFormModalProps {
@@ -117,16 +119,18 @@ export default function ActivityFormModal({
       transparent={true}
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
-        <View style={styles.modalContainer}>
+      <View style={modalStyles.sheetOverlay}>
+        {/* No tap-to-close: an accidental tap would lose what was typed. */}
+        <ModalBackdrop />
+        <View style={[modalStyles.sheet, styles.modalContainer]}>
           <View style={[styles.header, { padding: space }]}>
-            <Text style={styles.title}>
+            <Text style={modalStyles.title}>
               {isEditMode ? '활동 수정' : '새 활동 추가'}
             </Text>
             <Pressable
               style={({ pressed }) => [
-                styles.closeButton,
-                pressed && styles.closeButtonPressed
+                modalStyles.closeButton,
+                pressed && modalStyles.closeButtonPressed
               ]}
               onPress={onClose}
               accessibilityLabel="닫기"
@@ -364,27 +368,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'BMJUA',
   },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
   modalContainer: {
-    width: '100%',
-    maxWidth: SHEET_MAX_WIDTH,
-    alignSelf: 'center',
-    backgroundColor: SoftPopColors.white,
-    borderTopLeftRadius: 32, // rounded-3xl
-    borderTopRightRadius: 32,
     maxHeight: '90%',
-    borderWidth: 2,
-    borderColor: SoftPopColors.white,
-    // Strong floating effect
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
   },
   header: {
     flexDirection: 'row',
@@ -393,34 +378,6 @@ const styles = StyleSheet.create({
     padding: 32,
     borderBottomWidth: 2,
     borderBottomColor: SoftPopColors.background,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: Platform.OS === 'android' ? 'normal' : '700',
-    color: SoftPopColors.text,
-    lineHeight: 32,
-    fontFamily: 'BMJUA',
-  },
-  closeButton: {
-    width: 48,
-    height: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: SoftPopColors.background,
-    borderRadius: 24, // rounded-full
-    // 3D pressable effect
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  closeButtonPressed: {
-    transform: [{ scale: 0.95 }],
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 1,
   },
   content: {
     padding: 32,

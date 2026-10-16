@@ -49,3 +49,50 @@ export const confirmDeleteAllSchedule = (params: {
     { text: DELETE_ALL_CONFIRM, style: 'destructive', onPress: onConfirm },
   ]);
 };
+
+/* ── Past days are read-only (same rule as the Today tab) ───────────────── */
+
+export const PAST_DAY_NOTICE = '지난 날은 기록만 볼 수 있어요';
+
+const dayNumber = (d: Date): number => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+
+/**
+ * Plan can add / delete / clear only on today or later (local calendar day).
+ * Today stays fully editable, including items whose time has already passed,
+ * so a slip in today's plan can still be fixed.
+ */
+export const isPlanDayEditable = (date: Date, today: Date = new Date()): boolean =>
+  dayNumber(date) >= dayNumber(today);
+
+/** "월~금 반복" never writes into days that are already over. */
+export const filterEditableDays = (dates: Date[], today: Date = new Date()): Date[] =>
+  dates.filter(d => isPlanDayEditable(d, today));
+
+export const WEEKDAYS_ADDED_MESSAGE =
+  '이번 주 월~금에 같은 시간으로 넣었어요. 지난 날과 이미 일정이 있는 날은 건너뛰었어요.';
+
+export const COPY_TITLE = '일정 복사';
+export const getCopyMessage = (date: Date, todayHasItems: boolean, today: Date = new Date()): string =>
+  todayHasItems
+    ? '오늘 이미 일정이 있습니다. 기존 일정을 삭제하고 복사하시겠습니까?'
+    : `${formatPlanDayLabel(date, today)} 일정을 오늘로 복사하시겠습니까?`;
+
+/**
+ * The way out of a read-only past day: copy it to today (Today and Plan share this).
+ * `onCopy(overwrite)` runs only from the confirm button.
+ */
+export const confirmCopyToToday = (params: {
+  alert: AlertFn;
+  date: Date;
+  todayHasItems: boolean;
+  onCopy: (overwrite: boolean) => void;
+  today?: Date;
+}): void => {
+  const { alert, date, todayHasItems, onCopy, today } = params;
+  alert(COPY_TITLE, getCopyMessage(date, todayHasItems, today), [
+    { text: '취소', style: 'cancel' },
+    todayHasItems
+      ? { text: '삭제하고 복사', style: 'destructive', onPress: () => onCopy(true) }
+      : { text: '복사', onPress: () => onCopy(false) },
+  ]);
+};

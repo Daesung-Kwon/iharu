@@ -9,6 +9,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { MainTabParamList } from '../types';
 import ScreenContainer from '../components/ScreenContainer';
+import { confirmCopyToToday } from '../utils/planActions';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSchedule } from '../contexts/ScheduleContext';
 import TodayScheduleItem from '../components/TodayScheduleItem';
@@ -278,52 +279,19 @@ export default function TodayScreen() {
 
   const handleCopyToToday = () => {
     const today = new Date();
-    const todaySchedule = getScheduleForDate(today);
-
-    // 오늘 이미 일정이 있는지 확인
-    if (todaySchedule && todaySchedule.items.length > 0) {
-      Alert.alert(
-        '일정 복사',
-        '오늘 이미 일정이 있습니다. 기존 일정을 삭제하고 복사하시겠습니까?',
-        [
-          { text: '취소', style: 'cancel' },
-          {
-            text: '삭제하고 복사',
-            style: 'destructive',
-            onPress: () => {
-              const success = copyScheduleToDate(selectedDate, today, { overwrite: true });
-              if (success) {
-                setSelectedDate(today);
-                showToast('오늘로 복사했어요');
-              } else {
-                showToast('일정을 복사하지 못했어요');
-              }
-            }
-          },
-        ]
-      );
-    } else {
-      // 오늘 일정이 없으면 바로 복사
-      Alert.alert(
-        '일정 복사',
-        `${selectedDate.toLocaleDateString('ko-KR')} 일정을 오늘로 복사하시겠습니까?`,
-        [
-          { text: '취소', style: 'cancel' },
-          {
-            text: '복사',
-            onPress: () => {
-              const success = copyScheduleToDate(selectedDate, today);
-              if (success) {
-                setSelectedDate(today);
-                showToast('오늘로 복사했어요');
-              } else {
-                showToast('일정을 복사하지 못했어요');
-              }
-            }
-          },
-        ]
-      );
-    }
+    confirmCopyToToday({
+      alert: Alert.alert,
+      date: selectedDate,
+      todayHasItems: (getScheduleForDate(today)?.items.length ?? 0) > 0,
+      onCopy: (overwrite) => {
+        if (copyScheduleToDate(selectedDate, today, { overwrite })) {
+          setSelectedDate(today);
+          showToast('오늘로 복사했어요');
+        } else {
+          showToast('일정을 복사하지 못했어요');
+        }
+      },
+    });
   };
 
   return (
