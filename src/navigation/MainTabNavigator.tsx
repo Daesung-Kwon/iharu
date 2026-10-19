@@ -45,7 +45,7 @@ const CustomTabBarButton = ({ children, onPress, accessibilityState, style, minH
 /**
  * Tab bar + the app's single ad banner directly above it. The whole stack
  * floats (position absolute); its ad height goes to AdSlotContext so screens
- * pad by it. Hidden (but kept mounted) on Settings.
+ * pad by it. Not mounted on Settings (no ad request there).
  */
 const TabBarWithAd = (props: BottomTabBarProps) => {
   const { setAdHeight } = useAdSlot();
@@ -57,14 +57,12 @@ const TabBarWithAd = (props: BottomTabBarProps) => {
 
   return (
     <View style={tabBarStyles.bottomStack} pointerEvents="box-none">
-      <View
-        style={showAd ? undefined : tabBarStyles.hidden}
-        onLayout={(e) => {
-          if (showAd) setAdHeight(e.nativeEvent.layout.height);
-        }}
-      >
-        <AdBanner />
-      </View>
+      {/* Settings: unmounted, not just hidden, so no ad request runs there. */}
+      {showAd && (
+        <View onLayout={(e) => setAdHeight(e.nativeEvent.layout.height)}>
+          <AdBanner />
+        </View>
+      )}
       <BottomTabBar {...props} />
     </View>
   );
@@ -205,9 +203,6 @@ const tabBarStyles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-  },
-  hidden: {
-    display: 'none',
   },
   iconPill: {
     width: 56,
