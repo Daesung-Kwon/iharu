@@ -5,77 +5,45 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AppData, parseBackupData } from './backupData';
-import { NotificationLeadMinutes } from '../utils/dateUtils';
+import { AppData, appDataFromStorage, appDataToStorage, parseBackupData } from './backupData';
+import { BACKUP_READ_KEYS, KEYS, RESET_KEYS } from './storageKeys';
+import { runMigrations, MigrationResult } from './schema';
 
 export { AppData, isValidAppData, parseBackupData } from './backupData';
-
-export const KEYS = {
-  APP_VERSION: '@app_version',
-  USER_ID: '@user_id',
-  ACTIVITIES: '@daily_schedule_activities',
-  SCHEDULES: '@daily_schedule_schedules',
-  DELETED_DEFAULTS: '@daily_schedule_deleted_defaults',
-  NOTIFICATIONS: '@daily_schedule_notifications',
-  NOTIFICATIONS_ENABLED: '@settings.notificationsEnabled',
-  NOTIFICATION_LEAD_MINUTES: '@settings.notificationLeadMinutes',
-  SETTINGS_PIN: '@settings.pin',
-  SETTINGS: '@settings',
-  LAST_SYNC: '@last_sync',
-  MIGRATED: '@migrated',
-} as const;
+export { KEYS } from './storageKeys';
 
 const CURRENT_VERSION = '1.0.0';
 
-function parseStoredLeadMinutes(stored: string | null): NotificationLeadMinutes {
-  const parsed = stored ? Number(stored) : 5;
-  if (parsed === 0 || parsed === 5 || parsed === 10) {
-    return parsed;
-  }
-  return 5;
-}
+let migrationInFlight: Promise<MigrationResult> | null = null;
 
-function parseStoredPin(stored: string | null): string | null {
-  return stored && /^\d{4}$/.test(stored) ? stored : null;
-}
+/**
+ * Bring stored data up to CURRENT_SCHEMA_VERSION before anything reads it.
+ * Concurrent callers share one run; later calls (e.g. after a restore) run
+ * again, which is a no-op when the data is already current.
+ */
+export const ensureSchema = (): Promise<MigrationResult> => {
+  if (!migrationInFlight) {
+    migrationInFlight = runMigrations({
+      getItem: key => AsyncStorage.getItem(key),
+      setItem: (key, value) => AsyncStorage.setItem(key, value),
+    }).finally(() => {
+      migrationInFlight = null;
+    });
+  }
+  return migrationInFlight;
+};
 
 /**
  * 앱 데이터 전체 내보내기 (백업용)
  */
 export const exportAllData = async (): Promise<AppData | null> => {
   try {
-    const [
-      activities,
-      schedules,
-      userId,
-      deletedDefaultIds,
-      notificationSettings,
-      notificationsEnabled,
-      notificationLeadMinutes,
-      settingsPin,
-    ] = await Promise.all([
-      AsyncStorage.getItem(KEYS.ACTIVITIES),
-      AsyncStorage.getItem(KEYS.SCHEDULES),
-      AsyncStorage.getItem(KEYS.USER_ID),
-      AsyncStorage.getItem(KEYS.DELETED_DEFAULTS),
-      AsyncStorage.getItem(KEYS.NOTIFICATIONS),
-      AsyncStorage.getItem(KEYS.NOTIFICATIONS_ENABLED),
-      AsyncStorage.getItem(KEYS.NOTIFICATION_LEAD_MINUTES),
-      AsyncStorage.getItem(KEYS.SETTINGS_PIN),
-    ]);
-
-    return {
-      version: CURRENT_VERSION,
-      userId: userId || generateUserId(),
-      activities: activities ? JSON.parse(activities) : [],
-      schedules: schedules ? JSON.parse(schedules) : [],
-      deletedDefaultIds: deletedDefaultIds ? JSON.parse(deletedDefaultIds) : [],
-      notificationSettings: notificationSettings ? JSON.parse(notificationSettings) : {},
-      notificationsEnabled: notificationsEnabled === null ? true : notificationsEnabled === 'true',
-      notificationLeadMinutes: parseStoredLeadMinutes(notificationLeadMinutes),
-      settingsPin: parseStoredPin(settingsPin),
-      lastSync: new Date().toISOString(),
-    };
+    const pairs = await AsyncStorage.multiGet(BACKUP_READ_KEYS);
+    return appDataFromStorage(Object.fromEntries(pairs), {
+      appVersion: CURRENT_VERSION,
+      fallbackUserId: generateUserId(),
+      nowIso: new Date().toISOString(),
+    });
   } catch (error) {
     console.error('Failed to export data:', error);
     return null;
@@ -93,26 +61,10 @@ export const importAllData = async (data: unknown): Promise<boolean> => {
   }
 
   try {
-    await Promise.all([
-      AsyncStorage.setItem(KEYS.ACTIVITIES, JSON.stringify(parsed.activities)),
-      AsyncStorage.setItem(KEYS.SCHEDULES, JSON.stringify(parsed.schedules)),
-      AsyncStorage.setItem(KEYS.USER_ID, parsed.userId),
-      AsyncStorage.setItem(KEYS.APP_VERSION, parsed.version),
-      AsyncStorage.setItem(KEYS.DELETED_DEFAULTS, JSON.stringify(parsed.deletedDefaultIds)),
-      AsyncStorage.setItem(KEYS.NOTIFICATIONS, JSON.stringify(parsed.notificationSettings)),
-      AsyncStorage.setItem(
-        KEYS.NOTIFICATIONS_ENABLED,
-        parsed.notificationsEnabled ? 'true' : 'false'
-      ),
-      AsyncStorage.setItem(
-        KEYS.NOTIFICATION_LEAD_MINUTES,
-        String(parsed.notificationLeadMinutes)
-      ),
-      parsed.settingsPin
-        ? AsyncStorage.setItem(KEYS.SETTINGS_PIN, parsed.settingsPin)
-        : AsyncStorage.removeItem(KEYS.SETTINGS_PIN),
-    ]);
-
+    const { set, remove } = appDataToStorage(parsed);
+    await AsyncStorage.multiSet(set);
+    if (remove.length > 0) await AsyncStorage.multiRemove(remove);
+    await ensureSchema();
     console.log('Data imported successfully');
     return true;
   } catch (error) {
@@ -126,17 +78,7 @@ export const importAllData = async (data: unknown): Promise<boolean> => {
  */
 export const clearAllData = async (): Promise<boolean> => {
   try {
-    await AsyncStorage.multiRemove([
-      KEYS.ACTIVITIES,
-      KEYS.SCHEDULES,
-      KEYS.DELETED_DEFAULTS,
-      KEYS.NOTIFICATIONS,
-      KEYS.NOTIFICATIONS_ENABLED,
-      KEYS.NOTIFICATION_LEAD_MINUTES,
-      KEYS.SETTINGS_PIN,
-      KEYS.SETTINGS,
-      KEYS.LAST_SYNC,
-    ]);
+    await AsyncStorage.multiRemove(RESET_KEYS);
 
     console.log('All data cleared');
     return true;
@@ -206,6 +148,7 @@ export const checkVersion = async (): Promise<string> => {
 };
 
 export default {
+  ensureSchema,
   exportAllData,
   importAllData,
   clearAllData,
