@@ -11,6 +11,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { SoftPopColors } from '../constants/theme';
 import ModalBackdrop from './ModalBackdrop';
 import { modalStyles } from '../constants/modalStyle';
+import { useReduceMotion } from '../hooks/useReduceMotion';
 
 interface CelebrationModalProps {
   visible: boolean;
@@ -19,12 +20,21 @@ interface CelebrationModalProps {
 
 export default function CelebrationModal({ visible, onClose }: CelebrationModalProps) {
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReduceMotion();
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const rotationAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const confettiScaleAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (visible && reduceMotion) {
+      // Reduce Motion: just appear (fade-in only), no spin or bounce.
+      scaleAnim.setValue(1);
+      rotationAnim.setValue(0);
+      confettiScaleAnim.setValue(1);
+      Animated.timing(opacityAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+      return;
+    }
     if (visible) {
       // Modal scale animation
       Animated.spring(scaleAnim, {
@@ -42,20 +52,12 @@ export default function CelebrationModal({ visible, onClose }: CelebrationModalP
       }).start();
 
       // Rotation animation (continuous)
-      const rotateAnimation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(rotationAnim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(rotationAnim, {
-            toValue: 0,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ])
-      );
+      // One calm turn, not an endless spin.
+      const rotateAnimation = Animated.timing(rotationAnim, {
+        toValue: 1,
+        duration: 900,
+        useNativeDriver: true,
+      });
       rotateAnimation.start();
 
       // Confetti scale animation
@@ -82,7 +84,7 @@ export default function CelebrationModal({ visible, onClose }: CelebrationModalP
       opacityAnim.setValue(0);
       confettiScaleAnim.setValue(0);
     }
-  }, [visible]);
+  }, [visible, reduceMotion]);
 
   const modalStyle = {
     transform: [{ scale: scaleAnim }],

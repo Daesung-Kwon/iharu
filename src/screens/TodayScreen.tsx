@@ -21,6 +21,10 @@ import { getItemStatus, getNextActivity, getCurrentActivity, getMinutesUntil, fo
 import { calculateDayStats, isToday, isPast, isFuture } from '../utils/statsUtils';
 import { toLocalDateString } from '../utils/dateUtils';
 import { playCompleteFeedback } from '../utils/feedback';
+import { DAY_DONE_QUIET_MESSAGE, dayDoneMoment, feedbackForToggle } from '../utils/instantReward';
+import ProgressFill from '../components/ProgressFill';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { KEYS } from '../services/storageKeys';
 import { getLockedItemToast, getUndoStatus, planToggleComplete } from '../utils/completionLogic';
 import ActivityIcon from '../components/ActivityIcon';
 import Toast from '../components/Toast';
@@ -62,7 +66,13 @@ export default function TodayScreen() {
     updateScheduleItem,
     schedules,
     copyScheduleToDate,
+    todayKey,
   } = useSchedule();
+  // Day the all-done celebration last showed; the modal shows once per day.
+  const lastCelebratedRef = useRef<string | null>(null);
+  useEffect(() => {
+    AsyncStorage.getItem(KEYS.LAST_CELEBRATED_DAY).then(v => { lastCelebratedRef.current = v; }).catch(() => {});
+  }, []);
   const selectedSchedule = getScheduleForDate(selectedDate);
   const scheduleItems = selectedSchedule?.items || [];
   const [showCelebration, setShowCelebration] = useState(false);
@@ -159,6 +169,17 @@ export default function TodayScreen() {
     if (celebrationTimerRef.current) clearTimeout(celebrationTimerRef.current);
   }, []);
 
+  // Midnight rollover: a celebration from yesterday must not linger.
+  useEffect(() => {
+    if (celebrationTimerRef.current) {
+      clearTimeout(celebrationTimerRef.current);
+      celebrationTimerRef.current = null;
+    }
+    setShowCelebration(false);
+    setShowClapAnimation(false);
+    setCurrentTime(new Date());
+  }, [todayKey]);
+
 
 
   const showToast = (message: string, action?: { label: string; onPress: () => void }) => {
@@ -178,7 +199,7 @@ export default function TodayScreen() {
     updateScheduleItem(itemId, { status: plan.nextStatus });
 
     if (plan.haptic) {
-      playCompleteFeedback();
+      playCompleteFeedback(feedbackForToggle(plan.nextStatus === 'completed', plan.completesDay));
     }
     if (plan.undoToast) {
       // Undo writes the explicit pre-swipe status. It must not call
@@ -194,7 +215,21 @@ export default function TodayScreen() {
     if (plan.clap) {
       setShowClapAnimation(true);
     }
-    if (plan.celebrate) {
+    const moment = plan.celebrate
+      ? dayDoneMoment({
+        completesDay: plan.completesDay,
+        isToday: isViewingToday,
+        today: todayKey,
+        lastCelebratedDay: lastCelebratedRef.current,
+      })
+      : 'none';
+    if (moment === 'quiet') {
+      // Already celebrated today (undo, then checked again): a calm line only.
+      showToast(DAY_DONE_QUIET_MESSAGE);
+    }
+    if (moment === 'celebrate') {
+      lastCelebratedRef.current = todayKey;
+      AsyncStorage.setItem(KEYS.LAST_CELEBRATED_DAY, todayKey).catch(() => {});
       if (celebrationTimerRef.current) clearTimeout(celebrationTimerRef.current);
       // Short delay so the swipe row / checkbox animation settles first.
       celebrationTimerRef.current = setTimeout(() => {
@@ -548,12 +583,9 @@ export default function TodayScreen() {
                   {isViewingPast ? '달성 결과' : '진행 상황'}
                 </Text>
                 <View style={styles.progressBar}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      { width: `${dayStats.completionRate}%` },
-                      dayStats.completionRate === 100 && styles.progressFillPerfect,
-                    ]}
+                  <ProgressFill
+                    percent={dayStats.completionRate}
+                    style={[styles.progressFill, dayStats.completionRate === 100 && styles.progressFillPerfect]}
                   />
                 </View>
                 <Text style={styles.progressInlineCount}>
@@ -585,12 +617,9 @@ export default function TodayScreen() {
 
             <View style={styles.progressBarContainer}>
               <View style={styles.progressBar}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    { width: `${dayStats.completionRate}%` },
-                    dayStats.completionRate === 100 && styles.progressFillPerfect,
-                  ]}
+                <ProgressFill
+                  percent={dayStats.completionRate}
+                  style={[styles.progressFill, dayStats.completionRate === 100 && styles.progressFillPerfect]}
                 />
               </View>
               <Text style={styles.progressText}>

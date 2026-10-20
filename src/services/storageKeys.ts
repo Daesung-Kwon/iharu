@@ -24,6 +24,8 @@ export const KEYS = {
   LAST_SYNC: '@last_sync',
   MIGRATED: '@migrated',
   SCHEMA_VERSION: '@iharu.schemaVersion',
+  /** 'YYYY-MM-DD' of the last day the all-done celebration showed (not backed up). */
+  LAST_CELEBRATED_DAY: '@iharu.lastCelebratedDay',
 } as const;
 
 /** JSON-valued AppData fields, their key, and the value used when the key is empty. */
@@ -65,4 +67,5 @@ export const RESET_KEYS: string[] = [
   KEYS.SETTINGS,
   KEYS.LAST_SYNC,
   KEYS.SCHEMA_VERSION,
+  KEYS.LAST_CELEBRATED_DAY,
 ];
