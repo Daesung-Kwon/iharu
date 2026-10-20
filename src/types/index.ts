@@ -54,6 +54,8 @@ export interface ScheduleItem {
   startTime: string; // "HH:MM" 형식, 10분 단위
   endTime: string; // "HH:MM" 형식
   status: ScheduleItemStatus;
+  /** Set when the item becomes completed; cleared on undo / un-complete (schema v2). */
+  completedAt?: string;
   orderIndex: number;
   createdAt: string;
   updatedAt: string;

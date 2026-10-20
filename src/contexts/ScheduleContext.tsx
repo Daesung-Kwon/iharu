@@ -9,7 +9,8 @@ import { Schedule, ScheduleItem, Activity } from '../types';
 import { getWeekdayDatesInWeek, migrateUtcSlicedScheduleDates, toLocalDateString } from '../utils/dateUtils';
 import { filterEditableDays } from '../utils/planActions';
 import { cancelActivityNotification, clearItemNotifications } from '../services/notificationService';
-import { KEYS } from '../services/storage';
+import { KEYS, ensureSchema } from '../services/storage';
+import { applyScheduleItemUpdate, removeScheduleItemFrom, resetCopiedItem } from '../utils/scheduleUpdates';
 
 const createScheduleItemId = (): string =>
   `item-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -53,6 +54,7 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const reloadFromStorage = useCallback(async (): Promise<Schedule[]> => {
     try {
+      await ensureSchema();
       const stored = await AsyncStorage.getItem(KEYS.SCHEDULES);
       if (stored) {
         const parsed: Schedule[] = JSON.parse(stored);
@@ -211,28 +213,13 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (updates.status === 'completed' || updates.status === 'skipped') {
       void cancelActivityNotification(itemId);
     }
-    setSchedules(prev =>
-      prev.map(schedule => ({
-        ...schedule,
-        items: schedule.items.map(item =>
-          item.id === itemId
-            ? { ...item, ...updates, updatedAt: new Date().toISOString() }
-            : item
-        ),
-        updatedAt: new Date().toISOString(),
-      }))
-    );
+    // Only the schedule that holds the item is touched (was: every schedule's updatedAt).
+    setSchedules(prev => applyScheduleItemUpdate(prev, itemId, updates, new Date().toISOString()));
   }, []);
 
   const removeScheduleItem = useCallback((itemId: string) => {
     void clearItemNotifications([itemId]);
-    setSchedules(prev =>
-      prev.map(schedule => ({
-        ...schedule,
-        items: schedule.items.filter(item => item.id !== itemId),
-        updatedAt: new Date().toISOString(),
-      }))
-    );
+    setSchedules(prev => removeScheduleItemFrom(prev, itemId, new Date().toISOString()));
   }, []);
 
   const removeAllScheduleItems = useCallback((date: Date) => {
@@ -275,14 +262,9 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const now = new Date().toISOString();
     const targetId = targetSchedule?.id ?? `schedule-${targetDateString}`;
-    const copiedItems: ScheduleItem[] = sourceSchedule.items.map(item => ({
-      ...item,
-      id: createScheduleItemId(),
-      scheduleId: targetId,
-      status: 'planned',
-      createdAt: now,
-      updatedAt: now,
-    }));
+    const copiedItems: ScheduleItem[] = sourceSchedule.items.map(item =>
+      resetCopiedItem(item, createScheduleItemId(), targetId, now),
+    );
 
     setSchedules(prev => {
       if (targetSchedule) {

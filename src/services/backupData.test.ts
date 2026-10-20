@@ -203,3 +203,81 @@ describe('parseBackupData', () => {
     assert.equal(parsed?.settingsPin, null);
   });
 });
+
+import { appDataFromStorage, appDataToStorage } from './backupData';
+import { BACKUP_JSON_FIELDS, BACKUP_READ_KEYS, KEYS, RESET_KEYS } from './storageKeys';
+
+describe('backup key list', () => {
+  it('reset removes every backed-up JSON key and the schema version, but keeps the user id', () => {
+    for (const { key } of Object.values(BACKUP_JSON_FIELDS)) {
+      assert.ok(RESET_KEYS.includes(key), key);
+      assert.ok(BACKUP_READ_KEYS.includes(key), key);
+    }
+    assert.ok(RESET_KEYS.includes(KEYS.SCHEMA_VERSION));
+    assert.ok(!RESET_KEYS.includes(KEYS.USER_ID));
+  });
+});
+
+describe('backup round trip', () => {
+  const storedSchedules = [{
+    id: 'schedule-2026-10-19', userId: 'u', childProfileId: 'c', date: '2026-10-19', dateKind: 'local',
+    createdAt: 'c', updatedAt: 'u',
+    items: [{
+      id: 'item-1', scheduleId: 'schedule-2026-10-19', activityId: 'a', startTime: '09:00', endTime: '09:30',
+      status: 'completed', completedAt: '2026-10-19T00:10:00.000Z', orderIndex: 0, createdAt: 'c', updatedAt: 'u',
+    }],
+  }];
+  const values: Record<string, string> = {
+    [KEYS.USER_ID]: 'user-1',
+    [KEYS.SCHEDULES]: JSON.stringify(storedSchedules),
+    [KEYS.ACTIVITIES]: JSON.stringify([{ id: 'activity-1', name: '숙제' }]),
+    [KEYS.NOTIFICATIONS_ENABLED]: 'false',
+    [KEYS.NOTIFICATION_LEAD_MINUTES]: '10',
+    [KEYS.SETTINGS_PIN]: '1234',
+    [KEYS.SCHEMA_VERSION]: '2',
+  };
+  const opts = { appVersion: '1.0.0', fallbackUserId: 'fallback', nowIso: 'NOW' };
+
+  it('export → JSON file → restore keeps completedAt and every stored value', () => {
+    const exported = appDataFromStorage(values, opts);
+    const file = JSON.stringify(exported);
+    const parsed = parseBackupData(file);
+    assert.ok(parsed);
+    assert.equal(parsed.schedules[0].items[0].completedAt, '2026-10-19T00:10:00.000Z');
+    const { set, remove } = appDataToStorage(parsed);
+    const restored = Object.fromEntries(set);
+    assert.deepEqual(JSON.parse(restored[KEYS.SCHEDULES]), storedSchedules);
+    assert.equal(restored[KEYS.SETTINGS_PIN], '1234');
+    assert.equal(restored[KEYS.NOTIFICATIONS_ENABLED], 'false');
+    assert.equal(restored[KEYS.NOTIFICATION_LEAD_MINUTES], '10');
+    assert.equal(restored[KEYS.SCHEMA_VERSION], '2');
+    assert.equal(restored[KEYS.USER_ID], 'user-1');
+    assert.deepEqual(remove, []);
+    assert.deepEqual(appDataFromStorage(restored, opts), exported);
+  });
+
+  it('empty store exports defaults like before', () => {
+    const exported = appDataFromStorage({}, opts);
+    assert.equal(exported.userId, 'fallback');
+    assert.deepEqual(exported.schedules, []);
+    assert.deepEqual(exported.notificationSettings, {});
+    assert.equal(exported.notificationsEnabled, true);
+    assert.equal(exported.notificationLeadMinutes, 5);
+    assert.equal(exported.settingsPin, null);
+    assert.equal(exported.schemaVersion, 1);
+  });
+
+  it('an old backup without schemaVersion restores as v1 and drops the PIN key when it has none', () => {
+    const parsed = parseBackupData({ ...validAppData, settingsPin: null });
+    assert.ok(parsed);
+    const { set, remove } = appDataToStorage(parsed);
+    assert.equal(Object.fromEntries(set)[KEYS.SCHEMA_VERSION], '1');
+    assert.deepEqual(remove, [KEYS.SETTINGS_PIN]);
+  });
+
+  it('rejects a bad schemaVersion', () => {
+    assert.equal(isValidAppData({ ...validAppData, schemaVersion: 0 }), false);
+    assert.equal(isValidAppData({ ...validAppData, schemaVersion: '2' }), false);
+    assert.equal(isValidAppData({ ...validAppData, schemaVersion: 2 }), true);
+  });
+});
