@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { groupActivitiesByUsage } from './activityGroups';
-import { formatLastBackup } from './lastBackup';
+import { BACKUP_SHARE_CLOSED_MESSAGE, formatLastBackup } from './lastBackup';
 
 const acts = [
   { id: 'a', name: '숙제', category: 'study' },
@@ -39,10 +39,18 @@ describe('groupActivitiesByUsage', () => {
 
 describe('formatLastBackup', () => {
   it('formats M/D HH:mm in local time', () => {
-    assert.equal(formatLastBackup(new Date(2026, 9, 4, 9, 5).toISOString()), '마지막 백업: 10/4 09:05');
+    assert.equal(formatLastBackup(new Date(2026, 9, 4, 9, 5).toISOString()), '마지막 백업 파일 만든 날: 10/4 09:05');
   });
   it('explains when never backed up', () => {
     assert.equal(formatLastBackup(null), '아직 백업하지 않았어요');
     assert.equal(formatLastBackup('garbage'), '아직 백업하지 않았어요');
+  });
+});
+
+describe('backup share message', () => {
+  it('does not claim the file was saved (the share sheet may have been cancelled)', () => {
+    assert.ok(!BACKUP_SHARE_CLOSED_MESSAGE.includes('백업했어요'));
+    assert.ok(!BACKUP_SHARE_CLOSED_MESSAGE.includes('저장했어요'));
+    assert.ok(BACKUP_SHARE_CLOSED_MESSAGE.includes('만들었어요'));
   });
 });

@@ -42,7 +42,7 @@ import { getVisibleAreaPaddingBottom } from '../utils/safeArea';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from '../components/Toast';
-import { formatLastBackup } from '../utils/lastBackup';
+import { BACKUP_SHARE_CLOSED_MESSAGE, formatLastBackup } from '../utils/lastBackup';
 import { decidePinStep } from '../utils/pinFlow';
 import { lockReducer, lockView } from '../utils/lockState';
 
@@ -288,30 +288,30 @@ export default function ProfileScreen() {
       });
 
       console.log('파일 저장 완료:', fileUri);
-      const backedUpAt = new Date().toISOString();
-      await AsyncStorage.setItem(LAST_BACKUP_KEY, backedUpAt);
-      setLastBackupAt(backedUpAt);
-      const doneMessage = `백업했어요. 활동 ${activityCount}개, 일정 ${scheduleCount}개`;
 
-      // 파일 공유 (이메일, 클라우드 스토리지, 파일 앱 등으로 저장)
+      // 공유 창으로 파일 앱·클라우드 등에 저장. iOS/Android 모두 공유 창은 사용자가
+      // 실제로 저장했는지(취소했는지) 알려 주지 않으므로 "저장했어요"라고 하지 않는다.
       const isSharingAvailable = await Sharing.isAvailableAsync();
+      if (!isSharingAvailable) {
+        showToast('이 기기에서는 백업 파일을 내보낼 수 없어요');
+        return;
+      }
 
-      if (isSharingAvailable) {
-        try {
-          // 공유 다이얼로그 표시 (이메일, 파일 앱, 클라우드 등)
-          await Sharing.shareAsync(fileUri, {
-            mimeType: 'application/json',
-            dialogTitle: '백업 파일 저장',
-            UTI: 'public.json', // iOS
-          });
+      // "마지막 백업 파일 만든 날"은 파일을 만들고 공유 창을 연 시각 (저장 여부는 알 수 없음).
+      const createdAt = new Date().toISOString();
+      await AsyncStorage.setItem(LAST_BACKUP_KEY, createdAt);
+      setLastBackupAt(createdAt);
 
-          showToast(doneMessage);
-        } catch (shareError: any) {
-          console.error('공유 오류:', shareError);
-          showToast(doneMessage);
-        }
-      } else {
-        showToast(doneMessage);
+      try {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'application/json',
+          dialogTitle: '백업 파일 저장',
+          UTI: 'public.json', // iOS
+        });
+        showToast(BACKUP_SHARE_CLOSED_MESSAGE);
+      } catch (shareError: any) {
+        console.error('공유 오류:', shareError);
+        showToast('공유 창을 열지 못했어요. 다시 시도해 주세요');
       }
     } catch (error: any) {
       console.error('Backup error:', error);
