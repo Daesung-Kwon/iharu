@@ -50,32 +50,25 @@ const CustomTabBarButton = ({ children, onPress, accessibilityState, style, minH
  */
 const TabBarWithAd = (props: BottomTabBarProps) => {
   const { setAdHeight, lastLoadedHeight, setLastLoadedHeight } = useAdSlot();
-  const [gaveUp, setGaveUp] = React.useState(false);
   const routeName = props.state.routes[props.state.index]?.name ?? '';
   const showAd = shouldShowAdForRoute(routeName);
   React.useEffect(() => {
-    if (!showAd) {
-      setAdHeight(0);
-      setGaveUp(false); // next return to an ad tab tries again
-    }
+    if (!showAd) setAdHeight(0);
   }, [showAd, setAdHeight]);
 
-  const reserved = reservedAdHeight(lastLoadedHeight, gaveUp);
+  const reserved = reservedAdHeight(lastLoadedHeight);
 
   return (
     <View style={tabBarStyles.bottomStack} pointerEvents="box-none">
       {/* Settings: unmounted, not hidden, so no ad request or refresh runs there.
-          Back on a tab the slot holds the last ad's height while a new one
-          loads, so the screen doesn't jump. */}
-      {showAd && !gaveUp && (
+          Back on a tab a fresh banner loads while the slot keeps the last
+          ad's height, so the screen doesn't jump. */}
+      {showAd && (
         <View
           style={reserved > 0 ? { minHeight: reserved } : undefined}
           onLayout={(e) => setAdHeight(e.nativeEvent.layout.height)}
         >
-          <AdBanner
-            onLoadedHeight={setLastLoadedHeight}
-            onGiveUp={() => setGaveUp(true)}
-          />
+          <AdBanner onLoadedHeight={setLastLoadedHeight} />
         </View>
       )}
       <BottomTabBar {...props} />
