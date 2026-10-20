@@ -6,7 +6,7 @@
 
 import React, { useState, useCallback, useRef, useReducer, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Switch, Image, Platform, AppState } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenContainer from '../components/ScreenContainer';
 import { MaterialIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import * as Sharing from 'expo-sharing';
@@ -35,7 +35,8 @@ import TermsModal from '../components/TermsModal';
 import PrivacyModal from '../components/PrivacyModal';
 import LicenseModal from '../components/LicenseModal';
 import { SoftPopColors } from '../constants/theme';
-import { useLayout } from '../hooks/useLayout';
+import { getClayShadow, useLayout } from '../hooks/useLayout';
+import { getVisibleAreaPaddingBottom } from '../utils/safeArea';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from '../components/Toast';
@@ -46,7 +47,7 @@ import { lockReducer, lockView } from '../utils/lockState';
 const LAST_BACKUP_KEY = '@settings.lastBackupAt';
 
 export default function ProfileScreen() {
-  const { isCompact, isLandscape, space, contentPad, tabBarOffset } = useLayout();
+  const { isCompact, isLandscape, space, scrollEndPadding, tabBarOffset, bottomChrome, cardRadius } = useLayout();
   const { resetActivities, reloadFromStorage: reloadActivities } = useActivity();
   const { resetSchedules, schedules, reloadFromStorage: reloadSchedules } = useSchedule();
   const [notificationEnabled, setNotificationEnabled] = useState(false);
@@ -428,20 +429,13 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView
-      style={[styles.container, isLandscape && styles.containerLandscape]}
-      edges={isLandscape
-        ? []
-        : Platform.OS === 'android'
-          ? ['top', 'bottom'] // Android만 bottom 추가
-          : ['top'] // iOS는 기존 유지
-      }
-    >
+    <ScreenContainer style={isLandscape && styles.containerLandscape}>
       {view === 'placeholder' ? (
-        <View style={styles.lockGate} accessibilityLabel="설정 불러오는 중" />
+        <View style={[styles.lockGate, { paddingBottom: getVisibleAreaPaddingBottom(bottomChrome) }]} accessibilityLabel="설정 불러오는 중" />
       ) : view === 'gate' ? (
         <Pressable
-          style={[styles.lockGate, { padding: space }]}
+          // Centred on the part of the screen the tab bar and ad don't cover.
+          style={[styles.lockGate, { padding: space, paddingBottom: space + getVisibleAreaPaddingBottom(bottomChrome) }]}
           onPress={openUnlock}
           accessibilityRole="button"
           accessibilityLabel="설정이 잠겨 있어요. 잠금 풀기"
@@ -466,12 +460,12 @@ export default function ProfileScreen() {
         style={styles.scrollView}
         contentContainerStyle={[
           styles.content,
-          { padding: space, paddingBottom: contentPad },
+          { padding: space, paddingBottom: scrollEndPadding },
         ]}
         showsVerticalScrollIndicator={false}
       >
         {/* 앱 정보 카드 */}
-        <View style={styles.appHeader}>
+        <View style={[styles.appHeader, getClayShadow(isCompact), { borderRadius: cardRadius, padding: space }]}>
           <Image
             source={require('../../assets/icon.png')}
             style={styles.appHeaderIcon}
@@ -754,7 +748,7 @@ export default function ProfileScreen() {
         onPass={handleRecovered}
         onCancel={() => setPinModal(null)}
       />
-    </SafeAreaView>
+    </ScreenContainer>
   );
 }
 
@@ -764,6 +758,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     marginBottom: 16,
+    backgroundColor: SoftPopColors.white,
+    borderWidth: 2,
+    borderColor: SoftPopColors.white,
   },
   appHeaderIcon: {
     width: 44,

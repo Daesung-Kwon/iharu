@@ -6,7 +6,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenContainer from '../components/ScreenContainer';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useActivity } from '../contexts/ActivityContext';
 import { useSchedule } from '../contexts/ScheduleContext';
@@ -25,7 +25,7 @@ export default function ActivitiesScreen() {
     space,
     titleSize,
     activityColumns,
-    contentPad,
+    scrollEndPadding,
     cardRadius,
   } = useLayout();
   const clayShadow = getClayShadow(isCompact);
@@ -85,15 +85,7 @@ export default function ActivitiesScreen() {
   };
 
   return (
-    <SafeAreaView
-      style={[styles.container, isLandscape && styles.containerLandscape]}
-      edges={isLandscape
-        ? []
-        : Platform.OS === 'android'
-          ? ['top', 'bottom'] // Android만 bottom 추가
-          : ['top'] // iOS는 기존 유지
-      }
-    >
+    <ScreenContainer style={isLandscape && styles.containerLandscape}>
       <View style={[
         styles.header,
         clayShadow,
@@ -127,7 +119,7 @@ export default function ActivitiesScreen() {
           styles.content,
           {
             padding: space,
-            paddingBottom: contentPad,
+            paddingBottom: scrollEndPadding,
           }
         ]}
         showsVerticalScrollIndicator={false}
@@ -180,7 +172,7 @@ export default function ActivitiesScreen() {
         onSubmit={handleSubmitActivity}
         onDelete={editingActivity ? () => handleDeleteActivity(editingActivity.id) : undefined}
       />
-    </SafeAreaView>
+    </ScreenContainer>
   );
 }
 
@@ -235,7 +227,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: Platform.OS === 'android' ? 'normal' : '700',
-    color: SoftPopColors.primary,
+    color: SoftPopColors.text,
     marginBottom: 8,
     lineHeight: 40,
     fontFamily: 'BMJUA',

@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import {
   computeTabBarOffset,
   getClayShadow,
-  getInFlowBottomLayout,
   getLayoutMetrics,
   getLayoutTier,
   getTabBarChrome,
@@ -201,54 +200,6 @@ describe('getTabBarChrome', () => {
   it('computeTabBarOffset delegates to the chrome (default tier phoneRegular)', () => {
     assert.equal(computeTabBarOffset(34, 'ios'), TAB_BAR_HEIGHT + 34);
     assert.equal(computeTabBarOffset(0, 'ios', 'phoneSmall'), TAB_BAR_HEIGHT_SMALL + 8);
-  });
-});
-
-describe('getInFlowBottomLayout (ad must not cover content)', () => {
-  it('iPhone SE 375x667 with a loaded 58pt adaptive banner', () => {
-    const { isCompact, tier } = getLayoutMetrics(375, 667);
-    const tabBarOffset = computeTabBarOffset(0, 'ios', tier);
-    const layout = getInFlowBottomLayout({ tabBarOffset, adHeight: 58, isCompact });
-    assert.equal(layout.scrollEndGap, 12);
-    assert.equal(layout.tabBarSpacer, tabBarOffset);
-    assert.equal(layout.reservedBottom, tabBarOffset + 58);
-    assert.equal(layout.toastBottom, tabBarOffset + 58 + TOAST_CHROME_GAP);
-    // SE status bar is 20pt; phoneSmall chrome leaves > 500pt of viewport.
-    const viewport = 667 - 20 - layout.reservedBottom;
-    assert.ok(viewport > 500, `viewport ${viewport}`);
-  });
-
-  it('reserves no ad space until the banner has loaded', () => {
-    const tabBarOffset = computeTabBarOffset(0, 'ios', 'phoneSmall');
-    const layout = getInFlowBottomLayout({ tabBarOffset, adHeight: 0, isCompact: true });
-    assert.equal(layout.reservedBottom, tabBarOffset);
-    assert.equal(layout.toastBottom, tabBarOffset + TOAST_CHROME_GAP);
-  });
-
-  it('does not double-count a bottom inset the SafeAreaView already pads (Android)', () => {
-    const tabBarOffset = computeTabBarOffset(24, 'android');
-    const layout = getInFlowBottomLayout({
-      tabBarOffset,
-      adHeight: 50,
-      isCompact: true,
-      safeAreaBottomApplied: 24,
-    });
-    assert.equal(layout.tabBarSpacer, tabBarOffset - 24);
-    assert.equal(layout.reservedBottom, tabBarOffset + 50);
-  });
-
-  it('treats a negative/garbage ad height as zero', () => {
-    const layout = getInFlowBottomLayout({ tabBarOffset: 78, adHeight: -5, isCompact: true });
-    assert.equal(layout.reservedBottom, 78);
-  });
-
-  it('iPad uses the regular scroll gap and its taller banner height', () => {
-    const { isCompact, tier } = getLayoutMetrics(820, 1180);
-    const tabBarOffset = computeTabBarOffset(20, 'ios', tier);
-    const layout = getInFlowBottomLayout({ tabBarOffset, adHeight: 90, isCompact });
-    assert.equal(isCompact, false);
-    assert.equal(layout.scrollEndGap, 20);
-    assert.equal(layout.reservedBottom, tabBarOffset + 90);
   });
 });
 

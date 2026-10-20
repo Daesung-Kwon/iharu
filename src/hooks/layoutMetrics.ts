@@ -181,38 +181,6 @@ export function computeTabBarOffset(
   return getTabBarChrome(tier, insetsBottom, os).offset;
 }
 
-/**
- * Bottom layout for screens that put the ad banner in normal flow (between
- * the ScrollView and a tab-bar spacer) instead of floating it over content.
- * The ScrollView viewport then ends above ad + tab bar, so the ad never covers
- * content; the banner reserves space only after it has actually loaded
- * (adHeight 0 until then).
- */
-export function getInFlowBottomLayout({
-  tabBarOffset,
-  adHeight,
-  isCompact,
-  safeAreaBottomApplied = 0,
-}: {
-  tabBarOffset: number;
-  adHeight: number;
-  isCompact: boolean;
-  /** Bottom inset the screen's SafeAreaView already pads (Android edge). */
-  safeAreaBottomApplied?: number;
-}) {
-  const safeAd = Math.max(0, adHeight);
-  return {
-    /** paddingBottom inside the ScrollView: only breathing room. */
-    scrollEndGap: isCompact ? 12 : 20,
-    /** Spacer under the in-flow ad so it sits right above the floating tab bar. */
-    tabBarSpacer: Math.max(0, tabBarOffset - Math.max(0, safeAreaBottomApplied)),
-    /** Total bottom area not available to the ScrollView viewport. */
-    reservedBottom: tabBarOffset + safeAd,
-    /** Toast bottom so it floats above the ad (and its 취소 never overlaps it). */
-    toastBottom: tabBarOffset + safeAd + TOAST_CHROME_GAP,
-  };
-}
-
 function getActivityGridGap(isCompact: boolean): number {
   return isCompact ? 12 : 20;
 }

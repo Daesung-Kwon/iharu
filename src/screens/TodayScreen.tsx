@@ -8,7 +8,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Platform, Linking
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { MainTabParamList } from '../types';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenContainer from '../components/ScreenContainer';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSchedule } from '../contexts/ScheduleContext';
 import TodayScheduleItem from '../components/TodayScheduleItem';
@@ -24,7 +24,7 @@ import { getLockedItemToast, getUndoStatus, planToggleComplete } from '../utils/
 import ActivityIcon from '../components/ActivityIcon';
 import Toast from '../components/Toast';
 import { SoftPopColors } from '../constants/theme';
-import { getClayShadow, getInFlowBottomLayout, useLayout } from '../hooks/useLayout';
+import { getClayShadow, useLayout } from '../hooks/useLayout';
 import {
   getNotificationPermissionStatus,
   requestNotificationPermissions,
@@ -44,6 +44,7 @@ export default function TodayScreen() {
     titleSize,
     dateCardWidth,
     tabBarOffset,
+    scrollEndPadding,
     insets,
     cardPad,
     cardRadius,
@@ -157,14 +158,7 @@ export default function TodayScreen() {
     if (celebrationTimerRef.current) clearTimeout(celebrationTimerRef.current);
   }, []);
 
-  const bottomLayout = getInFlowBottomLayout({
-    tabBarOffset,
-    // The shared ad banner is already inside tabBarOffset (useLayout).
-    adHeight: 0,
-    isCompact,
-    // Android SafeAreaView pads the bottom edge itself (see `edges` below).
-    safeAreaBottomApplied: !isLandscape && Platform.OS === 'android' ? insets.bottom : 0,
-  });
+
 
   const showToast = (message: string, action?: { label: string; onPress: () => void }) => {
     setToastMessage(message);
@@ -333,23 +327,14 @@ export default function TodayScreen() {
   };
 
   return (
-    <SafeAreaView
-      style={[styles.container, isLandscape && styles.containerLandscape]}
-      edges={isLandscape
-        ? []
-        : Platform.OS === 'android'
-          ? ['top', 'bottom'] // Android만 bottom 추가
-          : ['top'] // iOS는 기존 유지
-      }
-    >
+    <ScreenContainer style={isLandscape && styles.containerLandscape}>
       <View style={styles.mainColumn}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
           styles.content,
-          // Viewport already ends above ad + tab bar (in-flow layout below),
-          // so the content only needs breathing room, not chrome height.
-          { padding: space, paddingBottom: bottomLayout.scrollEndGap },
+          // Scrolls behind the tab bar and ad like every tab; one end padding.
+          { padding: space, paddingBottom: scrollEndPadding },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -800,8 +785,6 @@ export default function TodayScreen() {
         )}
       </ScrollView>
 
-      {/* Floating tab bar + ad are position:absolute; keep their footprint clear. */}
-      <View style={{ height: bottomLayout.tabBarSpacer }} />
       </View>
 
       {/* Celebration Modal (Today Only) */}
@@ -830,14 +813,14 @@ export default function TodayScreen() {
         duration={toastActionLabel ? 4000 : 2000}
         actionLabel={toastActionLabel}
         onAction={toastActionRef.current}
-        bottomOffset={bottomLayout.toastBottom}
+        bottomOffset={tabBarOffset + 12}
         onHide={() => {
           setToastVisible(false);
           setToastActionLabel(undefined);
           toastActionRef.current = undefined;
         }}
       />
-    </SafeAreaView>
+    </ScreenContainer>
   );
 }
 
