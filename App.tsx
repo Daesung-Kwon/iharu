@@ -37,6 +37,7 @@ export default function App() {
                 await mobileAds().setRequestConfiguration({
                     maxAdContentRating: MaxAdContentRating.G,
                     tagForChildDirectedTreatment: true,
+                    tagForUnderAgeOfConsent: true,
                 });
                 const adapterStatuses = await mobileAds().initialize();
                 if (__DEV__) {

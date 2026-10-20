@@ -19,6 +19,7 @@ import { useLayout } from '../hooks/useLayout';
 import { shouldShowAdForRoute, MIN_TOUCH_TARGET } from '../hooks/layoutMetrics';
 import { AdSlotProvider, useAdSlot } from '../contexts/AdSlotContext';
 import { AdBanner } from '../components/AdBanner';
+import { reservedAdHeight } from '../utils/adSlot';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -45,26 +46,31 @@ const CustomTabBarButton = ({ children, onPress, accessibilityState, style, minH
 /**
  * Tab bar + the app's single ad banner directly above it. The whole stack
  * floats (position absolute); its ad height goes to AdSlotContext so screens
- * pad by it. Hidden (but kept mounted) on Settings.
+ * pad by it. Not mounted on Settings (no ad request there).
  */
 const TabBarWithAd = (props: BottomTabBarProps) => {
-  const { setAdHeight } = useAdSlot();
+  const { setAdHeight, lastLoadedHeight, setLastLoadedHeight } = useAdSlot();
   const routeName = props.state.routes[props.state.index]?.name ?? '';
   const showAd = shouldShowAdForRoute(routeName);
   React.useEffect(() => {
     if (!showAd) setAdHeight(0);
   }, [showAd, setAdHeight]);
 
+  const reserved = reservedAdHeight(lastLoadedHeight);
+
   return (
     <View style={tabBarStyles.bottomStack} pointerEvents="box-none">
-      <View
-        style={showAd ? undefined : tabBarStyles.hidden}
-        onLayout={(e) => {
-          if (showAd) setAdHeight(e.nativeEvent.layout.height);
-        }}
-      >
-        <AdBanner />
-      </View>
+      {/* Settings: unmounted, not hidden, so no ad request or refresh runs there.
+          Back on a tab a fresh banner loads while the slot keeps the last
+          ad's height, so the screen doesn't jump. */}
+      {showAd && (
+        <View
+          style={reserved > 0 ? { minHeight: reserved } : undefined}
+          onLayout={(e) => setAdHeight(e.nativeEvent.layout.height)}
+        >
+          <AdBanner onLoadedHeight={setLastLoadedHeight} />
+        </View>
+      )}
       <BottomTabBar {...props} />
     </View>
   );
@@ -205,9 +211,6 @@ const tabBarStyles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-  },
-  hidden: {
-    display: 'none',
   },
   iconPill: {
     width: 56,

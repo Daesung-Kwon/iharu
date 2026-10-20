@@ -11,7 +11,9 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+// SDK 54: the legacy API (documentDirectory, read/writeAsStringAsync) lives in /legacy;
+// the main entry has no documentDirectory and its legacy methods throw.
+import * as FileSystem from 'expo-file-system/legacy';
 import { exportAllData, importAllData, clearAllData, parseBackupData } from '../services/storage';
 import {
   requestNotificationPermissions,
@@ -269,7 +271,6 @@ export default function ProfileScreen() {
       const fileName = `i하루-백업-${timestamp}.json`;
 
       // documentDirectory 사용 (사용자가 접근 가능한 위치)
-      // @ts-ignore
       const directory = FileSystem.documentDirectory || FileSystem.cacheDirectory;
 
       if (!directory) {
@@ -283,7 +284,6 @@ export default function ProfileScreen() {
 
       // 파일 저장
       await FileSystem.writeAsStringAsync(fileUri, jsonString, {
-        // @ts-ignore
         encoding: FileSystem.EncodingType.UTF8,
       });
 
@@ -349,7 +349,6 @@ export default function ProfileScreen() {
 
                 // 파일 읽기
                 const fileContent = await FileSystem.readAsStringAsync(fileUri, {
-                  // @ts-ignore
                   encoding: FileSystem.EncodingType.UTF8,
                 });
 

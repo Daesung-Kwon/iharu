@@ -25,7 +25,6 @@
         "ipad"
       ],
       "infoPlist": {
-        "NSUserTrackingUsageDescription": "이 앱은 맞춤형 광고를 위한 추적을 사용하지 않습니다. 표시되는 광고는 비맞춤형입니다.",
         "ITSAppUsesNonExemptEncryption": false,
         "UISupportedInterfaceOrientations": [
           "UIInterfaceOrientationPortrait",
@@ -46,8 +45,12 @@
       },
       "package": "com.iharu.app",
       "edgeToEdgeEnabled": true,
-      "permissions": [
-        "com.google.android.gms.permission.AD_ID"
+      "blockedPermissions": [
+        "com.google.android.gms.permission.AD_ID",
+        "android.permission.ACCESS_ADSERVICES_AD_ID",
+        "android.permission.ACCESS_ADSERVICES_ATTRIBUTION",
+        "android.permission.ACCESS_ADSERVICES_TOPICS",
+        "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE"
       ]
     },
     "plugins": [
@@ -76,8 +79,7 @@
         {
           "androidAppId": "ca-app-pub-9978285135642181~1318901506",
           "iosAppId": "ca-app-pub-9978285135642181~7551710314",
-          "delayAppMeasurementInit": true,
-          "userTrackingUsageDescription": "이 앱은 맞춤형 광고를 위한 추적을 사용하지 않습니다. 표시되는 광고는 비맞춤형입니다."
+          "delayAppMeasurementInit": true
         }
       ]
     ],
