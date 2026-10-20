@@ -47,13 +47,6 @@ export const OPEN_SOURCE_LICENSES: LicenseInfo[] = [
     description: '날짜 유틸리티 라이브러리'
   },
   {
-    name: 'Lottie React Native',
-    version: '7.3.4',
-    license: 'Apache-2.0',
-    url: 'https://airbnb.io/lottie',
-    description: 'After Effects 애니메이션을 React Native에서 사용'
-  },
-  {
     name: 'React Native Gesture Handler',
     version: '2.28.0',
     license: 'MIT',

@@ -121,11 +121,12 @@ export default function CelebrationModal({ visible, onClose }: CelebrationModalP
       <View style={modalStyles.dialogOverlay}>
         <ModalBackdrop onPress={onClose} />
         <Animated.View style={[modalStyles.dialog, styles.modalContainer, modalStyle]}>
-          {/* Confetti Effect */}
+          {/* Hero: the star ring is centred on the icon so it never runs into the title. */}
+          <View style={styles.hero}>
           <Animated.View style={[styles.confettiContainer, confettiStyle]}>
             {[...Array(12)].map((_, i) => {
               const angle = (i * 360) / 12;
-              const radius = 100;
+              const radius = HERO_RADIUS;
               const x = Math.cos((angle * Math.PI) / 180) * radius;
               const y = Math.sin((angle * Math.PI) / 180) * radius;
 
@@ -144,7 +145,7 @@ export default function CelebrationModal({ visible, onClose }: CelebrationModalP
                 >
                   <MaterialIcons
                     name="star"
-                    size={24}
+                    size={20}
                     color={SoftPopColors.secondary}
                   />
                 </View>
@@ -156,10 +157,11 @@ export default function CelebrationModal({ visible, onClose }: CelebrationModalP
           <Animated.View style={starStyle}>
             <MaterialIcons
               name="celebration"
-              size={80}
+              size={72}
               color={SoftPopColors.secondary}
             />
           </Animated.View>
+          </View>
 
           <Text style={styles.title}>🎉 완벽해요! 🎉</Text>
           <Text style={styles.message}>
@@ -187,16 +189,23 @@ export default function CelebrationModal({ visible, onClose }: CelebrationModalP
   );
 }
 
+const HERO_SIZE = 168;
+const HERO_RADIUS = 70;
+
 const styles = StyleSheet.create({
+  hero: {
+    width: HERO_SIZE,
+    height: HERO_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   modalContainer: {
     padding: 40,
     alignItems: 'center',
     maxWidth: 400,
   },
   confettiContainer: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -207,8 +216,8 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     color: SoftPopColors.secondary,
-    marginTop: 32,
-    marginBottom: 20,
+    marginTop: 12,
+    marginBottom: 16,
     textAlign: 'center',
     lineHeight: 36,
     fontFamily: 'BMJUA',

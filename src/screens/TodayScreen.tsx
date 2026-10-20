@@ -15,7 +15,6 @@ import { useSchedule } from '../contexts/ScheduleContext';
 import TodayScheduleItem from '../components/TodayScheduleItem';
 import CelebrationModal from '../components/CelebrationModal';
 import HorizontalDatePicker from '../components/HorizontalDatePicker';
-import ClapAnimation from '../components/ClapAnimation';
 import WeekStrip from '../components/WeekStrip';
 import { getItemStatus, getNextActivity, getCurrentActivity, getMinutesUntil, formatRemainingTime } from '../utils/timeUtils';
 import { calculateDayStats, isToday, isPast, isFuture } from '../utils/statsUtils';
@@ -78,7 +77,6 @@ export default function TodayScreen() {
   const [showCelebration, setShowCelebration] = useState(false);
   const celebrationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Ad sits in layout flow; 0 until the banner has actually loaded (or failed → null).
-  const [showClapAnimation, setShowClapAnimation] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [notifications, setNotifications] = useState<Record<string, boolean>>({});
   const [toastMessage, setToastMessage] = useState('');
@@ -176,7 +174,6 @@ export default function TodayScreen() {
       celebrationTimerRef.current = null;
     }
     setShowCelebration(false);
-    setShowClapAnimation(false);
     setCurrentTime(new Date());
   }, [todayKey]);
 
@@ -211,9 +208,6 @@ export default function TodayScreen() {
         label: '취소',
         onPress: () => updateScheduleItem(itemId, { status: undoStatus }),
       });
-    }
-    if (plan.clap) {
-      setShowClapAnimation(true);
     }
     const moment = plan.celebrate
       ? dayDoneMoment({
@@ -796,13 +790,6 @@ export default function TodayScreen() {
         />
       )}
 
-      {/* Clap Animation (활동 완료 시) */}
-      <ClapAnimation
-        visible={showClapAnimation}
-        onAnimationFinish={() => {
-          setShowClapAnimation(false);
-        }}
-      />
 
       <Toast
         message={toastMessage}
