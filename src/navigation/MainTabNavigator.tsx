@@ -19,6 +19,7 @@ import { useLayout } from '../hooks/useLayout';
 import { shouldShowAdForRoute, MIN_TOUCH_TARGET } from '../hooks/layoutMetrics';
 import { AdSlotProvider, useAdSlot } from '../contexts/AdSlotContext';
 import { AdBanner } from '../components/AdBanner';
+import { reservedAdHeight } from '../utils/adSlot';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -48,19 +49,33 @@ const CustomTabBarButton = ({ children, onPress, accessibilityState, style, minH
  * pad by it. Not mounted on Settings (no ad request there).
  */
 const TabBarWithAd = (props: BottomTabBarProps) => {
-  const { setAdHeight } = useAdSlot();
+  const { setAdHeight, lastLoadedHeight, setLastLoadedHeight } = useAdSlot();
+  const [gaveUp, setGaveUp] = React.useState(false);
   const routeName = props.state.routes[props.state.index]?.name ?? '';
   const showAd = shouldShowAdForRoute(routeName);
   React.useEffect(() => {
-    if (!showAd) setAdHeight(0);
+    if (!showAd) {
+      setAdHeight(0);
+      setGaveUp(false); // next return to an ad tab tries again
+    }
   }, [showAd, setAdHeight]);
+
+  const reserved = reservedAdHeight(lastLoadedHeight, gaveUp);
 
   return (
     <View style={tabBarStyles.bottomStack} pointerEvents="box-none">
-      {/* Settings: unmounted, not just hidden, so no ad request runs there. */}
-      {showAd && (
-        <View onLayout={(e) => setAdHeight(e.nativeEvent.layout.height)}>
-          <AdBanner />
+      {/* Settings: unmounted, not hidden, so no ad request or refresh runs there.
+          Back on a tab the slot holds the last ad's height while a new one
+          loads, so the screen doesn't jump. */}
+      {showAd && !gaveUp && (
+        <View
+          style={reserved > 0 ? { minHeight: reserved } : undefined}
+          onLayout={(e) => setAdHeight(e.nativeEvent.layout.height)}
+        >
+          <AdBanner
+            onLoadedHeight={setLastLoadedHeight}
+            onGiveUp={() => setGaveUp(true)}
+          />
         </View>
       )}
       <BottomTabBar {...props} />
