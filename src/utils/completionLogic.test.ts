@@ -15,31 +15,28 @@ describe('planToggleComplete', () => {
     assert.equal(planToggleComplete(day('planned'), 'nope', 'button'), null);
   });
 
-  it('button on a non-last item completes with clap, no toast, no celebration', () => {
+  it('button on a non-last item completes quietly, no toast, no celebration', () => {
     const plan = planToggleComplete(day('planned', 'planned'), 'i0', 'button')!;
     assert.equal(plan.nextStatus, 'completed');
     assert.equal(plan.completedNow, true);
     assert.equal(plan.haptic, true);
-    assert.equal(plan.clap, true);
     assert.equal(plan.undoToast, false);
     assert.equal(plan.celebrate, false);
   });
 
-  it('swipe on a non-last item shows undo toast, not clap', () => {
+  it('swipe on a non-last item shows undo toast', () => {
     const plan = planToggleComplete(day('planned', 'planned'), 'i0', 'swipe')!;
     assert.equal(plan.undoToast, true);
-    assert.equal(plan.clap, false);
     assert.equal(plan.celebrate, false);
   });
 
-  it('last item celebrates the same way for swipe and button (no clap, no toast)', () => {
+  it('last item celebrates the same way for swipe and button (no toast)', () => {
     const items = day('completed', 'planned', 'completed');
     const viaSwipe = planToggleComplete(items, 'i1', 'swipe')!;
     const viaButton = planToggleComplete(items, 'i1', 'button')!;
     for (const plan of [viaSwipe, viaButton]) {
       assert.equal(plan.completesDay, true);
       assert.equal(plan.celebrate, true);
-      assert.equal(plan.clap, false);
       assert.equal(plan.undoToast, false);
       assert.equal(plan.haptic, true);
     }
@@ -56,7 +53,6 @@ describe('planToggleComplete', () => {
     assert.equal(plan.completedNow, false);
     assert.equal(plan.completesDay, false);
     assert.equal(plan.haptic, false);
-    assert.equal(plan.clap, false);
     assert.equal(plan.undoToast, false);
     assert.equal(plan.celebrate, false);
   });
@@ -64,7 +60,6 @@ describe('planToggleComplete', () => {
   it('skipped items count as not completed for the last-item check', () => {
     const plan = planToggleComplete(day('skipped', 'planned'), 'i1', 'button')!;
     assert.equal(plan.completesDay, false);
-    assert.equal(plan.clap, true);
   });
 });
 
