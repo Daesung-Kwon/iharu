@@ -7,6 +7,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Schedule, ScheduleItem, Activity } from '../types';
 import { getWeekdayDatesInWeek, migrateUtcSlicedScheduleDates, toLocalDateString } from '../utils/dateUtils';
+import { filterEditableDays } from '../utils/planActions';
 import { cancelActivityNotification, clearItemNotifications } from '../services/notificationService';
 import { KEYS } from '../services/storage';
 
@@ -147,7 +148,8 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return false;
     }
 
-    const targets = options?.weekdays ? getWeekdayDatesInWeek(date) : [date];
+    // 월~금 반복 skips days that are already over (past days are read-only).
+    const targets = options?.weekdays ? filterEditableDays(getWeekdayDatesInWeek(date)) : [date];
     const nowIso = new Date().toISOString();
 
     setSchedules(prev => {

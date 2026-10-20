@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Modal, Platform, View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
 import { SoftPopColors } from '../constants/theme';
+import ModalBackdrop from './ModalBackdrop';
+import { modalStyles } from '../constants/modalStyle';
 import { normalizePin, PIN_LENGTH } from '../utils/pinFlow';
 
 interface PinLockModalProps {
@@ -73,11 +75,12 @@ export default function PinLockModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       {/* Keep 취소 / 확인 above the number pad on small phones (SE). */}
       <KeyboardAvoidingView
-        style={styles.backdrop}
+        style={modalStyles.dialogOverlay}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.card}>
-          <Text style={styles.title}>{title}</Text>
+        <ModalBackdrop />
+        <View style={modalStyles.dialog}>
+          <Text style={[modalStyles.title, styles.title]}>{title}</Text>
           {message ? <Text style={styles.message}>{message}</Text> : null}
           <Pressable
             onPress={() => inputRef.current?.focus()}
@@ -143,21 +146,7 @@ const styles = StyleSheet.create({
     color: SoftPopColors.textSecondary,
     textDecorationLine: 'underline',
   },
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'center',
-    padding: 32,
-  },
-  card: {
-    backgroundColor: SoftPopColors.white,
-    borderRadius: 24,
-    padding: 24,
-  },
   title: {
-    fontSize: 22,
-    fontFamily: 'BMJUA',
-    color: SoftPopColors.text,
     marginBottom: 8,
   },
   message: {
