@@ -16,6 +16,9 @@ import TodayScheduleItem from '../components/TodayScheduleItem';
 import CelebrationModal from '../components/CelebrationModal';
 import HorizontalDatePicker from '../components/HorizontalDatePicker';
 import WeekStrip from '../components/WeekStrip';
+import WeeklyPromiseCard from '../components/WeeklyPromiseCard';
+import WeeklyResultModal from '../components/WeeklyResultModal';
+import { useWeeklyPromise } from '../contexts/WeeklyPromiseContext';
 import { getItemStatus, getNextActivity, getCurrentActivity, getMinutesUntil, formatRemainingTime } from '../utils/timeUtils';
 import { calculateDayStats, isToday, isPast, isFuture } from '../utils/statsUtils';
 import { toLocalDateString } from '../utils/dateUtils';
@@ -67,6 +70,7 @@ export default function TodayScreen() {
     copyScheduleToDate,
     todayKey,
   } = useSchedule();
+  const { status: weeklyStatus, unseenResult, markResultSeen } = useWeeklyPromise();
   // Day the all-done celebration last showed; the modal shows once per day.
   const lastCelebratedRef = useRef<string | null>(null);
   useEffect(() => {
@@ -448,6 +452,9 @@ export default function TodayScreen() {
             variant={showDatePicker ? 'summary' : 'full'}
             dense={isSmallPhone}
           />
+          {weeklyStatus && isViewingToday && (
+            <WeeklyPromiseCard status={weeklyStatus} dense={isSmallPhone} />
+          )}
         </View>
 
         {scheduleItems.length > 0 && isViewingToday && (currentActivity || nextActivity) && (
@@ -790,6 +797,11 @@ export default function TodayScreen() {
         />
       )}
 
+      {/* Weekly promise result: once, after the week ends; never on top of the celebration. */}
+      <WeeklyResultModal
+        result={showCelebration ? null : unseenResult}
+        onClose={() => { markResultSeen().catch(e => console.error('Failed to mark result seen:', e)); }}
+      />
 
       <Toast
         message={toastMessage}

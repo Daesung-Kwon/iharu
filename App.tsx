@@ -9,6 +9,7 @@ import { Text } from 'react-native';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { ActivityProvider } from './src/contexts/ActivityContext';
 import { ScheduleProvider } from './src/contexts/ScheduleContext';
+import { WeeklyPromiseProvider } from './src/contexts/WeeklyPromiseContext';
 import { AdsReadyProvider } from './src/contexts/AdsReadyContext';
 import CustomSplashScreen from './src/screens/SplashScreen';
 import mobileAds, { MaxAdContentRating } from 'react-native-google-mobile-ads';
@@ -94,11 +95,13 @@ export default function App() {
                     <AdsReadyProvider ready={adsReady}>
                         <ActivityProvider>
                             <ScheduleProvider>
+                            <WeeklyPromiseProvider>
                                 <StatusBar style="auto" />
                                 {adsConfigFinished && <AppNavigator />}
                                 {(!isSplashFinished || !adsConfigFinished) && (
                                     <CustomSplashScreen onFinish={() => setIsSplashFinished(true)} />
                                 )}
+                            </WeeklyPromiseProvider>
                             </ScheduleProvider>
                         </ActivityProvider>
                     </AdsReadyProvider>

@@ -32,6 +32,9 @@ import { initialRecovery, RecoveryState } from '../utils/parentCheck';
 import { NOTIFICATION_LEAD_OPTIONS, NotificationLeadMinutes } from '../utils/dateUtils';
 import { useActivity } from '../contexts/ActivityContext';
 import { useSchedule } from '../contexts/ScheduleContext';
+import { useWeeklyPromise } from '../contexts/WeeklyPromiseContext';
+import WeeklyPromiseSheet from '../components/WeeklyPromiseSheet';
+import { daysLine, pendingChange, shortDate } from '../utils/weeklyPromise';
 import { toLocalDateString } from '../utils/dateUtils';
 import TermsModal from '../components/TermsModal';
 import PrivacyModal from '../components/PrivacyModal';
@@ -51,7 +54,18 @@ const LAST_BACKUP_KEY = '@settings.lastBackupAt';
 export default function ProfileScreen() {
   const { isCompact, isLandscape, space, scrollEndPadding, tabBarOffset, bottomChrome, cardRadius } = useLayout();
   const { resetActivities, reloadFromStorage: reloadActivities } = useActivity();
-  const { resetSchedules, schedules, reloadFromStorage: reloadSchedules } = useSchedule();
+  const { resetSchedules, schedules, reloadFromStorage: reloadSchedules, todayKey } = useSchedule();
+  const weekly = useWeeklyPromise();
+  const [showPromiseSheet, setShowPromiseSheet] = useState(false);
+  const weeklyPending = pendingChange(weekly.promise, todayKey);
+  const weeklySummary = weekly.status
+    ? `${weekly.status.terms.reward} (목표 ${weekly.status.terms.goalPercent}%)`
+    : '아직 없어요';
+  const weeklyNote = weeklyPending.kind === 'change'
+    ? `다음 주부터: ${weeklyPending.terms.reward} (목표 ${weeklyPending.terms.goalPercent}%)`
+    : weeklyPending.kind === 'stop'
+      ? `${shortDate(weeklyPending.from)}부터 그만해요`
+      : weekly.status ? `이번 주: ${daysLine(weekly.status.progress)}` : '';
   const [notificationEnabled, setNotificationEnabled] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
@@ -363,6 +377,7 @@ export default function ProfileScreen() {
                   const [, restoredSchedules] = await Promise.all([
                     reloadActivities(),
                     reloadSchedules(),
+                    weekly.reload(),
                   ]);
                   const enabled = await loadNotificationsMasterEnabled();
                   setNotificationEnabled(enabled);
@@ -410,6 +425,7 @@ export default function ProfileScreen() {
               await clearAllData();
               resetActivities();
               resetSchedules();
+              await weekly.reload();
               setNotificationEnabled(await loadNotificationsMasterEnabled());
               setLeadMinutes(await loadNotificationLeadMinutes());
               const pin = await loadSettingsPin();
@@ -538,6 +554,25 @@ export default function ProfileScreen() {
               size={24}
               color={SoftPopColors.textSecondary}
             />
+          </Pressable>
+        </View>
+
+        {/* 보상 약속 섹션 */}
+        <View style={[styles.section, isCompact && styles.sectionCompact]}>
+          <Text style={styles.sectionTitle}>보상 약속</Text>
+          <Pressable
+            style={({ pressed }) => [styles.settingItem, pressed && styles.settingItemPressed]}
+            onPress={() => setShowPromiseSheet(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`주간 보상 약속, ${weeklySummary}`}
+          >
+            <MaterialIcons name="card-giftcard" size={28} color={SoftPopColors.textSecondary} />
+            <View style={styles.settingTextBlock}>
+              <Text style={styles.settingText}>주간 약속</Text>
+              <Text style={styles.settingSubText} numberOfLines={1}>{weeklySummary}</Text>
+              {weeklyNote ? <Text style={styles.settingSubText} numberOfLines={1}>{weeklyNote}</Text> : null}
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color={SoftPopColors.textSecondary} />
           </Pressable>
         </View>
 
@@ -683,6 +718,15 @@ export default function ProfileScreen() {
       </ScrollView>
       )}
 
+
+      <WeeklyPromiseSheet
+        visible={showPromiseSheet}
+        promise={weekly.promise}
+        today={todayKey}
+        onSave={weekly.save}
+        onStop={weekly.stop}
+        onClose={() => setShowPromiseSheet(false)}
+      />
 
       <Toast
         message={toastMessage}

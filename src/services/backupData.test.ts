@@ -93,12 +93,12 @@ describe('isValidAppData', () => {
 describe('parseBackupData', () => {
   it('parses a valid JSON string', () => {
     const parsed = parseBackupData(JSON.stringify(validAppData));
-    assert.deepEqual(parsed, validAppData);
+    assert.deepEqual(parsed, { ...validAppData, weeklyPromise: null, weeklyResults: [] });
   });
 
   it('parses a valid object', () => {
     const parsed = parseBackupData(validAppData);
-    assert.deepEqual(parsed, validAppData);
+    assert.deepEqual(parsed, { ...validAppData, weeklyPromise: null, weeklyResults: [] });
   });
 
   it('returns null for invalid JSON', () => {
@@ -187,6 +187,8 @@ describe('parseBackupData', () => {
       notificationsEnabled: true,
       notificationLeadMinutes: 5,
       settingsPin: null,
+      weeklyPromise: null,
+      weeklyResults: [],
     });
   });
 
@@ -279,5 +281,47 @@ describe('backup round trip', () => {
     assert.equal(isValidAppData({ ...validAppData, schemaVersion: 0 }), false);
     assert.equal(isValidAppData({ ...validAppData, schemaVersion: '2' }), false);
     assert.equal(isValidAppData({ ...validAppData, schemaVersion: 2 }), true);
+  });
+});
+
+describe('weekly promise backup', () => {
+  const promise = {
+    id: 'promise-1', kind: 'weekly', endsFrom: null, createdAt: 'c', updatedAt: 'u',
+    terms: [{ reward: '게임 재화 100', goalPercent: 80, effectiveFrom: '2026-10-12' }],
+  };
+  const result = {
+    id: 'promise-1:2026-10-12', promiseId: 'promise-1', weekStart: '2026-10-12', weekEnd: '2026-10-18',
+    reward: '게임 재화 100', goalPercent: 80, doneDays: 4, countedDays: 5, rate: 80, achieved: true,
+    judgedAt: 'j', seenAt: null,
+  };
+  const opts = { appVersion: '1.0.0', fallbackUserId: 'f', nowIso: 'NOW' };
+
+  it('round-trips the promise and results through the backup file', () => {
+    const exported = appDataFromStorage({
+      [KEYS.WEEKLY_PROMISE]: JSON.stringify(promise),
+      [KEYS.WEEKLY_RESULTS]: JSON.stringify([result]),
+      [KEYS.SCHEMA_VERSION]: '3',
+    }, opts);
+    assert.deepEqual(exported.weeklyPromise, promise);
+    const parsed = parseBackupData(JSON.stringify(exported));
+    assert.ok(parsed);
+    const restored = Object.fromEntries(appDataToStorage(parsed).set);
+    assert.deepEqual(JSON.parse(restored[KEYS.WEEKLY_PROMISE]), promise);
+    assert.deepEqual(JSON.parse(restored[KEYS.WEEKLY_RESULTS]), [result]);
+    assert.deepEqual(appDataFromStorage(restored, opts), exported);
+  });
+
+  it('a backup without a promise restores as none, and the keys are reset', () => {
+    const restored = Object.fromEntries(appDataToStorage(appDataFromStorage({}, opts)).set);
+    assert.equal(restored[KEYS.WEEKLY_PROMISE], 'null');
+    assert.equal(restored[KEYS.WEEKLY_RESULTS], '[]');
+    assert.ok(RESET_KEYS.includes(KEYS.WEEKLY_PROMISE));
+    assert.ok(RESET_KEYS.includes(KEYS.WEEKLY_RESULTS));
+  });
+
+  it('rejects a broken promise in a backup', () => {
+    assert.equal(parseBackupData({ version: '1', userId: 'u', activities: [], schedules: [],
+      weeklyPromise: { id: 'x', kind: 'weekly', terms: [{ reward: 'a', goalPercent: 500, effectiveFrom: '2026-10-12' }],
+        endsFrom: null, createdAt: 'c', updatedAt: 'u' } }), null);
   });
 });

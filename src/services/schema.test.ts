@@ -20,18 +20,18 @@ test('parseSchemaVersion: missing or junk means v1 (pre-versioning data)', () =>
   assert.equal(parseSchemaVersion('2'), 2);
 });
 
-test('existing v1 data goes to v2 without touching other keys', async () => {
+test('existing v1 data goes to the current version without touching other keys', async () => {
   const store = memoryStore({ [KEYS.SCHEDULES]: '[{"date":"2026-10-19","items":[]}]' });
   const r = await runMigrations(store);
-  assert.deepEqual(r, { from: 1, to: CURRENT_SCHEMA_VERSION, ran: [2] });
-  assert.equal(store.data.get(KEYS.SCHEMA_VERSION), '2');
+  assert.deepEqual(r, { from: 1, to: CURRENT_SCHEMA_VERSION, ran: [2, 3] });
+  assert.equal(store.data.get(KEYS.SCHEMA_VERSION), '3');
   assert.equal(store.data.get(KEYS.SCHEDULES), '[{"date":"2026-10-19","items":[]}]');
 });
 
 test('runner is idempotent: a second run does nothing', async () => {
   const store = memoryStore();
   await runMigrations(store);
-  assert.deepEqual(await runMigrations(store), { from: 2, to: 2, ran: [] });
+  assert.deepEqual(await runMigrations(store), { from: 3, to: 3, ran: [] });
 });
 
 test('data from a newer build is left alone', async () => {
@@ -60,4 +60,21 @@ test('a failing step stops the run and keeps the last good version', async () =>
   await assert.rejects(runMigrations(store, steps, 3));
   assert.equal(store.data.get(KEYS.SCHEMA_VERSION), '2');
   assert.deepEqual(await runMigrations(store, [{ to: 3, run: async () => {} }], 3), { from: 2, to: 3, ran: [3] });
+});
+
+test('v3 keeps a valid weekly result list and drops broken rows', async () => {
+  const good = {
+    id: 'p:2026-10-12', promiseId: 'p', weekStart: '2026-10-12', weekEnd: '2026-10-18', reward: 'r',
+    goalPercent: 80, doneDays: 1, countedDays: 1, rate: 100, achieved: true, judgedAt: 'j', seenAt: null,
+  };
+  const store = memoryStore({ [KEYS.SCHEMA_VERSION]: '2', [KEYS.WEEKLY_RESULTS]: JSON.stringify([good, { id: 1 }]) });
+  assert.deepEqual(await runMigrations(store), { from: 2, to: 3, ran: [3] });
+  assert.deepEqual(JSON.parse(store.data.get(KEYS.WEEKLY_RESULTS)!), [good]);
+});
+
+test('v3 on a store with no promise data writes nothing new', async () => {
+  const store = memoryStore({ [KEYS.SCHEMA_VERSION]: '2' });
+  await runMigrations(store);
+  assert.equal(store.data.has(KEYS.WEEKLY_RESULTS), false);
+  assert.equal(store.data.get(KEYS.SCHEMA_VERSION), '3');
 });

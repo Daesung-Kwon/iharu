@@ -6,6 +6,7 @@ import { Activity, Schedule } from '../types';
 import { NotificationLeadMinutes } from '../utils/dateUtils';
 import { BACKUP_JSON_FIELDS, BACKUP_JSON_FIELD_NAMES, KEYS } from './storageKeys';
 import { parseSchemaVersion } from './schema';
+import { isWeeklyPromise, isWeeklyResult, WeeklyPromise, WeeklyResult } from '../utils/weeklyPromise';
 
 export interface AppData {
   version: string;
@@ -17,6 +18,9 @@ export interface AppData {
   notificationsEnabled: boolean;
   notificationLeadMinutes: NotificationLeadMinutes;
   settingsPin: string | null;
+  /** Weekly reward promise (missing in old backups → null / []). */
+  weeklyPromise?: WeeklyPromise | null;
+  weeklyResults?: WeeklyResult[];
   lastSync?: string;
   /** Local schema version of the data (missing in old backups → 1). */
   schemaVersion?: number;
@@ -72,6 +76,10 @@ export function isValidAppData(value: unknown): value is AppData {
   if (typeof value.notificationsEnabled !== 'boolean') return false;
   if (!isLeadMinutes(value.notificationLeadMinutes)) return false;
   if (!isSettingsPin(value.settingsPin)) return false;
+  if (value.weeklyPromise !== undefined
+    && !(value.weeklyPromise === null || isWeeklyPromise(value.weeklyPromise))) return false;
+  if (value.weeklyResults !== undefined
+    && !(Array.isArray(value.weeklyResults) && value.weeklyResults.every(isWeeklyResult))) return false;
   if (value.lastSync !== undefined && typeof value.lastSync !== 'string') return false;
   if (value.schemaVersion !== undefined
     && !(typeof value.schemaVersion === 'number' && Number.isInteger(value.schemaVersion) && value.schemaVersion >= 1)) return false;
@@ -100,6 +108,8 @@ export function parseBackupData(input: string | unknown): AppData | null {
     notificationsEnabled: value.notificationsEnabled ?? true,
     notificationLeadMinutes: value.notificationLeadMinutes ?? 5,
     settingsPin: value.settingsPin === undefined ? null : value.settingsPin,
+    weeklyPromise: value.weeklyPromise ?? null,
+    weeklyResults: value.weeklyResults ?? [],
   };
   return isValidAppData(normalized) ? normalized : null;
 }
@@ -130,7 +140,7 @@ export function appDataFromStorage(
   return {
     version: opts.appVersion,
     userId: get(KEYS.USER_ID) || opts.fallbackUserId,
-    ...(json as Pick<AppData, 'activities' | 'schedules' | 'deletedDefaultIds' | 'notificationSettings'>),
+    ...(json as Pick<AppData, 'activities' | 'schedules' | 'deletedDefaultIds' | 'notificationSettings' | 'weeklyPromise' | 'weeklyResults'>),
     notificationsEnabled: enabled === null ? true : enabled === 'true',
     notificationLeadMinutes: parseStoredLeadMinutes(get(KEYS.NOTIFICATION_LEAD_MINUTES)),
     settingsPin: parseStoredPin(get(KEYS.SETTINGS_PIN)),
@@ -146,7 +156,7 @@ export function appDataFromStorage(
 export function appDataToStorage(data: AppData): { set: [string, string][]; remove: string[] } {
   const set: [string, string][] = BACKUP_JSON_FIELD_NAMES.map(field => [
     BACKUP_JSON_FIELDS[field].key,
-    JSON.stringify(data[field]),
+    JSON.stringify(data[field] ?? BACKUP_JSON_FIELDS[field].empty),
   ]);
   set.push(
     [KEYS.USER_ID, data.userId],
