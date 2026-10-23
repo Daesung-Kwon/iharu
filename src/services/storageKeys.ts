@@ -26,6 +26,10 @@ export const KEYS = {
   SCHEMA_VERSION: '@iharu.schemaVersion',
   /** 'YYYY-MM-DD' of the last day the all-done celebration showed (not backed up). */
   LAST_CELEBRATED_DAY: '@iharu.lastCelebratedDay',
+  /** The one weekly reward promise (JSON WeeklyPromise | null). Since schema v3. */
+  WEEKLY_PROMISE: '@iharu.weeklyPromise',
+  /** Judged weeks (JSON WeeklyResult[]). Since schema v3. */
+  WEEKLY_RESULTS: '@iharu.weeklyResults',
 } as const;
 
 /** JSON-valued AppData fields, their key, and the value used when the key is empty. */
@@ -34,6 +38,8 @@ export const BACKUP_JSON_FIELDS = {
   schedules: { key: KEYS.SCHEDULES, empty: [] as unknown[] },
   deletedDefaultIds: { key: KEYS.DELETED_DEFAULTS, empty: [] as unknown[] },
   notificationSettings: { key: KEYS.NOTIFICATIONS, empty: {} as Record<string, unknown> },
+  weeklyPromise: { key: KEYS.WEEKLY_PROMISE, empty: null },
+  weeklyResults: { key: KEYS.WEEKLY_RESULTS, empty: [] as unknown[] },
 } as const;
 
 export type BackupJsonField = keyof typeof BACKUP_JSON_FIELDS;

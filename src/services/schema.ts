@@ -5,10 +5,13 @@
  * v1 - everything before this key existed (no '@iharu.schemaVersion').
  * v2 - ScheduleItem.completedAt (optional). Nothing is rewritten: old items
  *      simply have no completedAt.
+ * v3 - weekly reward promise ('@iharu.weeklyPromise', '@iharu.weeklyResults').
+ *      New keys only; the step drops unreadable result rows if any exist.
  */
 import { KEYS } from './storageKeys';
+import { parseStoredResults } from '../utils/weeklyPromise';
 
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 
 export interface KeyValueStore {
   getItem(key: string): Promise<string | null>;
@@ -23,6 +26,14 @@ export interface Migration {
 
 export const MIGRATIONS: Migration[] = [
   { to: 2, run: async () => { /* additive field only */ } },
+  {
+    to: 3,
+    run: async (store) => {
+      const raw = await store.getItem(KEYS.WEEKLY_RESULTS);
+      if (raw === null) return;
+      await store.setItem(KEYS.WEEKLY_RESULTS, JSON.stringify(parseStoredResults(raw)));
+    },
+  },
 ];
 
 /** Missing or unreadable → 1 (data written before versioning). */
