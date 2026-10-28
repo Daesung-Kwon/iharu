@@ -235,13 +235,6 @@ export function getLayoutMetrics(width: number, height: number): LayoutMetrics {
   };
 }
 
-/** Settings has no ad: parents use it and it holds lock/backup controls. */
-export const AD_FREE_ROUTES: readonly string[] = ['Profile'];
-
-export function shouldShowAdForRoute(routeName: string): boolean {
-  return !AD_FREE_ROUTES.includes(routeName);
-}
-
 /**
  * Space taken from the screen bottom by the floating tab bar plus the single
  * ad banner that sits right above it (0 until the banner has loaded).

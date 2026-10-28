@@ -75,14 +75,7 @@
           "sounds": []
         }
       ],
-      [
-        "react-native-google-mobile-ads",
-        {
-          "androidAppId": "ca-app-pub-9978285135642181~1318901506",
-          "iosAppId": "ca-app-pub-9978285135642181~7551710314",
-          "delayAppMeasurementInit": true
-        }
-      ]
+      "expo-iap"
     ],
     "extra": {
       "eas": {

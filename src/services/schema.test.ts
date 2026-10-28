@@ -23,15 +23,15 @@ test('parseSchemaVersion: missing or junk means v1 (pre-versioning data)', () =>
 test('existing v1 data goes to the current version without touching other keys', async () => {
   const store = memoryStore({ [KEYS.SCHEDULES]: '[{"date":"2026-10-19","items":[]}]' });
   const r = await runMigrations(store);
-  assert.deepEqual(r, { from: 1, to: CURRENT_SCHEMA_VERSION, ran: [2, 3] });
-  assert.equal(store.data.get(KEYS.SCHEMA_VERSION), '3');
+  assert.deepEqual(r, { from: 1, to: CURRENT_SCHEMA_VERSION, ran: [2, 3, 4] });
+  assert.equal(store.data.get(KEYS.SCHEMA_VERSION), '4');
   assert.equal(store.data.get(KEYS.SCHEDULES), '[{"date":"2026-10-19","items":[]}]');
 });
 
 test('runner is idempotent: a second run does nothing', async () => {
   const store = memoryStore();
   await runMigrations(store);
-  assert.deepEqual(await runMigrations(store), { from: 3, to: 3, ran: [] });
+  assert.deepEqual(await runMigrations(store), { from: 4, to: 4, ran: [] });
 });
 
 test('data from a newer build is left alone', async () => {
@@ -68,7 +68,7 @@ test('v3 keeps a valid weekly result list and drops broken rows', async () => {
     goalPercent: 80, doneDays: 1, countedDays: 1, rate: 100, achieved: true, judgedAt: 'j', seenAt: null,
   };
   const store = memoryStore({ [KEYS.SCHEMA_VERSION]: '2', [KEYS.WEEKLY_RESULTS]: JSON.stringify([good, { id: 1 }]) });
-  assert.deepEqual(await runMigrations(store), { from: 2, to: 3, ran: [3] });
+  assert.deepEqual(await runMigrations(store), { from: 2, to: 4, ran: [3, 4] });
   assert.deepEqual(JSON.parse(store.data.get(KEYS.WEEKLY_RESULTS)!), [good]);
 });
 
@@ -76,5 +76,21 @@ test('v3 on a store with no promise data writes nothing new', async () => {
   const store = memoryStore({ [KEYS.SCHEMA_VERSION]: '2' });
   await runMigrations(store);
   assert.equal(store.data.has(KEYS.WEEKLY_RESULTS), false);
-  assert.equal(store.data.get(KEYS.SCHEMA_VERSION), '3');
+  assert.equal(store.data.get(KEYS.SCHEMA_VERSION), '4');
+});
+
+test('v4 rewrites an unreadable expansion flag as locked and keeps a valid one', async () => {
+  const bad = memoryStore({ [KEYS.SCHEMA_VERSION]: '3', [KEYS.REWARD_EXPANSION]: '{oops' });
+  assert.deepEqual(await runMigrations(bad), { from: 3, to: 4, ran: [4] });
+  assert.equal(JSON.parse(bad.data.get(KEYS.REWARD_EXPANSION)!).unlocked, false);
+  const flag = { unlocked: true, source: 'store', productId: 'p', unlockedAt: 'x' };
+  const good = memoryStore({ [KEYS.SCHEMA_VERSION]: '3', [KEYS.REWARD_EXPANSION]: JSON.stringify(flag) });
+  await runMigrations(good);
+  assert.deepEqual(JSON.parse(good.data.get(KEYS.REWARD_EXPANSION)!), flag);
+});
+
+test('v4 on a store without the flag writes nothing new', async () => {
+  const store = memoryStore({ [KEYS.SCHEMA_VERSION]: '3' });
+  await runMigrations(store);
+  assert.equal(store.data.has(KEYS.REWARD_EXPANSION), false);
 });

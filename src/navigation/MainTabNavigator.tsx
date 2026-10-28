@@ -16,10 +16,7 @@ import ActivitiesScreen from '../screens/ActivitiesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { SoftPopColors } from '../constants/theme';
 import { useLayout } from '../hooks/useLayout';
-import { shouldShowAdForRoute, MIN_TOUCH_TARGET } from '../hooks/layoutMetrics';
-import { AdSlotProvider, useAdSlot } from '../contexts/AdSlotContext';
-import { AdBanner } from '../components/AdBanner';
-import { reservedAdHeight } from '../utils/adSlot';
+import { MIN_TOUCH_TARGET } from '../hooks/layoutMetrics';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -43,38 +40,12 @@ const CustomTabBarButton = ({ children, onPress, accessibilityState, style, minH
   );
 };
 
-/**
- * Tab bar + the app's single ad banner directly above it. The whole stack
- * floats (position absolute); its ad height goes to AdSlotContext so screens
- * pad by it. Not mounted on Settings (no ad request there).
- */
-const TabBarWithAd = (props: BottomTabBarProps) => {
-  const { setAdHeight, lastLoadedHeight, setLastLoadedHeight } = useAdSlot();
-  const routeName = props.state.routes[props.state.index]?.name ?? '';
-  const showAd = shouldShowAdForRoute(routeName);
-  React.useEffect(() => {
-    if (!showAd) setAdHeight(0);
-  }, [showAd, setAdHeight]);
-
-  const reserved = reservedAdHeight(lastLoadedHeight);
-
-  return (
-    <View style={tabBarStyles.bottomStack} pointerEvents="box-none">
-      {/* Settings: unmounted, not hidden, so no ad request or refresh runs there.
-          Back on a tab a fresh banner loads while the slot keeps the last
-          ad's height, so the screen doesn't jump. */}
-      {showAd && (
-        <View
-          style={reserved > 0 ? { minHeight: reserved } : undefined}
-          onLayout={(e) => setAdHeight(e.nativeEvent.layout.height)}
-        >
-          <AdBanner onLoadedHeight={setLastLoadedHeight} />
-        </View>
-      )}
-      <BottomTabBar {...props} />
-    </View>
-  );
-};
+/** Floating tab bar. The app has no ads, so nothing sits above it. */
+const FloatingTabBar = (props: BottomTabBarProps) => (
+  <View style={tabBarStyles.bottomStack} pointerEvents="box-none">
+    <BottomTabBar {...props} />
+  </View>
+);
 
 // Icon with a pill behind it when selected (clear active state, same size).
 const TabIcon = ({ name, color, focused }: { name: keyof typeof MaterialIcons.glyphMap; color: string; focused: boolean }) => (
@@ -83,11 +54,7 @@ const TabIcon = ({ name, color, focused }: { name: keyof typeof MaterialIcons.gl
   </View>
 );
 
-export const MainTabNavigator: React.FC = () => (
-  <AdSlotProvider>
-    <MainTabs />
-  </AdSlotProvider>
-);
+export const MainTabNavigator: React.FC = () => <MainTabs />;
 
 const MainTabs: React.FC = () => {
   // Tier + safe-area aware geometry (SE/home-button: tighter bar with an 8pt
@@ -96,13 +63,13 @@ const MainTabs: React.FC = () => {
 
   return (
     <Tab.Navigator
-      tabBar={(props) => <TabBarWithAd {...props} />}
+      tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{
         headerShown: false, // 각 화면에서 자체 헤더 사용
         tabBarActiveTintColor: SoftPopColors.primary,
         tabBarInactiveTintColor: SoftPopColors.textSecondary,
         // 실제 탭 컨텐츠는 투명/플랫하게 두고, 배경은 tabBarBackground에서만 처리
-        // The wrapper in TabBarWithAd floats; the bar itself stays in its flow.
+        // The wrapper in FloatingTabBar floats; the bar itself stays in its flow.
         tabBarStyle: {
           paddingBottom: tabBarChrome.paddingBottom,
           paddingTop: 0,

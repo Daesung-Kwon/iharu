@@ -33,6 +33,9 @@ import { NOTIFICATION_LEAD_OPTIONS, NotificationLeadMinutes } from '../utils/dat
 import { useActivity } from '../contexts/ActivityContext';
 import { useSchedule } from '../contexts/ScheduleContext';
 import { useWeeklyPromise } from '../contexts/WeeklyPromiseContext';
+import RewardExpansionSheet from '../components/RewardExpansionSheet';
+import { useRewardExpansion } from '../contexts/RewardExpansionContext';
+import { EXPANSION_COPY } from '../utils/rewardExpansion';
 import WeeklyPromiseSheet from '../components/WeeklyPromiseSheet';
 import { daysLine, pendingChange, shortDate } from '../utils/weeklyPromise';
 import { toLocalDateString } from '../utils/dateUtils';
@@ -57,7 +60,12 @@ export default function ProfileScreen() {
   const { resetSchedules, schedules, reloadFromStorage: reloadSchedules, todayKey } = useSchedule();
   const weekly = useWeeklyPromise();
   const [showPromiseSheet, setShowPromiseSheet] = useState(false);
+  const rewardExpansion = useRewardExpansion();
+  const [showExpansionSheet, setShowExpansionSheet] = useState(false);
   const weeklyPending = pendingChange(weekly.promise, todayKey);
+  const expansionSummary = rewardExpansion.expansion.unlocked
+    ? EXPANSION_COPY.unlockedSummary + (rewardExpansion.expansion.source === 'test' ? ' (테스트)' : '')
+    : EXPANSION_COPY.lockedSummary;
   const weeklySummary = weekly.status
     ? `${weekly.status.terms.reward} (목표 ${weekly.status.terms.goalPercent}%)`
     : '아직 없어요';
@@ -378,6 +386,7 @@ export default function ProfileScreen() {
                     reloadActivities(),
                     reloadSchedules(),
                     weekly.reload(),
+                    rewardExpansion.reload(),
                   ]);
                   const enabled = await loadNotificationsMasterEnabled();
                   setNotificationEnabled(enabled);
@@ -574,6 +583,19 @@ export default function ProfileScreen() {
             </View>
             <MaterialIcons name="chevron-right" size={24} color={SoftPopColors.textSecondary} />
           </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.settingItem, pressed && styles.settingItemPressed]}
+            onPress={() => setShowExpansionSheet(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`${EXPANSION_COPY.title}, ${expansionSummary}`}
+          >
+            <MaterialIcons name={rewardExpansion.expansion.unlocked ? 'verified' : 'add-circle-outline'} size={28} color={SoftPopColors.textSecondary} />
+            <View style={styles.settingTextBlock}>
+              <Text style={styles.settingText}>{EXPANSION_COPY.title}</Text>
+              <Text style={styles.settingSubText} numberOfLines={1}>{expansionSummary}</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color={SoftPopColors.textSecondary} />
+          </Pressable>
         </View>
 
         {/* 데이터 관리 섹션 */}
@@ -726,6 +748,12 @@ export default function ProfileScreen() {
         onSave={weekly.save}
         onStop={weekly.stop}
         onClose={() => setShowPromiseSheet(false)}
+      />
+
+      <RewardExpansionSheet
+        visible={showExpansionSheet}
+        onClose={() => setShowExpansionSheet(false)}
+        onMessage={text => showToast(text)}
       />
 
       <Toast

@@ -30,6 +30,8 @@ export const KEYS = {
   WEEKLY_PROMISE: '@iharu.weeklyPromise',
   /** Judged weeks (JSON WeeklyResult[]). Since schema v3. */
   WEEKLY_RESULTS: '@iharu.weeklyResults',
+  /** '보상 확장' unlock (JSON RewardExpansion). Since schema v4. Backed up, kept on reset. */
+  REWARD_EXPANSION: '@iharu.rewardExpansion',
 } as const;
 
 /** JSON-valued AppData fields, their key, and the value used when the key is empty. */
@@ -53,6 +55,7 @@ export const BACKUP_SCALAR_KEYS = [
   KEYS.NOTIFICATION_LEAD_MINUTES,
   KEYS.SETTINGS_PIN,
   KEYS.SCHEMA_VERSION,
+  KEYS.REWARD_EXPANSION,
 ] as const;
 
 /** Every key backup reads. */
@@ -62,7 +65,8 @@ export const BACKUP_READ_KEYS: string[] = [
 ];
 
 /**
- * Keys "데이터 초기화" removes. USER_ID and APP_VERSION stay. The schema
+ * Keys "데이터 초기화" removes. USER_ID, APP_VERSION and the paid
+ * REWARD_EXPANSION unlock stay. The schema
  * version goes too: an empty store re-runs the (non-destructive) migrations.
  */
 export const RESET_KEYS: string[] = [
