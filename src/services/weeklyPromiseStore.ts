@@ -1,20 +1,25 @@
-/** AsyncStorage for the weekly reward promise (logic lives in utils/weeklyPromise). */
+/** AsyncStorage for weekly reward promises (logic lives in utils/weeklyPromise*). */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { KEYS } from './storageKeys';
-import {
-  parseStoredPromise, parseStoredResults, WeeklyPromise, WeeklyResult,
-} from '../utils/weeklyPromise';
+import { parseStoredResults, WeeklyPromise, WeeklyResult } from '../utils/weeklyPromise';
+import { normalizePromises, parseStoredPromises } from '../utils/weeklyPromises';
 
-export async function loadWeeklyPromise(): Promise<{ promise: WeeklyPromise | null; results: WeeklyResult[] }> {
-  const [p, r] = await Promise.all([
+export async function loadWeeklyPromises(): Promise<{ promises: WeeklyPromise[]; results: WeeklyResult[] }> {
+  const [list, legacy, r] = await Promise.all([
+    AsyncStorage.getItem(KEYS.WEEKLY_PROMISES),
     AsyncStorage.getItem(KEYS.WEEKLY_PROMISE),
     AsyncStorage.getItem(KEYS.WEEKLY_RESULTS),
   ]);
-  return { promise: parseStoredPromise(p), results: parseStoredResults(r) };
+  // The v5 migration moves the legacy value; reading both keeps a half-migrated store safe.
+  const promises = normalizePromises([...parseStoredPromises(list), ...parseStoredPromises(legacy)]);
+  return { promises, results: parseStoredResults(r) };
 }
 
-export async function saveWeeklyPromise(promise: WeeklyPromise | null): Promise<void> {
-  await AsyncStorage.setItem(KEYS.WEEKLY_PROMISE, JSON.stringify(promise));
+export async function saveWeeklyPromises(promises: WeeklyPromise[]): Promise<void> {
+  await AsyncStorage.multiSet([
+    [KEYS.WEEKLY_PROMISES, JSON.stringify(promises)],
+    [KEYS.WEEKLY_PROMISE, 'null'],
+  ]);
 }
 
 export async function saveWeeklyResults(results: WeeklyResult[]): Promise<void> {

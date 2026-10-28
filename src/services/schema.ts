@@ -9,12 +9,15 @@
  *      New keys only; the step drops unreadable result rows if any exist.
  * v4 - '보상 확장' unlock ('@iharu.rewardExpansion'). New key only; an
  *      unreadable value is rewritten as locked.
+ * v5 - several weekly promises ('@iharu.weeklyPromises', an array). The old
+ *      single '@iharu.weeklyPromise' moves in with its id; the old key becomes null.
  */
 import { KEYS } from './storageKeys';
 import { parseStoredResults } from '../utils/weeklyPromise';
 import { parseStoredExpansion } from '../utils/rewardExpansion';
+import { normalizePromises, parseStoredPromises } from '../utils/weeklyPromises';
 
-export const CURRENT_SCHEMA_VERSION = 4;
+export const CURRENT_SCHEMA_VERSION = 5;
 
 export interface KeyValueStore {
   getItem(key: string): Promise<string | null>;
@@ -43,6 +46,18 @@ export const MIGRATIONS: Migration[] = [
       const raw = await store.getItem(KEYS.REWARD_EXPANSION);
       if (raw === null) return;
       await store.setItem(KEYS.REWARD_EXPANSION, JSON.stringify(parseStoredExpansion(raw)));
+    },
+  },
+  {
+    to: 5,
+    run: async (store) => {
+      const legacy = parseStoredPromises(await store.getItem(KEYS.WEEKLY_PROMISE));
+      const current = parseStoredPromises(await store.getItem(KEYS.WEEKLY_PROMISES));
+      const merged = normalizePromises([...current, ...legacy]);
+      if (merged.length === 0 && (await store.getItem(KEYS.WEEKLY_PROMISES)) === null
+        && (await store.getItem(KEYS.WEEKLY_PROMISE)) === null) return;
+      await store.setItem(KEYS.WEEKLY_PROMISES, JSON.stringify(merged));
+      await store.setItem(KEYS.WEEKLY_PROMISE, 'null');
     },
   },
 ];

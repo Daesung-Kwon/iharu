@@ -1,12 +1,12 @@
-/** Calm one-row weekly promise line for the Today header. */
+/** Calm one-row weekly promise line for the Today header (one row even with several promises). */
 import React from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SoftPopColors } from '../constants/theme';
-import { cardCopy, WeekStatus } from '../utils/weeklyPromise';
+import { summaryCopy, WeekSummary } from '../utils/weeklyPromises';
 
-export default function WeeklyPromiseCard({ status, dense }: { status: WeekStatus; dense?: boolean }) {
-  const { title, detail } = cardCopy(status);
+export default function WeeklyPromiseCard({ summary, dense }: { summary: WeekSummary; dense?: boolean }) {
+  const { title, detail } = summaryCopy(summary);
   return (
     <View style={[styles.row, dense && styles.rowDense]} accessible accessibilityLabel={`${title}. ${detail}`}>
       <MaterialIcons name="card-giftcard" size={dense ? 20 : 22} color={SoftPopColors.today} />

@@ -93,12 +93,12 @@ describe('isValidAppData', () => {
 describe('parseBackupData', () => {
   it('parses a valid JSON string', () => {
     const parsed = parseBackupData(JSON.stringify(validAppData));
-    assert.deepEqual(parsed, { ...validAppData, weeklyPromise: null, weeklyResults: [] });
+    assert.deepEqual(parsed, { ...validAppData, weeklyPromise: null, weeklyPromises: [], weeklyResults: [] });
   });
 
   it('parses a valid object', () => {
     const parsed = parseBackupData(validAppData);
-    assert.deepEqual(parsed, { ...validAppData, weeklyPromise: null, weeklyResults: [] });
+    assert.deepEqual(parsed, { ...validAppData, weeklyPromise: null, weeklyPromises: [], weeklyResults: [] });
   });
 
   it('returns null for invalid JSON', () => {
@@ -188,6 +188,7 @@ describe('parseBackupData', () => {
       notificationLeadMinutes: 5,
       settingsPin: null,
       weeklyPromise: null,
+      weeklyPromises: [],
       weeklyResults: [],
     });
   });
@@ -296,7 +297,7 @@ describe('weekly promise backup', () => {
   };
   const opts = { appVersion: '1.0.0', fallbackUserId: 'f', nowIso: 'NOW' };
 
-  it('round-trips the promise and results through the backup file', () => {
+  it('an old single-promise backup restores into the list with the same id', () => {
     const exported = appDataFromStorage({
       [KEYS.WEEKLY_PROMISE]: JSON.stringify(promise),
       [KEYS.WEEKLY_RESULTS]: JSON.stringify([result]),
@@ -306,9 +307,29 @@ describe('weekly promise backup', () => {
     const parsed = parseBackupData(JSON.stringify(exported));
     assert.ok(parsed);
     const restored = Object.fromEntries(appDataToStorage(parsed).set);
-    assert.deepEqual(JSON.parse(restored[KEYS.WEEKLY_PROMISE]), promise);
+    assert.deepEqual(JSON.parse(restored[KEYS.WEEKLY_PROMISES]), [promise]);
+    assert.equal(restored[KEYS.WEEKLY_PROMISE], 'null');
     assert.deepEqual(JSON.parse(restored[KEYS.WEEKLY_RESULTS]), [result]);
+  });
+
+  it('round-trips several promises with stable ids', () => {
+    const two = { ...promise, id: 'promise-2', terms: [{ reward: '공원 가기', goalPercent: 60, effectiveFrom: '2026-10-19' }] };
+    const exported = appDataFromStorage({
+      [KEYS.WEEKLY_PROMISES]: JSON.stringify([promise, two]),
+      [KEYS.WEEKLY_RESULTS]: JSON.stringify([result]),
+      [KEYS.SCHEMA_VERSION]: '5',
+    }, opts);
+    const parsed = parseBackupData(JSON.stringify(exported));
+    assert.ok(parsed);
+    const restored = Object.fromEntries(appDataToStorage(parsed).set);
+    assert.deepEqual(JSON.parse(restored[KEYS.WEEKLY_PROMISES]).map((p: { id: string }) => p.id), ['promise-1', 'promise-2']);
     assert.deepEqual(appDataFromStorage(restored, opts), exported);
+  });
+
+  it('rejects a backup with a broken promise in the list or duplicate ids', () => {
+    const base = { version: '1', userId: 'u', activities: [], schedules: [] };
+    assert.equal(parseBackupData({ ...base, weeklyPromises: [promise, { id: 'x' }] }), null);
+    assert.equal(isValidAppData({ ...parseBackupData(base)!, weeklyPromises: [promise, promise] }), false);
   });
 
   it('a backup without a promise restores as none, and the keys are reset', () => {
@@ -316,6 +337,8 @@ describe('weekly promise backup', () => {
     assert.equal(restored[KEYS.WEEKLY_PROMISE], 'null');
     assert.equal(restored[KEYS.WEEKLY_RESULTS], '[]');
     assert.ok(RESET_KEYS.includes(KEYS.WEEKLY_PROMISE));
+    assert.ok(RESET_KEYS.includes(KEYS.WEEKLY_PROMISES));
+    assert.equal(restored[KEYS.WEEKLY_PROMISES], '[]');
     assert.ok(RESET_KEYS.includes(KEYS.WEEKLY_RESULTS));
   });
 
