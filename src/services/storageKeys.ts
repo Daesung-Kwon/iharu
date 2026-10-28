@@ -34,6 +34,13 @@ export const KEYS = {
   WEEKLY_RESULTS: '@iharu.weeklyResults',
   /** '보상 확장' unlock (JSON RewardExpansion). Since schema v4. Backed up, kept on reset. */
   REWARD_EXPANSION: '@iharu.rewardExpansion',
+  /**
+   * Weekly-result local notification. 'true' | 'false'; missing means on.
+   * A settings key only — not part of the backup schema (stays v5).
+   */
+  WEEKLY_RESULT_NOTIFICATION: '@settings.weeklyResultNotification',
+  /** JSON { notified, pending } so one week is not notified twice. Not backed up. */
+  WEEKLY_RESULT_NOTIFICATION_STATE: '@iharu.weeklyResultNotificationState',
 } as const;
 
 /** JSON-valued AppData fields, their key, and the value used when the key is empty. */
@@ -81,4 +88,6 @@ export const RESET_KEYS: string[] = [
   KEYS.LAST_SYNC,
   KEYS.SCHEMA_VERSION,
   KEYS.LAST_CELEBRATED_DAY,
+  KEYS.WEEKLY_RESULT_NOTIFICATION,
+  KEYS.WEEKLY_RESULT_NOTIFICATION_STATE,
 ];
