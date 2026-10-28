@@ -37,7 +37,9 @@ import RewardExpansionSheet from '../components/RewardExpansionSheet';
 import { useRewardExpansion } from '../contexts/RewardExpansionContext';
 import { EXPANSION_COPY } from '../utils/rewardExpansion';
 import WeeklyPromiseSheet from '../components/WeeklyPromiseSheet';
-import { daysLine, pendingChange, shortDate } from '../utils/weeklyPromise';
+import { daysLine } from '../utils/weeklyPromise';
+import { promiseLine } from '../utils/weeklyPromises';
+import { MULTI_PROMISE_COPY } from '../utils/multiPromiseCopy';
 import { toLocalDateString } from '../utils/dateUtils';
 import TermsModal from '../components/TermsModal';
 import PrivacyModal from '../components/PrivacyModal';
@@ -63,18 +65,21 @@ export default function ProfileScreen() {
   const [showPromiseSheet, setShowPromiseSheet] = useState(false);
   const rewardExpansion = useRewardExpansion();
   const [showExpansionSheet, setShowExpansionSheet] = useState(false);
-  const weeklyPending = pendingChange(weekly.promise, todayKey);
   const expansionSummary = rewardExpansion.expansion.unlocked
     ? EXPANSION_COPY.unlockedSummary + (rewardExpansion.expansion.source === 'test' ? ' (테스트)' : '')
     : EXPANSION_COPY.lockedSummary;
-  const weeklySummary = weekly.status
-    ? `${weekly.status.terms.reward} (목표 ${weekly.status.terms.goalPercent}%)`
-    : '아직 없어요';
-  const weeklyNote = weeklyPending.kind === 'change'
-    ? `다음 주부터: ${weeklyPending.terms.reward} (목표 ${weeklyPending.terms.goalPercent}%)`
-    : weeklyPending.kind === 'stop'
-      ? `${shortDate(weeklyPending.from)}부터 그만해요`
-      : weekly.status ? `이번 주: ${daysLine(weekly.status.progress)}` : '';
+  const managed = weekly.managed;
+  const firstLine = managed.length === 1 ? promiseLine(managed[0], todayKey) : null;
+  const weekLine = weekly.summary ? `이번 주: ${daysLine(weekly.summary.progress)}` : '';
+  const weeklySummary = managed.length === 0
+    ? '아직 없어요'
+    : firstLine ? firstLine.title : MULTI_PROMISE_COPY.rowMany(managed.length);
+  const weeklyNote = firstLine?.note || weekLine;
+  const openExpansionFromPromise = () => {
+    setShowPromiseSheet(false);
+    // iOS cannot present a Modal while another one is still closing.
+    setTimeout(() => setShowExpansionSheet(true), 450);
+  };
   const [notificationEnabled, setNotificationEnabled] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
@@ -752,10 +757,13 @@ export default function ProfileScreen() {
 
       <WeeklyPromiseSheet
         visible={showPromiseSheet}
-        promise={weekly.promise}
+        promises={managed}
+        limit={rewardExpansion.slotLimit}
+        canExpand={!rewardExpansion.expansion.unlocked}
         today={todayKey}
-        onSave={weekly.save}
+        onSave={(id, input) => weekly.save(id, input, rewardExpansion.slotLimit)}
         onStop={weekly.stop}
+        onOpenExpansion={openExpansionFromPromise}
         onClose={() => setShowPromiseSheet(false)}
       />
 

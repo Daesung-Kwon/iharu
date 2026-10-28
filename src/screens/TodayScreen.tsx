@@ -70,7 +70,7 @@ export default function TodayScreen() {
     copyScheduleToDate,
     todayKey,
   } = useSchedule();
-  const { status: weeklyStatus, unseenResult, markResultSeen } = useWeeklyPromise();
+  const { summary: weeklySummary, unseenResults, markResultSeen } = useWeeklyPromise();
   // Day the all-done celebration last showed; the modal shows once per day.
   const lastCelebratedRef = useRef<string | null>(null);
   useEffect(() => {
@@ -452,8 +452,8 @@ export default function TodayScreen() {
             variant={showDatePicker ? 'summary' : 'full'}
             dense={isSmallPhone}
           />
-          {weeklyStatus && isViewingToday && (
-            <WeeklyPromiseCard status={weeklyStatus} dense={isSmallPhone} />
+          {weeklySummary && isViewingToday && (
+            <WeeklyPromiseCard summary={weeklySummary} dense={isSmallPhone} />
           )}
         </View>
 
@@ -799,7 +799,7 @@ export default function TodayScreen() {
 
       {/* Weekly promise result: once, after the week ends; never on top of the celebration. */}
       <WeeklyResultModal
-        result={showCelebration ? null : unseenResult}
+        results={showCelebration ? [] : unseenResults}
         onClose={() => { markResultSeen().catch(e => console.error('Failed to mark result seen:', e)); }}
       />
 

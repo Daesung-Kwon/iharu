@@ -5,12 +5,14 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { SoftPopColors } from '../constants/theme';
 import ModalBackdrop from './ModalBackdrop';
 import { modalStyles } from '../constants/modalStyle';
-import { resultCopy, WeeklyResult } from '../utils/weeklyPromise';
+import { WeeklyResult } from '../utils/weeklyPromise';
+import { weekResultCopy } from '../utils/weeklyPromises';
 
-export default function WeeklyResultModal({ result, onClose }: { result: WeeklyResult | null; onClose: () => void }) {
-  const copy = result ? resultCopy(result) : null;
+export default function WeeklyResultModal({ results, onClose }: { results: WeeklyResult[]; onClose: () => void }) {
+  const copy = weekResultCopy(results);
+  const result = copy;
   return (
-    <Modal visible={!!result} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={!!copy} transparent animationType="fade" onRequestClose={onClose}>
       <View style={modalStyles.dialogOverlay}>
         <ModalBackdrop onPress={onClose} />
         {result && copy && (

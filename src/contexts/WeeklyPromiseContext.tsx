@@ -1,22 +1,28 @@
 /**
- * Weekly reward promise state. Judges ended weeks whenever the data or the
- * day changes, and keeps the newest unseen result for the one-time moment.
+ * Weekly reward promises (1 free, more with '보상 확장'). Judges ended weeks
+ * whenever the data or the day changes, and keeps the newest unseen week's
+ * results for the one-time moment.
  */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useSchedule } from './ScheduleContext';
-import { loadWeeklyPromise, saveWeeklyPromise, saveWeeklyResults } from '../services/weeklyPromiseStore';
+import { loadWeeklyPromises, saveWeeklyPromises, saveWeeklyResults } from '../services/weeklyPromiseStore';
+import { markAllSeen, TermsInput, WeeklyPromise, WeeklyResult } from '../utils/weeklyPromise';
 import {
-  currentWeekStatus, judgeEndedWeeks, latestUnseen, markAllSeen, saveTerms, stopPromise,
-  TermsInput, WeeklyPromise, WeeklyResult, WeekStatus,
-} from '../utils/weeklyPromise';
+  judgeAll, latestUnseenWeek, managedPromises, stopPromiseById, upsertPromise, UpsertResult,
+  weekSummary, WeekSummary,
+} from '../utils/weeklyPromises';
 
 interface WeeklyPromiseContextType {
-  promise: WeeklyPromise | null;
-  status: WeekStatus | null;
-  unseenResult: WeeklyResult | null;
+  /** Every stored promise, including stopped ones (for judging and backup). */
+  promises: WeeklyPromise[];
+  /** Ones that take a slot (what the parent manages). */
+  managed: WeeklyPromise[];
+  summary: WeekSummary | null;
+  unseenResults: WeeklyResult[];
   loaded: boolean;
-  save: (input: TermsInput) => Promise<void>;
-  stop: () => Promise<void>;
+  /** id null = new. `limit` = slots the parent has (rewardSlotLimit). */
+  save: (id: string | null, input: TermsInput, limit: number) => Promise<UpsertResult>;
+  stop: (id: string) => Promise<void>;
   markResultSeen: () => Promise<void>;
   reload: () => Promise<void>;
 }
@@ -25,15 +31,17 @@ const Ctx = createContext<WeeklyPromiseContextType | null>(null);
 
 export function WeeklyPromiseProvider({ children }: { children: React.ReactNode }) {
   const { schedules, todayKey } = useSchedule();
-  const [promise, setPromise] = useState<WeeklyPromise | null>(null);
+  const [promises, setPromises] = useState<WeeklyPromise[]>([]);
   const [results, setResults] = useState<WeeklyResult[]>([]);
   const [loaded, setLoaded] = useState(false);
   const resultsRef = useRef(results);
   resultsRef.current = results;
+  const promisesRef = useRef(promises);
+  promisesRef.current = promises;
 
   const reload = useCallback(async () => {
-    const data = await loadWeeklyPromise();
-    setPromise(data.promise);
+    const data = await loadWeeklyPromises();
+    setPromises(data.promises);
     setResults(data.results);
     setLoaded(true);
   }, []);
@@ -42,8 +50,8 @@ export function WeeklyPromiseProvider({ children }: { children: React.ReactNode 
 
   // Judge weeks that ended. Schedules load async, so this re-runs when they arrive.
   useEffect(() => {
-    if (!loaded || !promise) return;
-    const fresh = judgeEndedWeeks(promise, resultsRef.current, schedules, {
+    if (!loaded || promises.length === 0) return;
+    const fresh = judgeAll(promises, resultsRef.current, schedules, {
       today: todayKey,
       nowIso: new Date().toISOString(),
     });
@@ -51,24 +59,27 @@ export function WeeklyPromiseProvider({ children }: { children: React.ReactNode 
     const next = [...resultsRef.current, ...fresh];
     setResults(next);
     saveWeeklyResults(next).catch(e => console.error('Failed to save weekly results:', e));
-  }, [loaded, promise, schedules, todayKey]);
+  }, [loaded, promises, schedules, todayKey]);
 
-  const save = useCallback(async (input: TermsInput) => {
-    const next = saveTerms(promise, input, {
+  const save = useCallback(async (id: string | null, input: TermsInput, limit: number) => {
+    const r = upsertPromise(promisesRef.current, id, input, {
       today: todayKey,
       nowIso: new Date().toISOString(),
       newId: `promise-${Date.now()}`,
+      limit,
     });
-    await saveWeeklyPromise(next);
-    setPromise(next);
-  }, [promise, todayKey]);
+    if (r.ok) {
+      await saveWeeklyPromises(r.list);
+      setPromises(r.list);
+    }
+    return r;
+  }, [todayKey]);
 
-  const stop = useCallback(async () => {
-    if (!promise) return;
-    const next = stopPromise(promise, { today: todayKey, nowIso: new Date().toISOString() });
-    await saveWeeklyPromise(next);
-    setPromise(next);
-  }, [promise, todayKey]);
+  const stop = useCallback(async (id: string) => {
+    const next = stopPromiseById(promisesRef.current, id, { today: todayKey, nowIso: new Date().toISOString() });
+    await saveWeeklyPromises(next);
+    setPromises(next);
+  }, [todayKey]);
 
   const markResultSeen = useCallback(async () => {
     const next = markAllSeen(resultsRef.current, new Date().toISOString());
@@ -77,15 +88,16 @@ export function WeeklyPromiseProvider({ children }: { children: React.ReactNode 
   }, []);
 
   const value = useMemo<WeeklyPromiseContextType>(() => ({
-    promise,
-    status: currentWeekStatus(promise, schedules, todayKey),
-    unseenResult: latestUnseen(results),
+    promises,
+    managed: managedPromises(promises, todayKey),
+    summary: weekSummary(promises, schedules, todayKey),
+    unseenResults: latestUnseenWeek(results),
     loaded,
     save,
     stop,
     markResultSeen,
     reload,
-  }), [promise, schedules, todayKey, results, loaded, save, stop, markResultSeen, reload]);
+  }), [promises, schedules, todayKey, results, loaded, save, stop, markResultSeen, reload]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

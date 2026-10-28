@@ -26,8 +26,10 @@ export const KEYS = {
   SCHEMA_VERSION: '@iharu.schemaVersion',
   /** 'YYYY-MM-DD' of the last day the all-done celebration showed (not backed up). */
   LAST_CELEBRATED_DAY: '@iharu.lastCelebratedDay',
-  /** The one weekly reward promise (JSON WeeklyPromise | null). Since schema v3. */
+  /** Legacy single promise (v3/v4). Moved into WEEKLY_PROMISES by the v5 step, then null. */
   WEEKLY_PROMISE: '@iharu.weeklyPromise',
+  /** All weekly promises (JSON WeeklyPromise[], stable ids). Since schema v5; replaces WEEKLY_PROMISE. */
+  WEEKLY_PROMISES: '@iharu.weeklyPromises',
   /** Judged weeks (JSON WeeklyResult[]). Since schema v3. */
   WEEKLY_RESULTS: '@iharu.weeklyResults',
   /** '보상 확장' unlock (JSON RewardExpansion). Since schema v4. Backed up, kept on reset. */
@@ -41,6 +43,7 @@ export const BACKUP_JSON_FIELDS = {
   deletedDefaultIds: { key: KEYS.DELETED_DEFAULTS, empty: [] as unknown[] },
   notificationSettings: { key: KEYS.NOTIFICATIONS, empty: {} as Record<string, unknown> },
   weeklyPromise: { key: KEYS.WEEKLY_PROMISE, empty: null },
+  weeklyPromises: { key: KEYS.WEEKLY_PROMISES, empty: [] as unknown[] },
   weeklyResults: { key: KEYS.WEEKLY_RESULTS, empty: [] as unknown[] },
 } as const;
 
