@@ -25,3 +25,17 @@ export const SoftPopColors = {
   // child reads "partly done" as "today".
   partial: '#5B8DEF',
 };
+
+/**
+ * One chrome for the bottom sheets (보상 약속, 보상 확장, Plan +추가).
+ * Radius, scrim, and content inset live here so those sheets cannot drift.
+ * The bottom inset is getSheetBottomPadding (max(safe area, 16) + 16), not a
+ * second number in this object. The scrim is one even dim (ModalBackdrop);
+ * sheets do not each invent a blur.
+ */
+export const SheetChrome = {
+  radius: 32,
+  backdrop: 'rgba(0, 0, 0, 0.5)',
+  paddingHorizontal: 20,
+  paddingTop: 20,
+} as const;

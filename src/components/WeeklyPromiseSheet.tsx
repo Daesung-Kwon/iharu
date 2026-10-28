@@ -9,7 +9,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SoftPopColors } from '../constants/theme';
-import ModalBackdrop from './ModalBackdrop';
+import ModalBackdrop, { sheetFrameStyle } from './ModalBackdrop';
 import { modalStyles } from '../constants/modalStyle';
 import {
   DEFAULT_GOAL_PERCENT, GOAL_OPTIONS, normalizeReward, pendingChange, REWARD_MAX_LENGTH,
@@ -54,7 +54,7 @@ export default function WeeklyPromiseSheet(props: Props) {
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView style={modalStyles.sheetOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ModalBackdrop onPress={onClose} />
-        <View style={[modalStyles.sheet, styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+        <View style={sheetFrameStyle(insets.bottom)}>
           <View style={styles.header}>
             {view.kind === 'form' && !view.direct ? (
               <Pressable
@@ -235,7 +235,6 @@ function PromiseForm({ promise, today, onSave, onStop, moreLink }: {
 
 const bold = Platform.OS === 'android' ? 'normal' : '700';
 const styles = StyleSheet.create({
-  sheet: { paddingHorizontal: 20, paddingTop: 20 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   headerTitle: { flex: 1 },
   listScroll: { flexGrow: 0 },

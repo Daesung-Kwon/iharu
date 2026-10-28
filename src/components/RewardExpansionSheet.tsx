@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, Modal, Pressable, Platform, ActivityIndicator, 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SoftPopColors } from '../constants/theme';
-import ModalBackdrop from './ModalBackdrop';
+import ModalBackdrop, { sheetFrameStyle } from './ModalBackdrop';
 import { modalStyles } from '../constants/modalStyle';
 import { EXPANSION_COPY as C } from '../utils/rewardExpansion';
 import { useRewardExpansion } from '../contexts/RewardExpansionContext';
@@ -58,7 +58,7 @@ export default function RewardExpansionSheet({ visible, onClose, onMessage }: Pr
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={modalStyles.sheetOverlay}>
         <ModalBackdrop onPress={onClose} />
-        <View style={[modalStyles.sheet, styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+        <View style={sheetFrameStyle(insets.bottom)}>
           <View style={styles.header}>
             <Text style={modalStyles.title}>{C.title}</Text>
             <Pressable
@@ -132,7 +132,6 @@ export default function RewardExpansionSheet({ visible, onClose, onMessage }: Pr
 
 const bold = Platform.OS === 'android' ? 'normal' : '700';
 const styles = StyleSheet.create({
-  sheet: { paddingHorizontal: 20, paddingTop: 20 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   intro: { marginTop: 6, marginBottom: 8, fontSize: 14, lineHeight: 20, color: SoftPopColors.textSecondary },
   benefit: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },

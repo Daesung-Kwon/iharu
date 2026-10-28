@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { SoftPopColors } from './theme';
+import { SheetChrome, SoftPopColors } from './theme';
 
 describe('SoftPopColors role colours', () => {
   it('partial-completion dot is soft blue', () => {
@@ -21,5 +21,14 @@ describe('SoftPopColors role colours', () => {
         `partial must differ from ${role}`,
       );
     }
+  });
+});
+
+describe('SheetChrome', () => {
+  it('bottom sheets share one radius, scrim, and content inset', () => {
+    assert.equal(SheetChrome.radius, 32);
+    assert.equal(SheetChrome.backdrop, 'rgba(0, 0, 0, 0.5)');
+    assert.equal(SheetChrome.paddingHorizontal, 20);
+    assert.equal(SheetChrome.paddingTop, 20);
   });
 });

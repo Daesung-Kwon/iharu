@@ -8,7 +8,7 @@ import { summaryCopy, WeekSummary } from '../utils/weeklyPromises';
 export default function WeeklyPromiseCard({ summary, dense }: { summary: WeekSummary; dense?: boolean }) {
   const { title, detail } = summaryCopy(summary);
   return (
-    <View style={[styles.row, dense && styles.rowDense]} accessible accessibilityLabel={`${title}. ${detail}`}>
+    <View style={[styles.row, dense && styles.rowSmall]} accessible accessibilityLabel={`${title}. ${detail}`}>
       <MaterialIcons name="card-giftcard" size={dense ? 20 : 22} color={SoftPopColors.today} />
       <View style={styles.text}>
         <Text style={styles.title} numberOfLines={1}>{title}</Text>
@@ -29,7 +29,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: SoftPopColors.todaySurface,
   },
-  rowDense: { marginTop: 8, paddingVertical: 6 },
+  // SE: keep the glyph slightly smaller, but give the line room to breathe.
+  rowSmall: { marginTop: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16 },
   text: { flex: 1, minWidth: 0 },
   title: {
     fontSize: 15,

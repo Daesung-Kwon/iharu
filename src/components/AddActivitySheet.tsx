@@ -5,12 +5,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, View, Text, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getSheetBottomPadding } from '../utils/safeArea';
 import { MaterialIcons } from '@expo/vector-icons';
 import ActivityIcon from './ActivityIcon';
 import { Activity } from '../types';
 import { SoftPopColors } from '../constants/theme';
-import ModalBackdrop from './ModalBackdrop';
+import ModalBackdrop, { sheetFrameStyle } from './ModalBackdrop';
 import { modalStyles } from '../constants/modalStyle';
 import { MIN_TOUCH_TARGET } from '../hooks/useLayout';
 import {
@@ -82,7 +81,7 @@ export default function AddActivitySheet({ visible, activities, items, nowMin, o
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={modalStyles.sheetOverlay}>
       <ModalBackdrop onPress={onClose} />
-      <View style={[modalStyles.sheet, styles.sheet, { paddingBottom: getSheetBottomPadding(insets.bottom) }]}>
+      <View style={[sheetFrameStyle(insets.bottom), styles.sheet]}>
         <View style={styles.headerRow}>
           <Text style={modalStyles.title}>활동 추가</Text>
           <Pressable
@@ -211,7 +210,7 @@ export default function AddActivitySheet({ visible, activities, items, nowMin, o
 
 const font = { fontFamily: 'BMJUA' } as const;
 const styles = StyleSheet.create({
-  sheet: { paddingHorizontal: 20, paddingTop: 16, gap: 8 },
+  sheet: { gap: 8 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   label: { ...font, fontSize: 14, color: SoftPopColors.textSecondary, marginTop: 4 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 2 },
