@@ -10,9 +10,8 @@ import { AppNavigator } from './src/navigation/AppNavigator';
 import { ActivityProvider } from './src/contexts/ActivityContext';
 import { ScheduleProvider } from './src/contexts/ScheduleContext';
 import { WeeklyPromiseProvider } from './src/contexts/WeeklyPromiseContext';
-import { AdsReadyProvider } from './src/contexts/AdsReadyContext';
+import { RewardExpansionProvider } from './src/contexts/RewardExpansionContext';
 import CustomSplashScreen from './src/screens/SplashScreen';
-import mobileAds, { MaxAdContentRating } from 'react-native-google-mobile-ads';
 
 // 스플래시 스크린을 유지하도록 설정
 SplashScreen.preventAutoHideAsync();
@@ -27,35 +26,6 @@ export default function App() {
     });
 
     const [isSplashFinished, setIsSplashFinished] = React.useState(false);
-    const [adsConfigFinished, setAdsConfigFinished] = React.useState(false);
-    const [adsReady, setAdsReady] = React.useState(false);
-
-    // 첫 배너가 TFCD/G 없이 나가지 않도록 설정·초기화가 끝난 뒤에만 네비게이션/배너를 마운트
-    useEffect(() => {
-        let cancelled = false;
-        (async () => {
-            try {
-                await mobileAds().setRequestConfiguration({
-                    maxAdContentRating: MaxAdContentRating.G,
-                    tagForChildDirectedTreatment: true,
-                    tagForUnderAgeOfConsent: true,
-                });
-                const adapterStatuses = await mobileAds().initialize();
-                if (__DEV__) {
-                    console.log('📱 Google Mobile Ads SDK initialized:', adapterStatuses);
-                }
-                if (!cancelled) setAdsReady(true);
-            } catch (error) {
-                console.warn('⚠️ Google Mobile Ads SDK initialization failed:', error);
-            } finally {
-                if (!cancelled) setAdsConfigFinished(true);
-            }
-        })();
-        return () => {
-            cancelled = true;
-        };
-    }, []);
-
     useEffect(() => {
         if (fontsLoaded) {
             if (__DEV__) {
@@ -92,19 +62,19 @@ export default function App() {
         <GestureHandlerRootView style={{ flex: 1 }}>
             <SafeAreaProvider>
                 <NavigationContainer>
-                    <AdsReadyProvider ready={adsReady}>
                         <ActivityProvider>
                             <ScheduleProvider>
                             <WeeklyPromiseProvider>
+                            <RewardExpansionProvider>
                                 <StatusBar style="auto" />
-                                {adsConfigFinished && <AppNavigator />}
-                                {(!isSplashFinished || !adsConfigFinished) && (
+                                <AppNavigator />
+                                {!isSplashFinished && (
                                     <CustomSplashScreen onFinish={() => setIsSplashFinished(true)} />
                                 )}
+                            </RewardExpansionProvider>
                             </WeeklyPromiseProvider>
                             </ScheduleProvider>
                         </ActivityProvider>
-                    </AdsReadyProvider>
                 </NavigationContainer>
             </SafeAreaProvider>
         </GestureHandlerRootView>

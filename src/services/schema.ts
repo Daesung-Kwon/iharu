@@ -7,11 +7,14 @@
  *      simply have no completedAt.
  * v3 - weekly reward promise ('@iharu.weeklyPromise', '@iharu.weeklyResults').
  *      New keys only; the step drops unreadable result rows if any exist.
+ * v4 - '보상 확장' unlock ('@iharu.rewardExpansion'). New key only; an
+ *      unreadable value is rewritten as locked.
  */
 import { KEYS } from './storageKeys';
 import { parseStoredResults } from '../utils/weeklyPromise';
+import { parseStoredExpansion } from '../utils/rewardExpansion';
 
-export const CURRENT_SCHEMA_VERSION = 3;
+export const CURRENT_SCHEMA_VERSION = 4;
 
 export interface KeyValueStore {
   getItem(key: string): Promise<string | null>;
@@ -32,6 +35,14 @@ export const MIGRATIONS: Migration[] = [
       const raw = await store.getItem(KEYS.WEEKLY_RESULTS);
       if (raw === null) return;
       await store.setItem(KEYS.WEEKLY_RESULTS, JSON.stringify(parseStoredResults(raw)));
+    },
+  },
+  {
+    to: 4,
+    run: async (store) => {
+      const raw = await store.getItem(KEYS.REWARD_EXPANSION);
+      if (raw === null) return;
+      await store.setItem(KEYS.REWARD_EXPANSION, JSON.stringify(parseStoredExpansion(raw)));
     },
   },
 ];

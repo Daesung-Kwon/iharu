@@ -325,3 +325,38 @@ describe('weekly promise backup', () => {
         endsFrom: null, createdAt: 'c', updatedAt: 'u' } }), null);
   });
 });
+
+describe('reward expansion backup', () => {
+  const base = {
+    [KEYS.USER_ID]: 'user-1', [KEYS.SCHEDULES]: '[]', [KEYS.ACTIVITIES]: '[]',
+  };
+  const opts = { appVersion: '1.0.0', fallbackUserId: 'f', nowIso: 'NOW' };
+  const bought = { unlocked: true, source: 'store' as const, productId: 'p', unlockedAt: 'x' };
+  const locked = { unlocked: false, source: null, productId: null, unlockedAt: null };
+  const flagWrite = (set: [string, string][]) => set.find(([k]) => k === KEYS.REWARD_EXPANSION);
+
+  it('is exported and read back from the file', () => {
+    const exported = appDataFromStorage({ ...base, [KEYS.REWARD_EXPANSION]: JSON.stringify(bought) }, opts);
+    const parsed = parseBackupData(JSON.stringify(exported))!;
+    assert.deepEqual(parsed.rewardExpansion, bought);
+    const { set } = appDataToStorage(parsed, { rewardExpansion: locked });
+    assert.deepEqual(JSON.parse(flagWrite(set)![1]), bought);
+  });
+
+  it('restoring an old or locked backup never removes a purchase', () => {
+    const old = parseBackupData(JSON.stringify(appDataFromStorage(base, opts)))!;
+    assert.deepEqual(old.rewardExpansion, locked);
+    assert.equal(flagWrite(appDataToStorage(old, { rewardExpansion: bought }).set), undefined);
+    assert.equal(flagWrite(appDataToStorage(old, { rewardExpansion: locked }).set), undefined);
+  });
+
+  it('is backed up but kept on reset', () => {
+    assert.ok(BACKUP_READ_KEYS.includes(KEYS.REWARD_EXPANSION));
+    assert.ok(!RESET_KEYS.includes(KEYS.REWARD_EXPANSION));
+  });
+
+  it('rejects a broken flag in a backup', () => {
+    const exported = appDataFromStorage(base, opts);
+    assert.equal(isValidAppData({ ...exported, rewardExpansion: { unlocked: 'yes' } }), false);
+  });
+});

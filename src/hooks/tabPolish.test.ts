@@ -1,13 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { shouldShowAdForRoute, getBottomChromeOffset } from './layoutMetrics';
+import { getBottomChromeOffset } from './layoutMetrics';
 import { getLockedItemToast } from '../utils/completionLogic';
 
-describe('single ad slot', () => {
-  it('hides the ad on Settings only', () => {
-    assert.equal(shouldShowAdForRoute('Profile'), false);
-    for (const r of ['Today', 'PlanSchedule', 'Activities']) assert.equal(shouldShowAdForRoute(r), true);
-  });
+describe('bottom chrome', () => {
   it('reserves tab bar plus loaded ad height', () => {
     assert.equal(getBottomChromeOffset(76, 0), 76);
     assert.equal(getBottomChromeOffset(76, 50), 126);
