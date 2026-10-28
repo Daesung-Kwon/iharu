@@ -4,7 +4,9 @@
  * results for the one-time moment.
  */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { useSchedule } from './ScheduleContext';
+import { syncWeeklyResultNotifications } from '../services/weeklyResultNotification';
 import { loadWeeklyPromises, saveWeeklyPromises, saveWeeklyResults } from '../services/weeklyPromiseStore';
 import { markAllSeen, TermsInput, WeeklyPromise, WeeklyResult } from '../utils/weeklyPromise';
 import {
@@ -38,6 +40,10 @@ export function WeeklyPromiseProvider({ children }: { children: React.ReactNode 
   resultsRef.current = results;
   const promisesRef = useRef(promises);
   promisesRef.current = promises;
+  const schedulesRef = useRef(schedules);
+  schedulesRef.current = schedules;
+  const todayKeyRef = useRef(todayKey);
+  todayKeyRef.current = todayKey;
 
   const reload = useCallback(async () => {
     const data = await loadWeeklyPromises();
@@ -60,6 +66,30 @@ export function WeeklyPromiseProvider({ children }: { children: React.ReactNode 
     setResults(next);
     saveWeeklyResults(next).catch(e => console.error('Failed to save weekly results:', e));
   }, [loaded, promises, schedules, todayKey]);
+
+  // One local notification for the newest unseen week. Scheduled ahead so it
+  // still fires if the app is backgrounded or killed. Judging above is unchanged.
+  const syncNotifications = useCallback((now = new Date()) => {
+    if (!loaded) return;
+    syncWeeklyResultNotifications({
+      promises: promisesRef.current,
+      results: resultsRef.current,
+      schedules: schedulesRef.current,
+      today: todayKeyRef.current,
+      now,
+    }).catch(e => console.error('주간 결과 알림 동기화 실패:', e));
+  }, [loaded]);
+
+  useEffect(() => {
+    syncNotifications();
+  }, [syncNotifications, promises, results, schedules, todayKey]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', next => {
+      if (next === 'active') syncNotifications(new Date());
+    });
+    return () => sub.remove();
+  }, [syncNotifications]);
 
   const save = useCallback(async (id: string | null, input: TermsInput, limit: number) => {
     const r = upsertPromise(promisesRef.current, id, input, {

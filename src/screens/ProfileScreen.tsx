@@ -17,6 +17,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { exportAllData, importAllData, clearAllData, parseBackupData } from '../services/storage';
 import {
   requestNotificationPermissions,
+  getNotificationPermissionStatus,
   loadNotificationsMasterEnabled,
   saveNotificationsMasterEnabled,
   loadNotificationSettings,
@@ -25,6 +26,11 @@ import {
   cancelAllNotifications,
   rescheduleUpcomingNotifications,
 } from '../services/notificationService';
+import {
+  loadWeeklyResultNotificationEnabled,
+  saveWeeklyResultNotificationEnabled,
+  syncWeeklyResultNotifications,
+} from '../services/weeklyResultNotification';
 import { loadSettingsPin, saveSettingsPin, clearSettingsPin } from '../services/pinLock';
 import PinLockModal from '../components/PinLockModal';
 import ParentCheckModal from '../components/ParentCheckModal';
@@ -81,6 +87,8 @@ export default function ProfileScreen() {
     setTimeout(() => setShowExpansionSheet(true), 450);
   };
   const [notificationEnabled, setNotificationEnabled] = useState(false);
+  const [weeklyResultOn, setWeeklyResultOn] = useState(true);
+  const [weeklyResultHint, setWeeklyResultHint] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showLicense, setShowLicense] = useState(false);
@@ -113,6 +121,7 @@ export default function ProfileScreen() {
       dispatchLock({ type: 'LOADED', hasPin: Boolean(pin) });
       const enabled = await loadNotificationsMasterEnabled();
       setNotificationEnabled(enabled);
+      setWeeklyResultOn(await loadWeeklyResultNotificationEnabled());
       setLeadMinutes(await loadNotificationLeadMinutes());
       setLastBackupAt(await AsyncStorage.getItem(LAST_BACKUP_KEY));
     };
@@ -134,6 +143,17 @@ export default function ProfileScreen() {
     });
     return () => sub.remove();
   }, [leave]);
+
+  useEffect(() => {
+    if (view !== 'settings') return;
+    let cancelled = false;
+    getNotificationPermissionStatus()
+      .then(status => {
+        if (!cancelled) setWeeklyResultHint(weeklyResultOn && status === 'denied');
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [view, weeklyResultOn]);
 
   const openUnlock = () => {
     setPinError('');
@@ -191,6 +211,41 @@ export default function ProfileScreen() {
     setNotificationEnabled(false);
     await saveNotificationsMasterEnabled(false);
     await cancelAllNotifications();
+  };
+
+  const handleWeeklyResultToggle = async (value: boolean) => {
+    if (!value) {
+      setWeeklyResultOn(false);
+      setWeeklyResultHint(false);
+      try {
+        await saveWeeklyResultNotificationEnabled(false);
+        await syncWeeklyResultNotifications();
+      } catch {
+        showToast('결과 알림을 끄지 못했어요');
+      }
+      return;
+    }
+    const ok = await requestNotificationPermissions();
+    if (!ok) {
+      setWeeklyResultOn(false);
+      setWeeklyResultHint(true);
+      try {
+        await saveWeeklyResultNotificationEnabled(false);
+        await syncWeeklyResultNotifications();
+      } catch {
+        // The switch already shows off.
+      }
+      Alert.alert('알림 권한 필요', '주간 결과를 알리려면 알림을 허용해 주세요.');
+      return;
+    }
+    setWeeklyResultHint(false);
+    setWeeklyResultOn(true);
+    try {
+      await saveWeeklyResultNotificationEnabled(true);
+      await syncWeeklyResultNotifications();
+    } catch {
+      showToast('결과 알림을 켜지 못했어요');
+    }
   };
 
   const handleLeadMinutes = async (minutes: NotificationLeadMinutes) => {
@@ -396,6 +451,7 @@ export default function ProfileScreen() {
                   ]);
                   const enabled = await loadNotificationsMasterEnabled();
                   setNotificationEnabled(enabled);
+                  setWeeklyResultOn(await loadWeeklyResultNotificationEnabled());
                   setLeadMinutes(await loadNotificationLeadMinutes());
                   const pin = await loadSettingsPin();
                   setStoredPin(pin);
@@ -451,6 +507,7 @@ export default function ProfileScreen() {
               resetSchedules();
               await weekly.reload();
               setNotificationEnabled(await loadNotificationsMasterEnabled());
+              setWeeklyResultOn(await loadWeeklyResultNotificationEnabled());
               setLeadMinutes(await loadNotificationLeadMinutes());
               const pin = await loadSettingsPin();
               setStoredPin(pin);
@@ -598,6 +655,22 @@ export default function ProfileScreen() {
             </View>
             <MaterialIcons name="chevron-right" size={24} color={SoftPopColors.textSecondary} />
           </Pressable>
+          <View style={styles.settingItem} accessibilityLabel="결과 알림">
+            <MaterialIcons name="notifications" size={28} color={SoftPopColors.textSecondary} />
+            <View style={styles.settingTextBlock}>
+              <Text style={[styles.settingText, styles.settingTextInBlock]}>결과 알림</Text>
+              <Text style={styles.settingSubText}>한 주가 끝나면 알려 드려요</Text>
+              {weeklyResultHint ? (
+                <Text style={styles.settingSubText}>알림 권한이 없어 보내지 못해요</Text>
+              ) : null}
+            </View>
+            <Switch
+              value={weeklyResultOn}
+              onValueChange={handleWeeklyResultToggle}
+              trackColor={{ false: SoftPopColors.background, true: '#FFB3B3' }}
+              thumbColor={weeklyResultOn ? SoftPopColors.primary : SoftPopColors.textSecondary}
+            />
+          </View>
           <Pressable
             style={({ pressed }) => [styles.settingItem, pressed && styles.settingItemPressed]}
             onPress={() => setShowExpansionSheet(true)}
