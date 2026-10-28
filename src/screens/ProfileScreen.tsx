@@ -49,6 +49,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from '../components/Toast';
 import { BACKUP_SHARE_CLOSED_MESSAGE, formatLastBackup } from '../utils/lastBackup';
+import { DEVICE_MOVE_COPY } from '../utils/deviceMove';
 import { decidePinStep } from '../utils/pinFlow';
 import { lockReducer, lockView } from '../utils/lockState';
 
@@ -420,7 +421,16 @@ export default function ProfileScreen() {
   };
 
   // 데이터 초기화
-  const handleReset = async () => {
+  const handleReset = () => {
+    const P = DEVICE_MOVE_COPY.resetPrompt;
+    Alert.alert(P.title, P.body, [
+      { text: P.cancel, style: 'cancel' },
+      { text: P.backupFirst, onPress: () => { void handleBackup(); } },
+      { text: P.skip, style: 'destructive', onPress: confirmReset },
+    ]);
+  };
+
+  const confirmReset = () => {
     Alert.alert(
       '데이터 초기화',
       '모든 활동과 일정 데이터가 삭제됩니다. 이 작업은 되돌릴 수 없습니다. 계속하시겠습니까?',
@@ -598,75 +608,6 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
-        {/* 데이터 관리 섹션 */}
-        <View style={[styles.section, isCompact && styles.sectionCompact]}>
-          <Text style={styles.sectionTitle}>데이터 관리</Text>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.settingItem,
-              pressed && styles.settingItemPressed
-            ]}
-            onPress={handleBackup}
-          >
-            <MaterialIcons
-              name="backup"
-              size={28}
-              color={SoftPopColors.textSecondary}
-            />
-            <View style={styles.settingTextBlock}>
-              <Text style={[styles.settingText, styles.settingTextInBlock]}>데이터 백업</Text>
-              <Text style={styles.settingSubText}>{formatLastBackup(lastBackupAt)}</Text>
-            </View>
-            <MaterialIcons
-              name="chevron-right"
-              size={24}
-              color={SoftPopColors.textSecondary}
-            />
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.settingItem,
-              pressed && styles.settingItemPressed
-            ]}
-            onPress={handleRestore}
-          >
-            <MaterialIcons
-              name="restore"
-              size={28}
-              color={SoftPopColors.textSecondary}
-            />
-            <Text style={styles.settingText}>데이터 복원</Text>
-            <MaterialIcons
-              name="chevron-right"
-              size={24}
-              color={SoftPopColors.textSecondary}
-            />
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.settingItem,
-              styles.dangerItem,
-              pressed && styles.settingItemPressed
-            ]}
-            onPress={handleReset}
-          >
-            <MaterialIcons
-              name="delete-outline"
-              size={28}
-              color={SoftPopColors.error}
-            />
-            <Text style={[styles.settingText, styles.dangerText]}>데이터 초기화</Text>
-            <MaterialIcons
-              name="chevron-right"
-              size={24}
-              color={SoftPopColors.textSecondary}
-            />
-          </Pressable>
-        </View>
-
         {/* 정보 섹션 */}
         <View style={[styles.section, isCompact && styles.sectionCompact]}>
           <Text style={styles.sectionTitle}>정보</Text>
@@ -736,6 +677,74 @@ export default function ProfileScreen() {
             <Text style={styles.settingText}>버전</Text>
             <Text style={styles.stateText}>{appVersion}</Text>
           </View>
+        </View>
+        {/* 기기 옮기기 섹션: 자주 쓰지 않아 맨 아래 */}
+        <View style={[styles.section, isCompact && styles.sectionCompact]}>
+          <Text style={styles.sectionTitle}>{DEVICE_MOVE_COPY.section}</Text>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.settingItem,
+              pressed && styles.settingItemPressed
+            ]}
+            onPress={handleBackup}
+          >
+            <MaterialIcons
+              name="backup"
+              size={28}
+              color={SoftPopColors.textSecondary}
+            />
+            <View style={styles.settingTextBlock}>
+              <Text style={[styles.settingText, styles.settingTextInBlock]}>{DEVICE_MOVE_COPY.backup}</Text>
+              <Text style={styles.settingSubText}>{formatLastBackup(lastBackupAt)}</Text>
+            </View>
+            <MaterialIcons
+              name="chevron-right"
+              size={24}
+              color={SoftPopColors.textSecondary}
+            />
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.settingItem,
+              pressed && styles.settingItemPressed
+            ]}
+            onPress={handleRestore}
+          >
+            <MaterialIcons
+              name="restore"
+              size={28}
+              color={SoftPopColors.textSecondary}
+            />
+            <Text style={styles.settingText}>{DEVICE_MOVE_COPY.restore}</Text>
+            <MaterialIcons
+              name="chevron-right"
+              size={24}
+              color={SoftPopColors.textSecondary}
+            />
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.settingItem,
+              styles.dangerItem,
+              pressed && styles.settingItemPressed
+            ]}
+            onPress={handleReset}
+          >
+            <MaterialIcons
+              name="delete-outline"
+              size={28}
+              color={SoftPopColors.error}
+            />
+            <Text style={[styles.settingText, styles.dangerText]}>데이터 초기화</Text>
+            <MaterialIcons
+              name="chevron-right"
+              size={24}
+              color={SoftPopColors.textSecondary}
+            />
+          </Pressable>
         </View>
       </ScrollView>
       )}
