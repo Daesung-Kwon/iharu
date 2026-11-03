@@ -19,6 +19,7 @@ import {
   toLocalDateString,
 } from '../utils/dateUtils';
 import { countCompleteDays, getWeekOverview } from '../utils/statsUtils';
+import { weekKeptLine, weekKeptSummary } from '../utils/weekStripCopy';
 import { MIN_TOUCH_TARGET } from '../hooks/layoutMetrics';
 
 const WEEKDAY_LABELS = ['월', '화', '수', '목', '금', '토', '일'];
@@ -44,7 +45,7 @@ export default function WeekStrip({
   const kept = countCompleteDays(overview);
   const todayString = toLocalDateString(new Date());
   const selectedString = toLocalDateString(selectedDate);
-  const summaryText = kept > 0 ? `${kept}일 지켰어요` : '아직 지킨 날이 없어요';
+  const summaryText = weekKeptSummary(kept);
   const isFull = variant === 'full';
 
   const prevDate = isFull ? getShiftedWeekDate(selectedDate, -1) : null;
@@ -74,7 +75,7 @@ export default function WeekStrip({
               {formatWeekRangeKo(weekDates)}
             </Text>
             <Text style={styles.summaryFull} numberOfLines={1}>
-              {containsToday ? `이번 주 ${summaryText}` : summaryText}
+              {weekKeptLine(kept, containsToday)}
             </Text>
           </View>
           <Pressable
