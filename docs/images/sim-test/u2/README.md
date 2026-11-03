@@ -2,7 +2,7 @@
 
 Device: iPhone SE (3rd generation), simulator `A3FB3EC7`.
 
-Expected (not in git — capture on the Mac SE after this draft):
+Committed (iPhone SE 3, simulator `A3FB3EC7`, launched with `-initialTab plan|activity`):
 
 - `before-plan-empty.png` — Plan phone empty, old single line 「이날은 아직 일정이 없어요」
 - `after-plan-empty.png` — Plan phone empty: 「아직 일정이 없어요」 / 「활동을 추가해 보세요」 (CTA 「첫 활동 추가」 unchanged). Past day: 「일정이 없었어요」 / 「지난 날은 바꿀 수 없어요」
