@@ -1,0 +1,43 @@
+/**
+ * Proof deep links for headless Simulator (no GUI taps).
+ * Host or first path segment only: iharu://plan, com.dailyschedule.app://activity.
+ */
+
+export type TabTarget = 'PlanSchedule' | 'Activities';
+
+const TAB_BY_SEGMENT: Record<string, TabTarget> = {
+  plan: 'PlanSchedule',
+  activity: 'Activities',
+};
+
+export function tabFromUrl(url: string | null | undefined): TabTarget | null {
+  if (!url) return null;
+  const schemeSep = url.indexOf('://');
+  if (schemeSep < 0) return null;
+  const rest = url.slice(schemeSep + 3).split(/[?#]/, 1)[0];
+  const segment = rest.split('/').find(part => part.length > 0);
+  if (!segment) return null;
+  return TAB_BY_SEGMENT[segment.toLowerCase()] ?? null;
+}
+
+export type TabLinkNavigation = {
+  isReady: () => boolean;
+  navigate: (name: 'MainTabs', params: { screen: TabTarget }) => void;
+};
+
+let queued: TabTarget | null = null;
+
+export function queueTabFromUrl(url: string | null | undefined): TabTarget | null {
+  const tab = tabFromUrl(url);
+  if (tab) queued = tab;
+  return tab;
+}
+
+/** Navigate when the container is ready. Keeps the last tab if it is not. */
+export function flushQueuedTab(navigation: TabLinkNavigation): boolean {
+  if (!queued || !navigation.isReady()) return false;
+  const tab = queued;
+  queued = null;
+  navigation.navigate('MainTabs', { screen: tab });
+  return true;
+}

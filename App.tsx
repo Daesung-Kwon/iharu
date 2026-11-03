@@ -2,11 +2,13 @@ import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { Text } from 'react-native';
 import { AppNavigator } from './src/navigation/AppNavigator';
+import { bindTabDeepLinks, flushQueuedTab } from './src/navigation/tabDeepLink';
+import { RootStackParamList } from './src/types';
 import { ActivityProvider } from './src/contexts/ActivityContext';
 import { ScheduleProvider } from './src/contexts/ScheduleContext';
 import { WeeklyPromiseProvider } from './src/contexts/WeeklyPromiseContext';
@@ -16,6 +18,7 @@ import CustomSplashScreen from './src/screens/SplashScreen';
 // 스플래시 스크린을 유지하도록 설정
 SplashScreen.preventAutoHideAsync();
 
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 export default function App() {
     // 주아체 폰트 로드
@@ -47,6 +50,8 @@ export default function App() {
         }
     }, [fontsLoaded, fontError]);
 
+    useEffect(() => bindTabDeepLinks(navigationRef), []);
+
     // 폰트가 로드되기 전에는 null 반환 (네이티브 스플래시 스크린 표시)
     if (!fontsLoaded && !fontError) {
         return null;
@@ -61,7 +66,10 @@ export default function App() {
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <SafeAreaProvider>
-                <NavigationContainer>
+                <NavigationContainer
+                    ref={navigationRef}
+                    onReady={() => flushQueuedTab(navigationRef)}
+                >
                         <ActivityProvider>
                             <ScheduleProvider>
                             <WeeklyPromiseProvider>

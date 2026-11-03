@@ -27,6 +27,7 @@ export default function ActivitiesScreen() {
     activityColumns,
     scrollEndPadding,
     cardRadius,
+    isSmallPhone,
   } = useLayout();
   const clayShadow = getClayShadow(isCompact);
   const { activities, addActivity, updateActivity, deleteActivity } = useActivity();
@@ -125,15 +126,17 @@ export default function ActivitiesScreen() {
         showsVerticalScrollIndicator={false}
       >
         {activities.length === 0 ? (
-          <View style={styles.emptyState}>
+          <View style={[styles.emptyState, isSmallPhone && styles.emptyStateSmall]}>
             <MaterialIcons
               name="format-list-bulleted"
-              size={64}
+              size={isSmallPhone ? 48 : 64}
               color={SoftPopColors.textSecondary}
             />
-            <Text style={styles.emptyTitle}>활동이 없어요</Text>
-            <Text style={styles.emptyMessage}>
-              새 활동을 추가해서 시작해보세요!
+            <Text style={[styles.emptyTitle, isSmallPhone && styles.emptyTitleSmall]}>
+              활동이 없어요
+            </Text>
+            <Text style={[styles.emptyMessage, isSmallPhone && styles.emptyMessageSmall]}>
+              활동을 추가해 보세요
             </Text>
           </View>
         ) : (
@@ -299,6 +302,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
     lineHeight: 24,
     fontFamily: 'BMJUA',
+  },
+  emptyStateSmall: {
+    paddingVertical: 40,
+    paddingHorizontal: 24,
+  },
+  emptyTitleSmall: {
+    fontSize: 20,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyMessageSmall: {
+    fontSize: 15,
+    lineHeight: 22,
+    paddingHorizontal: 0,
   },
 });
 

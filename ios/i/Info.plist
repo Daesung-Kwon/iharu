@@ -38,6 +38,12 @@
           <string>exp+daily-schedule-app</string>
         </array>
       </dict>
+      <dict>
+        <key>CFBundleURLSchemes</key>
+        <array>
+          <string>iharu</string>
+        </array>
+      </dict>
     </array>
     <key>CFBundleVersion</key>
     <string>8</string>
