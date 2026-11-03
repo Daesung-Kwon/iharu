@@ -9,22 +9,24 @@ Expected (not in git — capture on the Mac SE after this draft):
 - `before-activity-empty.png` — Activity empty, old line 「새 활동을 추가해서 시작해보세요!」
 - `after-activity-empty.png` — Activity empty: 「활동이 없어요」 / 「활동을 추가해 보세요」
 
-## Headless tab switch
+## Headless tab switch (launch argument)
 
-Simulator.app GUI is not available. The app listens for a URL host or path of `plan` or `activity` and switches tabs. Wait until the splash (~2.5s) has finished, or send the URL while the app is already open.
+`simctl openurl` raises the iOS “Open in i하루?” dialog, which cannot be tapped without Simulator.app. Launch the app with `-initialTab` instead. iOS puts that pair in the NSUserDefaults argument domain, and React Native `Settings` (already in the installed binary) exposes it. The same queue as the deep link selects the tab under the splash (~2.5s); the screen you see after the splash is that tab.
 
-The installed binary already registers `com.dailyschedule.app` (no rebuild):
+No native rebuild. Reload this JS bundle (Metro / dev client). A release build whose JS is baked in needs a new install of this JS; `Info.plist` and AppDelegate stay unchanged.
+
+```sh
+xcrun simctl launch --terminate-running-process A3FB3EC7 com.dailyschedule.app -initialTab plan
+xcrun simctl launch --terminate-running-process A3FB3EC7 com.dailyschedule.app -initialTab activity
+```
+
+`--terminate-running-process` matters: a process that is already running does not receive new arguments. Values are `plan` and `activity` only.
+
+`simctl openurl` still routes the same tabs, but the confirm dialog blocks a headless run:
 
 ```sh
 xcrun simctl openurl A3FB3EC7 "com.dailyschedule.app://plan"
 xcrun simctl openurl A3FB3EC7 "com.dailyschedule.app://activity"
 ```
 
-`iharu://` is the same route. It is in `app.json` and `ios/i/Info.plist`, so it works after a native rebuild that picks up that scheme:
-
-```sh
-xcrun simctl openurl A3FB3EC7 "iharu://plan"
-xcrun simctl openurl A3FB3EC7 "iharu://activity"
-```
-
-Path form is equivalent (`iharu:///plan`, `com.dailyschedule.app:///activity`). Other URLs are ignored.
+`iharu://plan` and `iharu://activity` are the same URL route after a native rebuild that includes the `iharu` scheme. Path form is equivalent (`iharu:///plan`). Other URLs and other `-initialTab` values are ignored.

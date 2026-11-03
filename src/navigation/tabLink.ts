@@ -1,14 +1,27 @@
 /**
- * Proof deep links for headless Simulator (no GUI taps).
- * Host or first path segment only: iharu://plan, com.dailyschedule.app://activity.
+ * Proof tab switches for a headless Simulator (no GUI taps).
+ * URL host/path: iharu://plan, com.dailyschedule.app://activity.
+ * Launch arg: `simctl launch … -initialTab plan` (NSUserDefaults argument domain).
  */
 
 export type TabTarget = 'PlanSchedule' | 'Activities';
+
+/** NSUserDefaults key set by `simctl launch <app> -initialTab plan`. */
+export const INITIAL_TAB_SETTING = 'initialTab';
 
 const TAB_BY_SEGMENT: Record<string, TabTarget> = {
   plan: 'PlanSchedule',
   activity: 'Activities',
 };
+
+/** `plan` / `activity`, or a full tab URL if that string is passed as the arg value. */
+export function tabFromLaunchValue(value: unknown): TabTarget | null {
+  if (typeof value !== 'string') return null;
+  const token = value.trim().toLowerCase();
+  if (!token) return null;
+  if (token.includes('://')) return tabFromUrl(token);
+  return TAB_BY_SEGMENT[token] ?? null;
+}
 
 export function tabFromUrl(url: string | null | undefined): TabTarget | null {
   if (!url) return null;
@@ -29,6 +42,12 @@ let queued: TabTarget | null = null;
 
 export function queueTabFromUrl(url: string | null | undefined): TabTarget | null {
   const tab = tabFromUrl(url);
+  if (tab) queued = tab;
+  return tab;
+}
+
+export function queueTabFromLaunchValue(value: unknown): TabTarget | null {
+  const tab = tabFromLaunchValue(value);
   if (tab) queued = tab;
   return tab;
 }

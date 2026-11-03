@@ -1,6 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { flushQueuedTab, queueTabFromUrl, tabFromUrl, type TabLinkNavigation } from './tabLink';
+import {
+  flushQueuedTab,
+  queueTabFromLaunchValue,
+  queueTabFromUrl,
+  tabFromLaunchValue,
+  tabFromUrl,
+  type TabLinkNavigation,
+} from './tabLink';
 
 describe('tabFromUrl', () => {
   it('reads plan and activity from host or path on any scheme', () => {
@@ -26,6 +33,22 @@ describe('tabFromUrl', () => {
   });
 });
 
+describe('tabFromLaunchValue', () => {
+  it('maps simctl -initialTab plan|activity', () => {
+    assert.equal(tabFromLaunchValue('plan'), 'PlanSchedule');
+    assert.equal(tabFromLaunchValue('activity'), 'Activities');
+    assert.equal(tabFromLaunchValue(' PLAN '), 'PlanSchedule');
+    assert.equal(tabFromLaunchValue('iharu://activity'), 'Activities');
+  });
+
+  it('ignores other launch values', () => {
+    assert.equal(tabFromLaunchValue(undefined), null);
+    assert.equal(tabFromLaunchValue(''), null);
+    assert.equal(tabFromLaunchValue('today'), null);
+    assert.equal(tabFromLaunchValue(1), null);
+  });
+});
+
 describe('flushQueuedTab', () => {
   it('holds the tab until navigation is ready, then opens it once', () => {
     const calls: string[] = [];
@@ -48,6 +71,12 @@ describe('flushQueuedTab', () => {
     assert.equal(flushQueuedTab(navigation), true);
     assert.deepEqual(calls, ['PlanSchedule', 'Activities']);
     assert.equal(queueTabFromUrl('iharu://today'), null);
+    assert.equal(flushQueuedTab(navigation), false);
+
+    assert.equal(queueTabFromLaunchValue('activity'), 'Activities');
+    assert.equal(flushQueuedTab(navigation), true);
+    assert.deepEqual(calls, ['PlanSchedule', 'Activities', 'Activities']);
+    assert.equal(queueTabFromUrl(null), null);
     assert.equal(flushQueuedTab(navigation), false);
   });
 });
