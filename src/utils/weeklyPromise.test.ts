@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Schedule } from '../types';
 import {
-  cardCopy, currentWeekStatus, judgeEndedWeeks, latestUnseen, markAllSeen, pendingChange,
+  cardCopy, currentWeekStatus, judgeEndedWeeks, latestUnseen, markAllSeen, parseStoredResults, pendingChange,
   resultCopy, saveTerms, stopPromise, termsForWeek, weekOf, WeeklyPromise,
 } from './weeklyPromise';
 
@@ -101,4 +101,35 @@ test('only the newest unseen result is shown, once', () => {
   const seen = markAllSeen(results, 'later');
   assert.equal(latestUnseen(seen), null);
   assert.ok(seen.every(r => r.seenAt === 'later'));
+});
+
+test('seenAt dismisses only as a non-empty string; a bad shape is dropped and re-judged unseen', () => {
+  const schedules = [day('2026-10-12', 1, 1)];
+  const [row] = judgeEndedWeeks(first(), [], schedules, { today: '2026-10-19', nowIso: 'n' });
+  assert.equal(row.seenAt, null);
+  assert.equal(latestUnseen([row])?.id, row.id);
+  assert.equal(latestUnseen([{ ...row, seenAt: '' }])?.id, row.id);
+  assert.equal(latestUnseen([{ ...row, seenAt: '2026-10-19T00:00:00.000Z' }]), null);
+
+  const numeric = parseStoredResults(JSON.stringify([{ ...row, seenAt: 1730000000000 }]));
+  assert.equal(numeric.length, 1);
+  assert.equal(numeric[0].seenAt, '1730000000000');
+  assert.equal(latestUnseen(numeric), null);
+
+  const flagged = parseStoredResults(JSON.stringify([{ ...row, seenAt: true }]));
+  assert.equal(flagged[0].seenAt, '1');
+  assert.equal(latestUnseen(flagged), null);
+
+  const kept = parseStoredResults(JSON.stringify([{ ...row, seenAt: undefined }]));
+  assert.equal(kept.length, 1);
+  assert.equal(kept[0].seenAt, null);
+  assert.equal(latestUnseen(kept)?.id, row.id);
+
+  // An object seenAt fails validation. The row is gone, so the next judge
+  // writes a new one with seenAt null and 「지난주 결과예요」 shows again.
+  assert.equal(parseStoredResults(JSON.stringify([{ ...row, seenAt: { at: '2026-10-19' } }])).length, 0);
+  const rejudged = judgeEndedWeeks(first(), [], schedules, { today: '2026-10-19', nowIso: 'again' });
+  assert.equal(rejudged.length, 1);
+  assert.equal(rejudged[0].seenAt, null);
+  assert.equal(latestUnseen(rejudged)?.weekStart, '2026-10-12');
 });

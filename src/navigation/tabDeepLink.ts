@@ -1,25 +1,51 @@
 /**
- * Forwards tab URLs and the `-initialTab` launch argument into the same queue.
- * The argument is already in NSUserDefaults' argument domain; React Native's
- * SettingsManager (in the installed binary) publishes that dictionary to JS.
+ * Forwards tab URLs and proof launch args into the same queue.
+ * `-initialTab`, `-openSheet`, and `-suppressWeeklyResult` are already in
+ * NSUserDefaults' argument domain; React Native's SettingsManager (in the
+ * installed binary) publishes that dictionary to JS. Absent args do nothing.
  */
 
 import { Linking, Platform, Settings } from 'react-native';
 import {
   flushQueuedTab,
   INITIAL_TAB_SETTING,
+  OPEN_SHEET_SETTING,
   queueTabFromLaunchValue,
   queueTabFromUrl,
+  sheetFromLaunchValue,
+  SUPPRESS_WEEKLY_RESULT_SETTING,
+  suppressWeeklyResultFromLaunchValue,
+  tabFromLaunchValue,
+  type ProofSheet,
   type TabLinkNavigation,
+  type TabTarget,
 } from './tabLink';
 
-function readInitialTabSetting(): unknown {
+function readLaunchSetting(key: string): unknown {
   if (Platform.OS !== 'ios') return null;
   try {
-    return Settings.get(INITIAL_TAB_SETTING);
+    return Settings.get(key);
   } catch {
     return null;
   }
+}
+
+/** Tab requested by `-initialTab`. Null when the arg is absent (Today stays the default). */
+export function readLaunchTab(): TabTarget | null {
+  return tabFromLaunchValue(readLaunchSetting(INITIAL_TAB_SETTING));
+}
+
+/** Sheet requested by `-openSheet`. Null when the arg is absent. */
+export function readLaunchSheet(): ProofSheet | null {
+  return sheetFromLaunchValue(readLaunchSetting(OPEN_SHEET_SETTING));
+}
+
+/**
+ * True only for this process when `-suppressWeeklyResult 1` was passed.
+ * Does not mark results seen and does not change the next launch.
+ */
+export function readSuppressWeeklyResult(): boolean {
+  return suppressWeeklyResultFromLaunchValue(readLaunchSetting(SUPPRESS_WEEKLY_RESULT_SETTING));
 }
 
 export function bindTabDeepLinks(navigation: TabLinkNavigation): () => void {
@@ -28,7 +54,10 @@ export function bindTabDeepLinks(navigation: TabLinkNavigation): () => void {
     flushQueuedTab(navigation);
   };
 
-  queueTabFromLaunchValue(readInitialTabSetting());
+  // A sheet lives on Settings. Selecting it here is what makes
+  // `-openSheet weeklyPromise` work without a separate `-initialTab`.
+  const sheet = readLaunchSheet();
+  queueTabFromLaunchValue(sheet ? 'settings' : readLaunchSetting(INITIAL_TAB_SETTING));
   flushQueuedTab(navigation);
 
   Linking.getInitialURL().then(handle).catch(() => {});

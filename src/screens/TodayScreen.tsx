@@ -19,6 +19,7 @@ import WeekStrip from '../components/WeekStrip';
 import WeeklyPromiseCard from '../components/WeeklyPromiseCard';
 import WeeklyResultModal from '../components/WeeklyResultModal';
 import { useWeeklyPromise } from '../contexts/WeeklyPromiseContext';
+import { readSuppressWeeklyResult } from '../navigation/tabDeepLink';
 import { getItemStatus, getNextActivity, getCurrentActivity, getMinutesUntil, formatRemainingTime } from '../utils/timeUtils';
 import { calculateDayStats, isToday, isPast, isFuture } from '../utils/statsUtils';
 import { toLocalDateString } from '../utils/dateUtils';
@@ -800,9 +801,10 @@ export default function TodayScreen() {
         />
       )}
 
-      {/* Weekly promise result: once, after the week ends; never on top of the celebration. */}
+      {/* Weekly promise result: once, after the week ends; never on top of the celebration.
+          -suppressWeeklyResult 1 hides it for this process only (store proof). */}
       <WeeklyResultModal
-        results={showCelebration ? [] : unseenResults}
+        results={showCelebration || readSuppressWeeklyResult() ? [] : unseenResults}
         onClose={() => { markResultSeen().catch(e => console.error('Failed to mark result seen:', e)); }}
       />
 

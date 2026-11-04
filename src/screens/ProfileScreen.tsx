@@ -54,6 +54,7 @@ import { SoftPopColors } from '../constants/theme';
 import { getClayShadow, useLayout } from '../hooks/useLayout';
 import { getVisibleAreaPaddingBottom } from '../utils/safeArea';
 import { useFocusEffect } from '@react-navigation/native';
+import { readLaunchSheet, readLaunchTab } from '../navigation/tabDeepLink';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from '../components/Toast';
 import { BACKUP_SHARE_CLOSED_MESSAGE, formatLastBackup } from '../utils/lastBackup';
@@ -71,6 +72,15 @@ export default function ProfileScreen() {
   const [showPromiseSheet, setShowPromiseSheet] = useState(false);
   const rewardExpansion = useRewardExpansion();
   const [showExpansionSheet, setShowExpansionSheet] = useState(false);
+  const settingsScrollRef = useRef<ScrollView>(null);
+  const proofScrolled = useRef(false);
+  // Proof only: `-openSheet weeklyPromise|rewardExpansion` opens that sheet.
+  // Absent arg leaves both closed. Does not purchase.
+  useEffect(() => {
+    const sheet = readLaunchSheet();
+    if (sheet === 'weeklyPromise') setShowPromiseSheet(true);
+    else if (sheet === 'rewardExpansion') setShowExpansionSheet(true);
+  }, []);
   const expansionSummary = rewardExpansion.expansion.unlocked
     ? EXPANSION_COPY.unlockedSummary + (rewardExpansion.expansion.source === 'test' ? ' (테스트)' : '')
     : EXPANSION_COPY.lockedSummary;
@@ -553,6 +563,7 @@ export default function ProfileScreen() {
         </Pressable>
       ) : (
       <ScrollView
+        ref={settingsScrollRef}
         style={styles.scrollView}
         contentContainerStyle={[
           styles.content,
@@ -639,7 +650,17 @@ export default function ProfileScreen() {
         </View>
 
         {/* 보상 약속 섹션 */}
-        <View style={[styles.section, isCompact && styles.sectionCompact]}>
+        <View
+          style={[styles.section, isCompact && styles.sectionCompact]}
+          onLayout={(e) => {
+            // Store proof: `-initialTab settings` should land on 보상 약속, which
+            // sits below the fold on SE. A normal open does not scroll.
+            if (proofScrolled.current || readLaunchSheet() || readLaunchTab() !== 'Profile') return;
+            proofScrolled.current = true;
+            const y = e.nativeEvent.layout.y;
+            settingsScrollRef.current?.scrollTo({ y: Math.max(0, y - 8), animated: false });
+          }}
+        >
           <Text style={styles.sectionTitle}>보상 약속</Text>
           <Pressable
             style={({ pressed }) => [styles.settingItem, pressed && styles.settingItemPressed]}

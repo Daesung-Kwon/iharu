@@ -10,7 +10,7 @@ import type { Schedule } from '../types';
 import { periodRate, PeriodRate } from './rewardPeriod';
 import {
   daysLine, isAchieved, isWeeklyPromise, judgeEndedWeeks, pendingChange, PromiseTerms,
-  resultCopy, saveTerms, shortDate, stopPromise, termsForWeek, TermsInput, weekOf, WeeklyPromise, WeeklyResult,
+  resultCopy, resultWasSeen, saveTerms, shortDate, stopPromise, termsForWeek, TermsInput, weekOf, WeeklyPromise, WeeklyResult,
 } from './weeklyPromise';
 
 type DaySchedule = Pick<Schedule, 'date' | 'items'>;
@@ -128,8 +128,8 @@ export function summaryCopy(s: WeekSummary): { title: string; detail: string } {
 
 export function latestUnseenWeek(results: readonly WeeklyResult[]): WeeklyResult[] {
   let week: string | null = null;
-  for (const r of results) if (!r.seenAt && (!week || r.weekStart > week)) week = r.weekStart;
-  return week ? results.filter(r => !r.seenAt && r.weekStart === week) : [];
+  for (const r of results) if (!resultWasSeen(r.seenAt) && (!week || r.weekStart > week)) week = r.weekStart;
+  return week ? results.filter(r => !resultWasSeen(r.seenAt) && r.weekStart === week) : [];
 }
 
 export function weekResultCopy(rs: readonly WeeklyResult[]): { title: string; body: string; footer: string; achieved: boolean } | null {

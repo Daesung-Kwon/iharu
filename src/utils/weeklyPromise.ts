@@ -51,6 +51,15 @@ export interface WeeklyResult {
   rate: number;
   achieved: boolean;
   judgedAt: string;
+  /**
+   * Set when 「지난주 결과예요」 was dismissed. Only a non-empty string counts
+   * (markAllSeen writes an ISO timestamp). null and "" still show the modal.
+   * Key: `@iharu.weeklyResults` (JSON array). A finite number or `true` is
+   * kept by parseStoredResults (turned into a string) so a hand edit sticks.
+   * Any other shape fails isWeeklyResult, the row is dropped, and judging
+   * writes a new row with seenAt null — the popup comes back.
+   * Proof launches can pass `-suppressWeeklyResult 1` instead of editing this.
+   */
   seenAt: string | null;
 }
 
@@ -218,11 +227,16 @@ export function judgeEndedWeeks(
   return out;
 }
 
+/** True only for a non-empty string. null and "" still show the result modal. */
+export function resultWasSeen(seenAt: string | null): boolean {
+  return typeof seenAt === 'string' && seenAt.length > 0;
+}
+
 /** The newest result the child has not seen yet. */
 export function latestUnseen(results: readonly WeeklyResult[]): WeeklyResult | null {
   let best: WeeklyResult | null = null;
   for (const r of results) {
-    if (r.seenAt) continue;
+    if (resultWasSeen(r.seenAt)) continue;
     if (!best || r.weekStart > best.weekStart) best = r;
   }
   return best;
@@ -302,11 +316,27 @@ export function parseStoredPromise(raw: string | null): WeeklyPromise | null {
   }
 }
 
+/**
+ * A hand-edited seenAt of the wrong JSON type used to drop the whole row.
+ * Judging then recreated it with seenAt null, so the confirm showed again.
+ * Missing / false become null (still shown). A finite number or true is kept
+ * as a string (dismissed). Objects and arrays are left for isWeeklyResult to drop.
+ */
+function coerceStoredResult(v: unknown): unknown {
+  if (!isRecord(v)) return v;
+  if (!('seenAt' in v) || v.seenAt === false) return { ...v, seenAt: null };
+  const seenAt = v.seenAt;
+  if (seenAt === null || typeof seenAt === 'string') return v;
+  if (typeof seenAt === 'number' && Number.isFinite(seenAt)) return { ...v, seenAt: String(seenAt) };
+  if (seenAt === true) return { ...v, seenAt: '1' };
+  return v;
+}
+
 export function parseStoredResults(raw: string | null): WeeklyResult[] {
   if (!raw) return [];
   try {
     const v = JSON.parse(raw);
-    return Array.isArray(v) ? v.filter(isWeeklyResult) : [];
+    return Array.isArray(v) ? v.map(coerceStoredResult).filter(isWeeklyResult) : [];
   } catch {
     return [];
   }

@@ -103,7 +103,7 @@ export interface TodayScheduleSummary {
 
 // ==================== Navigation ====================
 export type RootStackParamList = {
-  /** Nested `screen` is how iharu://plan and iharu://activity open a tab. */
+  /** Nested `screen` is how iharu://plan, iharu://activity, and -initialTab open a tab. */
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   Login: undefined;
   Register: undefined;
