@@ -4,7 +4,7 @@ Docs only. No product TypeScript changes. This pack loads a known AsyncStorage s
 
 | | |
 | --- | --- |
-| Simulator | iPhone SE (3rd generation), UDID `A3FB3EC7` only |
+| Simulator | iPhone SE (3rd generation), UDID `A3FB3EC7-70FA-41E0-8BAF-CF7C0D33E19E` only |
 | Never | iPhone 17 simulator `6EB78120` |
 | App | `com.dailyschedule.app` |
 | Clock | Mac timezone **Asia/Seoul** (the simulator clock is the Mac clock) |
@@ -21,16 +21,16 @@ From the repo root, on the Mac that hosts the SE simulator:
 ./docs/device-week-w2/apply-seed.sh single     # one promise, free slot
 ./docs/device-week-w2/apply-seed.sh --print    # pass lines only; no simulator
 ./docs/device-week-w2/apply-seed.sh --check    # round-trip both profiles; no simulator
-./docs/device-week-w2/apply-seed.sh --show     # read weekly keys back off A3FB3EC7
+./docs/device-week-w2/apply-seed.sh --show     # read weekly keys back off the SE simulator
 ```
 
 What the apply command does:
 
 1. Refuses any argument that mentions `6EB78120`.
-2. Boots `A3FB3EC7` if it is not already booted. It never boots another simulator.
+2. Boots `A3FB3EC7-70FA-41E0-8BAF-CF7C0D33E19E` if it is not already booted. It never boots another simulator. `simctl` rejects the short prefix `A3FB3EC7`.
 3. Terminates `com.dailyschedule.app` and waits 2 seconds so a dying process cannot write over the seed.
 4. Resolves that simulator's data container and **replaces** the AsyncStorage directory below. This wipes whatever that app had stored on this simulator, including a PIN.
-5. Launches `com.dailyschedule.app` on `A3FB3EC7`.
+5. Launches `com.dailyschedule.app` on `A3FB3EC7-70FA-41E0-8BAF-CF7C0D33E19E`.
 
 The Mac must be UTC+9. If it is not, the script stops. `--allow-tz` follows the Mac's local date instead; the Friday sample strings in the checklist then may not match, and the script's printed summary is the pass text.
 
@@ -44,7 +44,7 @@ Live directory for this tip (async-storage 2.2.0):
 <container>/Library/Application Support/com.dailyschedule.app/RCTAsyncLocalStorage_V1/manifest.json
 ```
 
-`<container>` is `xcrun simctl get_app_container A3FB3EC7 com.dailyschedule.app data`.
+`<container>` is `xcrun simctl get_app_container A3FB3EC7-70FA-41E0-8BAF-CF7C0D33E19E com.dailyschedule.app data`.
 
 `manifest.json` is a JSON object. Every value is a **string**. AsyncStorage never stores a bare number or array in that file. A value longer than **1024 UTF-16 code units** is `null` in the manifest, and the raw string (not a second JSON encoding) is a sibling file whose name is MD5 of the UTF-8 key. Schedules cross that line, so `@daily_schedule_schedules` is a sibling file. The script does this; do not paste the logical JSON straight into the manifest.
 
@@ -109,5 +109,5 @@ For a Seoul Friday in the device week those Mondays are `2026-10-26` and `2026-1
 
 - [seed.json](./seed.json) — logical seed (profiles, activities, day pattern)
 - [materialize_seed.py](./materialize_seed.py) — dates, manifest, 1024-unit split
-- [apply-seed.sh](./apply-seed.sh) — A3FB3EC7 only
+- [apply-seed.sh](./apply-seed.sh) — SE simulator `A3FB3EC7-70FA-41E0-8BAF-CF7C0D33E19E` only
 - [CHECKLIST.md](./CHECKLIST.md) — pass/fail for #15–#23

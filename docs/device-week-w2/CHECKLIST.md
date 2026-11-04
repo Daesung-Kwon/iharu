@@ -1,6 +1,6 @@
 # W2 device checklist
 
-iPhone SE (3rd generation), simulator **`A3FB3EC7`**, app **`com.dailyschedule.app`**. Do not use iPhone 17 `6EB78120`. Mac timezone Asia/Seoul. No store purchase. Apply steps are in [README.md](./README.md).
+iPhone SE (3rd generation), simulator **`A3FB3EC7-70FA-41E0-8BAF-CF7C0D33E19E`**, app **`com.dailyschedule.app`**. Do not use iPhone 17 `6EB78120`. `simctl` rejects the short prefix `A3FB3EC7`. Mac timezone Asia/Seoul. No store purchase. Apply steps are in [README.md](./README.md).
 
 Pass lines below are for **today = Friday 2026-11-06**. On another Seoul day, treat the JSON from `./docs/device-week-w2/apply-seed.sh --print` as the pass text (`cardTitle`, `cardDetail`, `modal`, `notificationIds`). The shapes do not change: last week stays 3/5 at 60%, today starts at 1/2, this week's kept-day count starts at 0.
 
@@ -24,7 +24,7 @@ Do this **before** applying the seed (fresh container, or any state with no sche
 ./docs/device-week-w2/apply-seed.sh
 ```
 
-Pass: the printed JSON has `"profile": "multi"`, the app launches on `A3FB3EC7`, and Settings opens with **no PIN**. If Today still shows the old data, the previous process wrote after the seed; run the script again (it terminates first).
+Pass: the printed JSON has `"profile": "multi"`, the app launches on `A3FB3EC7-70FA-41E0-8BAF-CF7C0D33E19E`, and Settings opens with **no PIN**. If Today still shows the old data, the previous process wrote after the seed; run the script again (it terminates first).
 
 Allow the notification prompt when it appears. If iOS already denied it, Settings → 결과 알림 shows 「알림 권한이 없어 보내지 못해요」 and the ids in section 6 will not stick until notification permission is granted.
 

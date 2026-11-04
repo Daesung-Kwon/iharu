@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Write the W2 AsyncStorage seed onto iPhone SE 3 simulator A3FB3EC7 only.
+# Write the W2 AsyncStorage seed onto iPhone SE 3 simulator A3FB3EC7-70FA-41E0-8BAF-CF7C0D33E19E only.
 # Never targets iPhone 17 (6EB78120). See README.md in this directory.
 set -euo pipefail
 
-ALLOWED=A3FB3EC7
+ALLOWED=A3FB3EC7-70FA-41E0-8BAF-CF7C0D33E19E
 FORBIDDEN=6EB78120
 APP=com.dailyschedule.app
 HERE=$(cd "$(dirname "$0")" && pwd)
