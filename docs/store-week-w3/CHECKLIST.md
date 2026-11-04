@@ -145,7 +145,7 @@ The app is a family schedule tool. That does not by itself put it in the App Sto
 | Advertising / AD_ID | Not used | `app.json` `android.blockedPermissions` includes `com.google.android.gms.permission.AD_ID`, `ACCESS_ADSERVICES_AD_ID`, `ACCESS_ADSERVICES_ATTRIBUTION`, `ACCESS_ADSERVICES_TOPICS`, and `BIND_GET_INSTALL_REFERRER_SERVICE`. `android/app/src/main/AndroidManifest.xml` removes each of those with `tools:node="remove"`. `src/noAds.test.ts` fails if the AD_ID remove or an ad SDK returns. No `GADApplicationIdentifier` in `ios/i/Info.plist` |
 | Diagnostics, contacts, location | Not collected by the app | No such SDK in `package.json` |
 | Privacy policy URL | A public page that matches the binary | In-repo text matches. `src/data/privacy.ts` and `docs/privacy.html` (시행일 2026-10-28): no ads, no IDFA, 보상 확장 payments stay with the store. **Owner TODO:** Pages builds `https://daesung-kwon.github.io/iharu/privacy.html` from `main` `/docs` only. This branch does not publish that URL. Do not paste it into App Store Connect until the live page no longer describes Google AdMob |
-| Export compliance | No, non-exempt encryption | `app.json` sets `ITSAppUsesNonExemptEncryption` false. The checked-in Info.plist does not yet contain the key. See the audit |
+| Export compliance | No, non-exempt encryption | `app.json` and the checked-in `ios/i/Info.plist` both set `ITSAppUsesNonExemptEncryption` false. See the audit |
 
 ### 3.2 Kids notes
 
@@ -176,7 +176,7 @@ Before `eas submit`, confirm:
 | Profile | `production`. `ios.simulator` is false |
 | `EXPO_PUBLIC_IAP_TEST` | Unset. `eas.json` does not set it. If it is `1`, the store binary shows 「테스트: 확장 켜기」 |
 | Ads | The production install still has no ad SDK and still merges the AD_ID `tools:node="remove"` manifest lines |
-| Encryption prompt | The uploaded Info.plist carries `ITSAppUsesNonExemptEncryption` = false, or the owner answers "No" at upload. `app.json` already says false |
+| Encryption prompt | The checked-in Info.plist carries `ITSAppUsesNonExemptEncryption` = false, matching `app.json`. A raw archive should not prompt. If a later prebuild drops the key, answer "No" at upload |
 | Version | The build App Store Connect shows is the 1차 version the owner intends. `app.json` says 1.1.0 (8). Remote autoincrement may raise the build number |
 
 Xcode archive path, if EAS is not used:

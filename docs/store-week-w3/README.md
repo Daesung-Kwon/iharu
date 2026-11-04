@@ -38,7 +38,7 @@ No App Store Connect product is claimed to exist. The sheet copy already says th
 
 ## Audit (this tip)
 
-Product-id checks below are unchanged from the W3 pack: the placeholder matches PR #17, and this follow-up does not edit `REWARD_EXPANSION_PRODUCT_ID`. The privacy-page and version rows are the two gaps closed in-repo after `b3060ad`. Export compliance is still open. The live Pages site is still an owner publish.
+Product-id checks below are unchanged from the W3 pack: the placeholder matches PR #17, and this follow-up does not edit `REWARD_EXPANSION_PRODUCT_ID`. The privacy-page and version rows were closed in-repo after `b3060ad`. Export compliance is closed in the checked-in Info.plist. The live Pages site is still an owner publish.
 
 | Check | Where | Result |
 | --- | --- | --- |
@@ -54,7 +54,7 @@ Product-id checks below are unchanged from the W3 pack: the placeholder matches 
 | App Store product, price, StoreKit file | — | **Gap.** Not in the repo, and not created here. Fetch returns nothing until a product with this id exists for this bundle |
 | Public privacy page vs the binary | `src/data/privacy.ts` and `docs/privacy.html` both say no ads, no IDFA, 보상 확장 payments stay with the store, 시행일 2026-10-28. `docs/app-ads.txt` is removed. The launch guide no longer tells the owner to paste an AdMob marketing URL | **Closed in the repo.** **Owner TODO:** GitHub Pages serves `https://daesung-kwon.github.io/iharu/` from `main` `/docs` only. This branch does not publish. Do not paste `https://daesung-kwon.github.io/iharu/privacy.html` into App Store Connect until that URL shows the no-ads page, and until `https://daesung-kwon.github.io/iharu/app-ads.txt` is no longer served |
 | Version sources | `app.json` version **1.1.0**, iOS `buildNumber` **8**. `package.json` **1.1.0**. `ios/i/Info.plist` hardcodes `CFBundleShortVersionString` **1.1.0** and `CFBundleVersion` **8**. Target Debug and Release: `MARKETING_VERSION` **1.1.0**, `CURRENT_PROJECT_VERSION` **8** | **Closed.** Not bumped past 1.1.0 (8). The plist stays literal, so a raw archive embeds 1.1.0 (8), and the Xcode settings now agree. Android `versionName` is already `1.1.0`. Android `versionCode` stays **2** because `app.json` sets no `android.versionCode` |
-| Export compliance key | `app.json` `ITSAppUsesNonExemptEncryption: false`. The checked-in `ios/i/Info.plist` does not contain that key | **Gap.** An EAS build from `app.json` can carry it. A raw archive of `ios/` as committed will be asked the encryption question at upload |
+| Export compliance key | `app.json` `ITSAppUsesNonExemptEncryption: false`. `ios/i/Info.plist` sets `ITSAppUsesNonExemptEncryption` false. `src/storeMetadata.test.ts` fails if the two disagree | **Closed.** A raw archive of `ios/` as committed carries the key, so upload is not asked the encryption question for this declaration |
 
 ## Screenshot sizes (checked 2026-11-04)
 

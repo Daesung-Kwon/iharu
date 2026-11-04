@@ -38,3 +38,14 @@ test('ios version settings match app.json 1.1.0 (8)', () => {
     'CURRENT_PROJECT_VERSION = 8;',
   ]);
 });
+
+test('checked-in Info.plist matches app.json ITSAppUsesNonExemptEncryption', () => {
+  const app = JSON.parse(read('app.json'));
+  const usesNonExempt = app.expo.ios.infoPlist.ITSAppUsesNonExemptEncryption;
+  assert.equal(usesNonExempt, false);
+  const token = usesNonExempt ? '<true/>' : '<false/>';
+  assert.match(
+    read('ios/i/Info.plist'),
+    new RegExp(`<key>ITSAppUsesNonExemptEncryption</key>\\s*${token}`),
+  );
+});
