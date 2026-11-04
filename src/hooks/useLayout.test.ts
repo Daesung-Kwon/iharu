@@ -9,6 +9,8 @@ import {
   MIN_TOUCH_TARGET,
   TAB_BAR_HEIGHT,
   TAB_BAR_HEIGHT_SMALL,
+  TAB_BAR_HIT_SLOP,
+  TAB_ICON_PILL,
   TOAST_CHROME_GAP,
 } from './layoutMetrics';
 import { BREAKPOINTS } from '../constants/config';
@@ -164,6 +166,7 @@ describe('getTabBarChrome', () => {
     assert.equal(chrome.pillMarginBottom, 8);
     assert.equal(chrome.pillMarginHorizontal, 8);
     assert.equal(chrome.buttonMinHeight, 48);
+    assert.equal(chrome.buttonMinWidth, MIN_TOUCH_TARGET);
     assert.equal(chrome.offset, TAB_BAR_HEIGHT_SMALL + 8);
     // Items sit in the same band as the pill.
     assert.equal(chrome.barHeight - chrome.paddingBottom, chrome.barHeight - chrome.pillMarginBottom);
@@ -200,6 +203,34 @@ describe('getTabBarChrome', () => {
   it('computeTabBarOffset delegates to the chrome (default tier phoneRegular)', () => {
     assert.equal(computeTabBarOffset(34, 'ios'), TAB_BAR_HEIGHT + 34);
     assert.equal(computeTabBarOffset(0, 'ios', 'phoneSmall'), TAB_BAR_HEIGHT_SMALL + 8);
+  });
+
+  it('320pt SE: each tab pressable is at least 44×44 and 2-glyph labels fit', () => {
+    const chrome = getTabBarChrome('phoneSmall', 0, 'ios');
+    const slot = 320 / 4;
+    // UIKit icon column is 31pt; the button floor must lift that to 44.
+    const pressableWidth = Math.max(31, chrome.buttonMinWidth);
+    const pressableHeight = chrome.buttonMinHeight;
+    assert.ok(pressableWidth >= MIN_TOUCH_TARGET);
+    assert.ok(pressableHeight >= MIN_TOUCH_TARGET);
+    assert.ok(pressableWidth <= slot);
+
+    const touchWidth = pressableWidth + TAB_BAR_HIT_SLOP.left + TAB_BAR_HIT_SLOP.right;
+    const touchHeight = pressableHeight + TAB_BAR_HIT_SLOP.top + TAB_BAR_HIT_SLOP.bottom;
+    assert.ok(touchWidth >= TAB_ICON_PILL.width);
+    assert.ok(touchWidth <= slot, `touch width ${touchWidth} crosses the ${slot}pt slot`);
+    assert.ok(touchHeight >= MIN_TOUCH_TARGET);
+
+    // Two Korean glyphs at 12pt (about 16pt each) stay inside the pressable and the slot.
+    const labelWidth = 16 * 2;
+    assert.ok(labelWidth <= pressableWidth);
+    assert.ok(labelWidth <= slot);
+    assert.ok(TAB_ICON_PILL.width <= slot);
+
+    // Icon slot 28 + label margin 4 + ~16pt line, inside the 60 − 8 content band.
+    const contentHeight = chrome.barHeight - chrome.paddingBottom;
+    assert.ok(28 + 4 + 16 <= contentHeight);
+    assert.ok(TAB_ICON_PILL.height <= contentHeight);
   });
 });
 
