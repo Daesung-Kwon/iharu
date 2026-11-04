@@ -16,6 +16,17 @@ import ActivityFormModal from '../components/ActivityFormModal';
 import { Activity } from '../types';
 import { SoftPopColors } from '../constants/theme';
 import { getClayShadow, useLayout } from '../hooks/useLayout';
+import { getActivityListBottomInset } from '../utils/safeArea';
+
+/** One horizontal band per row so every card is inside the scroll height. */
+function chunkIntoRows<T>(items: readonly T[], columns: number): T[][] {
+  const size = Math.max(1, columns);
+  const rows: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    rows.push(items.slice(i, i + size));
+  }
+  return rows;
+}
 
 export default function ActivitiesScreen() {
   const {
@@ -25,10 +36,11 @@ export default function ActivitiesScreen() {
     space,
     titleSize,
     activityColumns,
-    scrollEndPadding,
+    bottomChrome,
     cardRadius,
     isSmallPhone,
   } = useLayout();
+  const listInset = getActivityListBottomInset(bottomChrome);
   const clayShadow = getClayShadow(isCompact);
   const { activities, addActivity, updateActivity, deleteActivity } = useActivity();
   const { schedules } = useSchedule();
@@ -114,15 +126,15 @@ export default function ActivitiesScreen() {
         </Pressable>
       </View>
 
+      {/* marginBottom lifts the scrollport above the floating tab bar.
+          paddingBottom is only the gap under the last card. */}
       <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[
-          styles.content,
-          {
-            padding: space,
-            paddingBottom: scrollEndPadding,
-          }
-        ]}
+        style={[styles.scrollView, { marginBottom: listInset.scrollPortBottom }]}
+        contentContainerStyle={{
+          paddingTop: space,
+          paddingHorizontal: space,
+          paddingBottom: listInset.contentPaddingBottom,
+        }}
         showsVerticalScrollIndicator={false}
       >
         {activities.length === 0 ? (
@@ -148,15 +160,22 @@ export default function ActivitiesScreen() {
                     {group.label}
                   </Text>
                 )}
-                <View style={[styles.activityGrid, { gap: GAP }]}>
-                  {group.items.map((activity) => (
-                    <ActivityCard
-                      key={activity.id}
-                      activity={activity}
-                      onEdit={() => handleEditActivity(activity.id)}
-                      onDelete={() => handleDeleteActivity(activity.id)}
-                      width={cardWidth}
-                    />
+                <View style={{ gap: GAP }}>
+                  {chunkIntoRows(group.items, activityColumns).map((row) => (
+                    <View
+                      key={row.map((activity) => activity.id).join('-')}
+                      style={[styles.activityRow, { gap: GAP }]}
+                    >
+                      {row.map((activity) => (
+                        <ActivityCard
+                          key={activity.id}
+                          activity={activity}
+                          onEdit={() => handleEditActivity(activity.id)}
+                          onDelete={() => handleDeleteActivity(activity.id)}
+                          width={cardWidth}
+                        />
+                      ))}
+                    </View>
                   ))}
                 </View>
               </View>
@@ -270,13 +289,9 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  content: {
-    padding: 32,
-  },
-  activityGrid: {
+  activityRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 20,
+    alignItems: 'stretch',
     justifyContent: 'flex-start',
   },
   emptyState: {
