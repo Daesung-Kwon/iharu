@@ -15,3 +15,6 @@
 | 4 | w3-se-04-settings-reward.png | 설정 › 보상 약속 |
 | 5 | w3-se-05-weekly-promise.png | 주간 보상 약속 sheet |
 | 6 | w3-se-06-expansion.png | 보상 확장 (locked) |
+
+## Refresh 2026-11-04 (KST)
+- `w3-se-03-activity.png` re-captured after U-5 Activity inset (#30), tip #31 @ `0d4a3a1`, SE A3FB3EC7, `-initialTab activity -suppressWeeklyResult 1`, seed `single`. Other 5 frames unchanged.
