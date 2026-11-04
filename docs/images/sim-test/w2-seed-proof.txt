@@ -1,0 +1,47 @@
+W2 seed proof — PASS — 2026-11-04 18:07 KST
+branch cursor/w2-device-seed-pack-92c6 @ f7a44d264b21fd5f48d3e7d95d73b5c174b80d39; sim A3FB3EC7-70FA-41E0-8BAF-CF7C0D33E19E only (6EB78120 untouched, Shutdown)
+
+18:03 KST ./docs/device-week-w2/apply-seed.sh -> FAIL: 'Invalid device: A3FB3EC7' (script ALLOWED=prefix; simctl needs full UDID)
+18:03:42 KST ran temp copy with ALLOWED=<full UDID> (default multi) -> EXIT 0; deleted temp copy after
+
+--- apply log tail ---
+  "notificationIds": [
+    "weekly-result:2026-10-26",
+    "weekly-result:2026-11-02"
+  ],
+  "nextMonday0800": "2026-11-09",
+  "todayProgress": "1/2 (50%)",
+  "lastWeekRate": "3/5 = 60%",
+  "wrote": "/Users/malife/Library/Developer/CoreSimulator/Devices/A3FB3EC7-70FA-41E0-8BAF-CF7C0D33E19E/data/Containers/Data/Application/91168DE2-3A00-4E22-A92C-1D9F37D88A0C/Library/Application Support/com.dailyschedule.app/RCTAsyncLocalStorage_V1",
+  "layout": {
+    "@app_version": "inline",
+    "@daily_schedule_activities": "inline",
+    "@daily_schedule_deleted_defaults": "inline",
+    "@daily_schedule_notifications": "inline",
+    "@daily_schedule_schedules": "6ee23badf9564c2c754a25ed2511f856",
+    "@iharu.rewardExpansion": "inline",
+    "@iharu.schemaVersion": "inline",
+    "@iharu.weeklyPromise": "inline",
+    "@iharu.weeklyPromises": "inline",
+    "@iharu.weeklyResultNotificationState": "inline",
+    "@iharu.weeklyResults": "inline",
+    "@migrated": "inline",
+    "@settings.notificationLeadMinutes": "inline",
+    "@settings.notificationsEnabled": "inline",
+    "@settings.weeklyResultNotification": "inline",
+    "@user_id": "inline"
+  }
+}
+Launching com.dailyschedule.app on A3FB3EC7-70FA-41E0-8BAF-CF7C0D33E19E
+com.dailyschedule.app: 6221
+EXIT 0
+
+--- manifest readback ---
+@iharu.weeklyPromises = [{"id":"w2-ice","kind":"weekly","terms":[{"reward":"아이스크림","goalPercent":80,"effectiveFrom":"2026-10-26"}],"endsFrom":null,"createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z"},{"id":"w2-park","kind":"weekly","terms":[{"reward":"공원 가기","goalPercent":60,"effectiveFrom":"2026-10-26"}],"endsFrom":null,"createdAt":"2026-01-01T00:00:01.000Z","updatedAt":"2026-01-01T00:00:01.000
+@iharu.weeklyResults = [{"id":"w2-ice:2026-10-26","promiseId":"w2-ice","weekStart":"2026-10-26","weekEnd":"2026-11-01","reward":"아이스크림","goalPercent":80,"doneDays":3,"countedDays":5,"rate":60,"achieved":false,"judgedAt":"2026-11-01T15:00:00.000Z","seenAt":null},{"id":"w2-park:2026-10-26","promiseId":"w2-park","weekStart":"2026-10-26","weekEnd":"2026-11-01","reward":"공원 가기","goalPercent":60,"doneDays":3,"countedDays":5,"
+@settings.weeklyResultNotification = true
+@iharu.schemaVersion = 5
+schedules count 8
+[('2026-10-30', None, None), ('2026-11-02', None, None), ('2026-11-03', None, None), ('2026-11-04', None, None)]
+
+Screens: w2-seed-1-launch-modal (notif permission over weekly result modal), w2-seed-2-today, w2-seed-3-today-scrolled
