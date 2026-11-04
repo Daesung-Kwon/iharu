@@ -90,6 +90,8 @@ eas init
 
 ### 2.3 app.json 최종 점검 및 수정
 
+체크인된 `app.json`은 버전 **1.1.0**, iOS `buildNumber` **8**이다. 아래 JSON은 예전 예시이다. `buildNumber`를 `"1"`로 되돌리지 않는다.
+
 다음 항목들을 확인하고 필요시 수정:
 
 ```json
@@ -413,9 +415,10 @@ i하루는 아이들이 스스로 하루 일과를 계획하고 관리할 수 �
 - 예: "일정관리,일과표,스케줄,아이,아동,태블릿,계획,타임라인"
 
 #### 지원 URL (필수)
-- 개인정보처리방침: `https://daesung-kwon.github.io/iharu/privacy.html`
-- 마케팅 URL (AdMob 앱 인증): `https://daesung-kwon.github.io/iharu/`
-  - app-ads.txt: `https://daesung-kwon.github.io/iharu/app-ads.txt` (배포 완료)
+- 개인정보처리방침 후보: `https://daesung-kwon.github.io/iharu/privacy.html`
+  - 저장소 `docs/privacy.html`은 `src/data/privacy.ts`와 같다. 광고 없음, 광고 식별자 미사용, 시행일 2026-10-28.
+  - **TODO (owner publish):** GitHub Pages는 `main`의 `/docs`만 배포한다. 이 파일을 고친 브랜치는 라이브 URL을 바꾸지 않는다. 라이브 페이지가 아직 Google AdMob을 말하면 App Store Connect에 그 URL을 넣지 않는다.
+- 마케팅 URL: 비운다. 앱에는 광고가 없다. AdMob 인증 URL이나 `https://daesung-kwon.github.io/iharu/app-ads.txt`를 마케팅 URL로 쓰지 않는다. 저장소의 `docs/app-ads.txt`는 제거했다. 같은 라이브 경로에 예전 파일이 남아 있으면 오너가 Pages에서 지운다.
 
 #### 프로모션 텍스트 (선택)
 - 최대 170자
@@ -441,8 +444,8 @@ i하루는 아이들이 스스로 하루 일과를 계획하고 관리할 수 �
 
 ### 7.7 버전 정보
 
-- **버전**: 1.1.0
-- **빌드**: 1 (또는 업로드한 빌드 번호)
+- **버전**: 1.1.0 (`app.json` `expo.version`, `CFBundleShortVersionString`, Xcode `MARKETING_VERSION`)
+- **빌드**: 8 (`app.json` `ios.buildNumber`, `CFBundleVersion`, Xcode `CURRENT_PROJECT_VERSION`)
 - **Copyright**: © 2025 [회사명 또는 이름]
 - **연락처 정보**: 이메일 주소
 
@@ -545,6 +548,9 @@ i하루는 아이들이 스스로 하루 일과를 계획하고 관리할 수 �
 앱 업데이트 시:
 
 1. **버전 업데이트**
+
+   지금 체크인 값은 버전 1.1.0, iOS build **8**이다. 다음 업로드에서 빌드 번호를 올릴 때만 숫자를 바꾼다. 아래 `"2"`는 예전 예시이다.
+
    ```json
    // app.json
    {

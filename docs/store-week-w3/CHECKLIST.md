@@ -45,7 +45,7 @@ Limits are Apple's field limits. `TODO` means the owner chooses the value. Do no
 | Description | 4000 | TODO. The draft in `docs/APP_STORE_LAUNCH_GUIDE.md` section 7.3 is a starting point. It does not mention 보상 확장. Add the one-time unlock only after the user card picks a price | TODO |
 | Keywords | 100 | TODO. Comma-separated, no space after the comma. The old example `일정관리,일과표,스케줄,아이,아동,태블릿,계획,타임라인` is 39 characters and is not a decision | TODO |
 | Support URL | required | TODO. Must be a public `https` page the owner controls | TODO |
-| Marketing URL | optional | Leave empty unless the owner has a page that is not an ad page. Do not reuse the AdMob / `app-ads.txt` URL from the old launch guide. Ads are removed on this tip | TODO or blank |
+| Marketing URL | optional | Leave empty. Ads are removed. Do not use `https://daesung-kwon.github.io/iharu/` or `app-ads.txt` as a marketing URL. `docs/app-ads.txt` is removed from the repo. The live `app-ads.txt` URL stays up until the owner publishes `main` `/docs` | TODO or blank |
 | Copyright | — | TODO. Year and the owner's name. Do not copy a placeholder | TODO |
 | Version | — | `1.1.0` from `app.json` | Confirm on the uploaded build. See section 4 |
 | Routing app coverage | — | Not a routing app. Leave unset | Pass as N/A |
@@ -144,7 +144,7 @@ The app is a family schedule tool. That does not by itself put it in the App Sto
 | Purchases | Do not mark Purchases as data the developer collects | The unlock is a local flag `@iharu.rewardExpansion`. Apple processes the payment. `src/data/privacy.ts` says the provider does not receive payment information |
 | Advertising / AD_ID | Not used | `app.json` `android.blockedPermissions` includes `com.google.android.gms.permission.AD_ID`, `ACCESS_ADSERVICES_AD_ID`, `ACCESS_ADSERVICES_ATTRIBUTION`, `ACCESS_ADSERVICES_TOPICS`, and `BIND_GET_INSTALL_REFERRER_SERVICE`. `android/app/src/main/AndroidManifest.xml` removes each of those with `tools:node="remove"`. `src/noAds.test.ts` fails if the AD_ID remove or an ad SDK returns. No `GADApplicationIdentifier` in `ios/i/Info.plist` |
 | Diagnostics, contacts, location | Not collected by the app | No such SDK in `package.json` |
-| Privacy policy URL | A public page that matches the binary | In-app text is `src/data/privacy.ts` (시행일 2026-10-28): no ads, no IDFA, 보상 확장 payments stay with the store. **Fail today:** `docs/privacy.html` and the live page `https://daesung-kwon.github.io/iharu/privacy.html` still describe Google AdMob. Do not paste that URL into App Store Connect until it matches `src/data/privacy.ts`. This pack does not edit the live site |
+| Privacy policy URL | A public page that matches the binary | In-repo text matches. `src/data/privacy.ts` and `docs/privacy.html` (시행일 2026-10-28): no ads, no IDFA, 보상 확장 payments stay with the store. **Owner TODO:** Pages builds `https://daesung-kwon.github.io/iharu/privacy.html` from `main` `/docs` only. This branch does not publish that URL. Do not paste it into App Store Connect until the live page no longer describes Google AdMob |
 | Export compliance | No, non-exempt encryption | `app.json` sets `ITSAppUsesNonExemptEncryption` false. The checked-in Info.plist does not yet contain the key. See the audit |
 
 ### 3.2 Kids notes
@@ -154,7 +154,7 @@ The app is a family schedule tool. That does not by itself put it in the App Sto
 | Kids Category | Not selected in this pack. If the owner joins it, Apple also expects no third-party ads (already true) and a parental gate before purchases and external links |
 | Parental gate today | Settings PIN is optional and off on a fresh install. 보상 확장 lives under 설정. With no PIN, a child can open 구매하기. That is acceptable to record for a 4+ family app only if the owner does not join the Kids Category. It is a gap if they do |
 | Age rating answers that match the binary | No ads, no unrestricted web, no public user-generated content, no gambling. One planned non-consumable in-app purchase. The owner still has to complete Apple's questionnaire. Leave the resulting rating blank here |
-| Ads copy to retire | Do not tell review, or the privacy form, that the app shows AdMob. PR #17 removed the ad SDK. The public HTML has not caught up |
+| Ads copy to retire | Do not tell review, or the privacy form, that the app shows AdMob. PR #17 removed the ad SDK. In-repo `docs/privacy.html` now matches that. The live Pages copy is still an owner publish |
 
 ## 4. Store build
 
@@ -186,8 +186,8 @@ Xcode archive path, if EAS is not used:
 | Project | `ios/i.xcodeproj` |
 | Scheme | `i` |
 | Bundle | `com.dailyschedule.app` |
-| Info.plist version | `CFBundleShortVersionString` **1.1.0**, `CFBundleVersion` **8** (hardcoded) |
-| Target build settings | `MARKETING_VERSION` **1.0**, `CURRENT_PROJECT_VERSION` **1**. These do not match the plist. The plist strings are what this project embeds today. Do not switch the plist to `$(MARKETING_VERSION)` without deciding the version |
+| Info.plist version | `CFBundleShortVersionString` **1.1.0**, `CFBundleVersion` **8** (still hardcoded, so a raw archive embeds these strings) |
+| Target build settings | Debug and Release `MARKETING_VERSION` **1.1.0**, `CURRENT_PROJECT_VERSION` **8**. These match `app.json` and the plist. Do not point the plist at `$(MARKETING_VERSION)` unless those settings stay on 1.1.0 / 8 |
 | Archive | Product → Archive, then distribute later. Distribution is not done in this pack |
 | expo-iap | The plugin is in `app.json`. A raw archive only includes it if Pods were installed for this `ios/` tree. If the archive's purchase sheet cannot load the native module, use the EAS production profile instead of patching the archive by hand |
 

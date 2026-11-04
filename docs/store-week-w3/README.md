@@ -38,7 +38,7 @@ No App Store Connect product is claimed to exist. The sheet copy already says th
 
 ## Audit (this tip)
 
-Pass means the tip matches the placeholder and the wiring described in PR #17. No product-id typo was found, so no source file was edited.
+Product-id checks below are unchanged from the W3 pack: the placeholder matches PR #17, and this follow-up does not edit `REWARD_EXPANSION_PRODUCT_ID`. The privacy-page and version rows are the two gaps closed in-repo after `b3060ad`. Export compliance is still open. The live Pages site is still an owner publish.
 
 | Check | Where | Result |
 | --- | --- | --- |
@@ -52,8 +52,8 @@ Pass means the tip matches the placeholder and the wiring described in PR #17. N
 | What the unlock does | `REWARD_SLOTS`: free **1**, expanded **3** weekly promises | **Pass.** Copy matches (`주간 약속을 3개까지`) |
 | Test toggle | `SHOW_TEST_TOGGLE = __DEV__ \|\| EXPO_PUBLIC_IAP_TEST === '1'`. `testOff` does not clear `store` or `restore` | **Pass** for a store binary if the env var is unset. `eas.json` does not set it. No `.env` file is in the repo |
 | App Store product, price, StoreKit file | — | **Gap.** Not in the repo, and not created here. Fetch returns nothing until a product with this id exists for this bundle |
-| Public privacy page vs the binary | `src/data/privacy.ts` says no ads. `docs/privacy.html` and `https://daesung-kwon.github.io/iharu/privacy.html` (read 2026-11-04) still say Google AdMob | **Gap.** Do not paste that URL into App Store Connect until the page matches the in-app text |
-| Version sources | `app.json` and `ios/i/Info.plist`: 1.1.0 (8). `ios/i.xcodeproj` target: `MARKETING_VERSION` 1.0, `CURRENT_PROJECT_VERSION` 1. Info.plist hardcodes 1.1.0 / 8, so a raw archive uses the plist unless someone points those keys at the build settings | **Gap.** Confirm the archived version before any upload. This pack does not edit the project |
+| Public privacy page vs the binary | `src/data/privacy.ts` and `docs/privacy.html` both say no ads, no IDFA, 보상 확장 payments stay with the store, 시행일 2026-10-28. `docs/app-ads.txt` is removed. The launch guide no longer tells the owner to paste an AdMob marketing URL | **Closed in the repo.** **Owner TODO:** GitHub Pages serves `https://daesung-kwon.github.io/iharu/` from `main` `/docs` only. This branch does not publish. Do not paste `https://daesung-kwon.github.io/iharu/privacy.html` into App Store Connect until that URL shows the no-ads page, and until `https://daesung-kwon.github.io/iharu/app-ads.txt` is no longer served |
+| Version sources | `app.json` version **1.1.0**, iOS `buildNumber` **8**. `package.json` **1.1.0**. `ios/i/Info.plist` hardcodes `CFBundleShortVersionString` **1.1.0** and `CFBundleVersion` **8**. Target Debug and Release: `MARKETING_VERSION` **1.1.0**, `CURRENT_PROJECT_VERSION` **8** | **Closed.** Not bumped past 1.1.0 (8). The plist stays literal, so a raw archive embeds 1.1.0 (8), and the Xcode settings now agree. Android `versionName` is already `1.1.0`. Android `versionCode` stays **2** because `app.json` sets no `android.versionCode` |
 | Export compliance key | `app.json` `ITSAppUsesNonExemptEncryption: false`. The checked-in `ios/i/Info.plist` does not contain that key | **Gap.** An EAS build from `app.json` can carry it. A raw archive of `ios/` as committed will be asked the encryption question at upload |
 
 ## Screenshot sizes (checked 2026-11-04)
