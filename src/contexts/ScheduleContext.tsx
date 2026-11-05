@@ -3,7 +3,9 @@
  * 일정 관련 전역 상태 관리
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import { AppState } from 'react-native';
+import { msUntilNextLocalMidnight, rolloverSelectedDate } from '../utils/instantReward';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Schedule, ScheduleItem, Activity } from '../types';
 import { getWeekdayDatesInWeek, migrateUtcSlicedScheduleDates, toLocalDateString } from '../utils/dateUtils';
@@ -24,6 +26,8 @@ interface ScheduleContextType {
   schedules: Schedule[];
   selectedDate: Date;
   selectedChildProfileId: string | null;
+  /** Local 'YYYY-MM-DD' of today; changes at midnight / on return from background. */
+  todayKey: string;
 
   // Actions
   setSelectedDate: (date: Date) => void;
@@ -51,6 +55,35 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedChildProfileId, setSelectedChildProfileId] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [todayKey, setTodayKey] = useState(() => toLocalDateString(new Date()));
+  const todayKeyRef = useRef(todayKey);
+
+  // Day rollover: at local midnight (timer) and when the app comes back from
+  // the background. A screen that was on the old today follows to the new one.
+  useEffect(() => {
+    const check = () => {
+      const now = new Date();
+      const prev = todayKeyRef.current;
+      const next = toLocalDateString(now);
+      if (next === prev) return;
+      todayKeyRef.current = next;
+      setTodayKey(next);
+      setSelectedDate(current => rolloverSelectedDate(current, prev, now) ?? current);
+    };
+    let timer: ReturnType<typeof setTimeout>;
+    const arm = () => {
+      timer = setTimeout(() => { check(); arm(); }, msUntilNextLocalMidnight(new Date()) + 1000);
+    };
+    arm();
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active') {
+        check();
+        clearTimeout(timer);
+        arm();
+      }
+    });
+    return () => { clearTimeout(timer); sub.remove(); };
+  }, []);
 
   const reloadFromStorage = useCallback(async (): Promise<Schedule[]> => {
     try {
@@ -300,6 +333,7 @@ export const ScheduleProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         schedules,
         selectedDate,
         selectedChildProfileId,
+        todayKey,
         setSelectedDate,
         setSelectedChildProfileId,
         getScheduleForDate,

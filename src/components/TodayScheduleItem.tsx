@@ -4,8 +4,9 @@
  * Soft Pop 3D (Claymorphism) 디자인 적용
  */
 
-import React, { useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Pressable, Platform, Animated, Easing } from 'react-native';
+import { useReduceMotion } from '../hooks/useReduceMotion';
 import { Swipeable } from 'react-native-gesture-handler';
 import { MaterialIcons } from '@expo/vector-icons';
 import { ScheduleItem } from '../types';
@@ -40,11 +41,44 @@ export default function TodayScheduleItem({
   const { isCompact, cardRadius } = useLayout();
   const swipeRef = useRef<Swipeable>(null);
   const handlingRef = useRef(false);
+  const reduceMotion = useReduceMotion();
+  const isCompleted = scheduleItem.status === 'completed';
+  // Check "pop": the box dips and springs back with the tick growing in;
+  // unchecking shrinks the tick away. Only on a change, not on first render.
+  const pop = useRef(new Animated.Value(1)).current;
+  const tick = useRef(new Animated.Value(isCompleted ? 1 : 0)).current;
+  const wasCompleted = useRef(isCompleted);
+  useEffect(() => {
+    if (wasCompleted.current === isCompleted) return;
+    wasCompleted.current = isCompleted;
+    if (reduceMotion) {
+      pop.setValue(1);
+      tick.setValue(isCompleted ? 1 : 0);
+      return;
+    }
+    const anim = isCompleted
+      ? Animated.parallel([
+        Animated.sequence([
+          Animated.timing(pop, { toValue: 0.82, duration: 70, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.spring(pop, { toValue: 1, friction: 4, tension: 220, useNativeDriver: true }),
+        ]),
+        Animated.spring(tick, { toValue: 1, friction: 5, tension: 200, useNativeDriver: true }),
+      ])
+      : Animated.parallel([
+        Animated.timing(tick, { toValue: 0, duration: 140, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+        Animated.sequence([
+          Animated.timing(pop, { toValue: 0.92, duration: 80, useNativeDriver: true }),
+          Animated.timing(pop, { toValue: 1, duration: 120, useNativeDriver: true }),
+        ]),
+      ]);
+    anim.start();
+    return () => anim.stop();
+  }, [isCompleted, reduceMotion, pop, tick]);
+
   const activity = scheduleItem.activity;
   if (!activity) return null;
 
   const colorScheme = ActivityMaterialColors[activity.colorKey];
-  const isCompleted = scheduleItem.status === 'completed';
   const canComplete = swipeEnabled && itemStatus !== 'future';
   const canNotify = Boolean(onToggleNotification) && (itemStatus === 'upcoming' || itemStatus === 'future');
 
@@ -185,21 +219,22 @@ export default function TodayScheduleItem({
         accessibilityState={{ checked: isCompleted, disabled: isDisabled }}
         accessibilityLabel={checkbox.accessibilityLabel}
       >
-        <View
+        <Animated.View
           style={[
             styles.checkbox,
-            scheduleItem.status === 'completed' && styles.checkboxChecked,
+            isCompleted && styles.checkboxChecked,
             isDisabled && styles.checkboxDisabled,
+            { transform: [{ scale: pop }] },
           ]}
         >
-          {scheduleItem.status === 'completed' && (
+          <Animated.View style={{ opacity: tick, transform: [{ scale: tick }] }}>
             <MaterialIcons
               name="check"
               size={20}
               color={SoftPopColors.white}
             />
-          )}
-        </View>
+          </Animated.View>
+        </Animated.View>
       </Pressable>
 
       <View style={styles.infoContainer}>

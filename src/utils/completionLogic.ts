@@ -23,8 +23,6 @@ export interface CompletionPlan {
   completesDay: boolean;
   /** Vibration / haptic on completion. */
   haptic: boolean;
-  /** Small clap overlay (button path, not the last item). */
-  clap: boolean;
   /** "완료했어요 · 취소" toast (swipe path, not the last item). */
   undoToast: boolean;
   /** Full-day celebration modal (any path, last item). */
@@ -34,11 +32,10 @@ export interface CompletionPlan {
 /**
  * Decide what toggling one item does.
  *
- * - Last item (either source) → celebration only. The clap and undo toast are
- *   both Modals/overlays that would stack on top of / under the celebration.
- * - Swipe on a non-last item → undo toast (no clap: the clap Modal would block
- *   taps on the toast's 취소).
- * - Button on a non-last item → clap.
+ * - Every check → the checkbox pop + light haptic (in the item itself).
+ * - Last item (either source) → celebration only, no undo toast underneath.
+ * - Swipe on a non-last item → undo toast (a swipe is easy to do by accident).
+ * - Button on a non-last item → nothing more; tapping the box again undoes it.
  */
 export function planToggleComplete(
   items: readonly CompletionItem[],
@@ -62,7 +59,6 @@ export function planToggleComplete(
     completedNow,
     completesDay,
     haptic: completedNow,
-    clap: completedNow && !completesDay && source === 'button',
     undoToast: completedNow && !completesDay && source === 'swipe',
     celebrate: completesDay,
   };

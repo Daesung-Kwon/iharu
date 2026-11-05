@@ -11,6 +11,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { SoftPopColors } from '../constants/theme';
 import ModalBackdrop from './ModalBackdrop';
 import { modalStyles } from '../constants/modalStyle';
+import { useReduceMotion } from '../hooks/useReduceMotion';
 
 interface CelebrationModalProps {
   visible: boolean;
@@ -19,12 +20,21 @@ interface CelebrationModalProps {
 
 export default function CelebrationModal({ visible, onClose }: CelebrationModalProps) {
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReduceMotion();
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const rotationAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const confettiScaleAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (visible && reduceMotion) {
+      // Reduce Motion: just appear (fade-in only), no spin or bounce.
+      scaleAnim.setValue(1);
+      rotationAnim.setValue(0);
+      confettiScaleAnim.setValue(1);
+      Animated.timing(opacityAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+      return;
+    }
     if (visible) {
       // Modal scale animation
       Animated.spring(scaleAnim, {
@@ -42,20 +52,12 @@ export default function CelebrationModal({ visible, onClose }: CelebrationModalP
       }).start();
 
       // Rotation animation (continuous)
-      const rotateAnimation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(rotationAnim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(rotationAnim, {
-            toValue: 0,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ])
-      );
+      // One calm turn, not an endless spin.
+      const rotateAnimation = Animated.timing(rotationAnim, {
+        toValue: 1,
+        duration: 900,
+        useNativeDriver: true,
+      });
       rotateAnimation.start();
 
       // Confetti scale animation
@@ -82,7 +84,7 @@ export default function CelebrationModal({ visible, onClose }: CelebrationModalP
       opacityAnim.setValue(0);
       confettiScaleAnim.setValue(0);
     }
-  }, [visible]);
+  }, [visible, reduceMotion]);
 
   const modalStyle = {
     transform: [{ scale: scaleAnim }],
@@ -119,11 +121,12 @@ export default function CelebrationModal({ visible, onClose }: CelebrationModalP
       <View style={modalStyles.dialogOverlay}>
         <ModalBackdrop onPress={onClose} />
         <Animated.View style={[modalStyles.dialog, styles.modalContainer, modalStyle]}>
-          {/* Confetti Effect */}
+          {/* Hero: the star ring is centred on the icon so it never runs into the title. */}
+          <View style={styles.hero}>
           <Animated.View style={[styles.confettiContainer, confettiStyle]}>
             {[...Array(12)].map((_, i) => {
               const angle = (i * 360) / 12;
-              const radius = 100;
+              const radius = HERO_RADIUS;
               const x = Math.cos((angle * Math.PI) / 180) * radius;
               const y = Math.sin((angle * Math.PI) / 180) * radius;
 
@@ -142,7 +145,7 @@ export default function CelebrationModal({ visible, onClose }: CelebrationModalP
                 >
                   <MaterialIcons
                     name="star"
-                    size={24}
+                    size={20}
                     color={SoftPopColors.secondary}
                   />
                 </View>
@@ -154,10 +157,11 @@ export default function CelebrationModal({ visible, onClose }: CelebrationModalP
           <Animated.View style={starStyle}>
             <MaterialIcons
               name="celebration"
-              size={80}
+              size={72}
               color={SoftPopColors.secondary}
             />
           </Animated.View>
+          </View>
 
           <Text style={styles.title}>🎉 완벽해요! 🎉</Text>
           <Text style={styles.message}>
@@ -185,16 +189,23 @@ export default function CelebrationModal({ visible, onClose }: CelebrationModalP
   );
 }
 
+const HERO_SIZE = 168;
+const HERO_RADIUS = 70;
+
 const styles = StyleSheet.create({
+  hero: {
+    width: HERO_SIZE,
+    height: HERO_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   modalContainer: {
     padding: 40,
     alignItems: 'center',
     maxWidth: 400,
   },
   confettiContainer: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -205,8 +216,8 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     color: SoftPopColors.secondary,
-    marginTop: 32,
-    marginBottom: 20,
+    marginTop: 12,
+    marginBottom: 16,
     textAlign: 'center',
     lineHeight: 36,
     fontFamily: 'BMJUA',
