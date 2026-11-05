@@ -18,3 +18,4 @@
 
 ## Refresh 2026-11-04 (KST)
 - `w3-se-03-activity.png` re-captured after U-5 Activity inset (#30), tip #31 @ `0d4a3a1`, SE A3FB3EC7, `-initialTab activity -suppressWeeklyResult 1`, seed `single`. Other 5 frames unchanged.
+- U-5b refresh (`420469f`): `w3-se-03-activity.png` re-shot — Activity list now scrolls behind the translucent tab bar (U-5 lift removed).
