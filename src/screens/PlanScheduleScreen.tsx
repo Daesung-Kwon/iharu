@@ -33,6 +33,41 @@ import { useNavigation } from '@react-navigation/native';
 
 const SELECT_INSTRUCTION = '활동을 길게 누른 뒤 시간을 탭하세요';
 const COMPACT_SELECT_INSTRUCTION = '활동을 탭한 뒤 시간을 탭하세요';
+const PAST_EMPTY_TITLE = '일정이 없었어요';
+const PAST_EMPTY_MESSAGE = '지난 날은 바꿀 수 없어요';
+const OPEN_EMPTY_TITLE = '아직 일정이 없어요';
+const OPEN_EMPTY_MESSAGE = '활동을 추가해 보세요';
+
+function PhoneEmpty({
+  icon,
+  title,
+  message,
+  isSmallPhone,
+  children,
+}: {
+  icon: keyof typeof MaterialIcons.glyphMap;
+  title: string;
+  message: string;
+  isSmallPhone: boolean;
+  children?: React.ReactNode;
+}) {
+  return (
+    <View style={[styles.phoneEmpty, isSmallPhone && styles.phoneEmptySmall]}>
+      <MaterialIcons
+        name={icon}
+        size={isSmallPhone ? 40 : 48}
+        color={SoftPopColors.textSecondary}
+      />
+      <Text style={[styles.phoneEmptyTitle, isSmallPhone && styles.phoneEmptyTitleSmall]}>
+        {title}
+      </Text>
+      <Text style={[styles.phoneEmptyMessage, isSmallPhone && styles.phoneEmptyMessageSmall]}>
+        {message}
+      </Text>
+      {children}
+    </View>
+  );
+}
 
 export default function PlanScheduleScreen() {
   const {
@@ -44,6 +79,7 @@ export default function PlanScheduleScreen() {
     tabBarOffset,
     scrollEndPadding,
     cardRadius,
+    isSmallPhone,
   } = useLayout();
   const clayShadow = getClayShadow(isCompact);
   const { activities } = useActivity();
@@ -219,7 +255,8 @@ export default function PlanScheduleScreen() {
 
         {scheduleItems.length === 0 && !canEdit ? (
           <View style={[styles.dropZone, isCompact && styles.dropZoneCompact]}>
-            <Text style={styles.dropZoneText}>이날은 일정이 없었어요</Text>
+            <Text style={styles.dropZoneTitle}>{PAST_EMPTY_TITLE}</Text>
+            <Text style={styles.dropZoneHint}>{PAST_EMPTY_MESSAGE}</Text>
           </View>
         ) : scheduleItems.length === 0 ? (
           <Pressable
@@ -440,14 +477,19 @@ export default function PlanScheduleScreen() {
         >
           <View style={[styles.schedulePanel, styles.schedulePanelCompact, { padding: space }]}>
             {scheduleItems.length === 0 && !canEdit ? (
-              <View style={styles.phoneEmpty}>
-                <MaterialIcons name="event-busy" size={48} color={SoftPopColors.textSecondary} />
-                <Text style={styles.phoneEmptyText}>이날은 일정이 없었어요</Text>
-              </View>
+              <PhoneEmpty
+                icon="event-busy"
+                title={PAST_EMPTY_TITLE}
+                message={PAST_EMPTY_MESSAGE}
+                isSmallPhone={isSmallPhone}
+              />
             ) : scheduleItems.length === 0 ? (
-              <View style={styles.phoneEmpty}>
-                <MaterialIcons name="event-available" size={48} color={SoftPopColors.textSecondary} />
-                <Text style={styles.phoneEmptyText}>이날은 아직 일정이 없어요</Text>
+              <PhoneEmpty
+                icon="event-available"
+                title={OPEN_EMPTY_TITLE}
+                message={OPEN_EMPTY_MESSAGE}
+                isSmallPhone={isSmallPhone}
+              >
                 <Pressable
                   style={({ pressed }) => [styles.phoneAddButton, pressed && styles.dateButtonPressed]}
                   onPress={() => setSheetOpen(true)}
@@ -456,7 +498,7 @@ export default function PlanScheduleScreen() {
                   <MaterialIcons name="add" size={22} color={SoftPopColors.white} />
                   <Text style={styles.phoneAddText}>첫 활동 추가</Text>
                 </Pressable>
-              </View>
+              </PhoneEmpty>
             ) : (
               <View style={styles.phoneList}>
                 {sortByStart(scheduleItems).map((item) => (
@@ -502,9 +544,8 @@ export default function PlanScheduleScreen() {
                     size={48}
                     color={SoftPopColors.textSecondary}
                   />
-                  <Text style={styles.emptyListText}>
-                    활동 목록이 여기에 표시됩니다
-                  </Text>
+                  <Text style={styles.emptyListTitle}>활동이 없어요</Text>
+                  <Text style={styles.emptyListText}>활동을 추가해 보세요</Text>
                 </View>
               ) : (
                 <View style={styles.activityListContent}>
@@ -949,11 +990,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 56,
   },
+  emptyListTitle: {
+    fontSize: 18,
+    color: SoftPopColors.text,
+    textAlign: 'center',
+    marginTop: 16,
+    fontFamily: 'BMJUA',
+  },
   emptyListText: {
-    fontSize: 16,
+    fontSize: 15,
     color: SoftPopColors.textSecondary,
     textAlign: 'center',
-    marginTop: 20,
+    marginTop: 8,
     fontFamily: 'BMJUA',
   },
   summaryView: {
@@ -1023,6 +1071,19 @@ const styles = StyleSheet.create({
   dropZonePressed: {
     transform: [{ scale: 0.98 }],
   },
+  dropZoneTitle: {
+    fontSize: 20,
+    color: SoftPopColors.text,
+    textAlign: 'center',
+    fontFamily: 'BMJUA',
+  },
+  dropZoneHint: {
+    fontSize: 16,
+    color: SoftPopColors.textSecondary,
+    textAlign: 'center',
+    marginTop: 8,
+    fontFamily: 'BMJUA',
+  },
   dropZoneText: {
     fontSize: 18,
     color: SoftPopColors.textSecondary,
@@ -1071,13 +1132,33 @@ const styles = StyleSheet.create({
   },
   phoneEmpty: {
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
     paddingVertical: 32,
+    paddingHorizontal: 8,
   },
-  phoneEmptyText: {
-    fontSize: 17,
-    color: SoftPopColors.textSecondary,
+  phoneEmptySmall: {
+    gap: 6,
+    paddingVertical: 24,
+  },
+  phoneEmptyTitle: {
+    fontSize: 20,
+    color: SoftPopColors.text,
+    textAlign: 'center',
     fontFamily: 'BMJUA',
+  },
+  phoneEmptyTitleSmall: {
+    fontSize: 18,
+  },
+  phoneEmptyMessage: {
+    fontSize: 16,
+    lineHeight: 22,
+    color: SoftPopColors.textSecondary,
+    textAlign: 'center',
+    fontFamily: 'BMJUA',
+  },
+  phoneEmptyMessageSmall: {
+    fontSize: 15,
+    lineHeight: 20,
   },
   phoneAddButton: {
     flexDirection: 'row',

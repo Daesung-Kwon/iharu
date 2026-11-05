@@ -16,6 +16,10 @@ import TodayScheduleItem from '../components/TodayScheduleItem';
 import CelebrationModal from '../components/CelebrationModal';
 import HorizontalDatePicker from '../components/HorizontalDatePicker';
 import WeekStrip from '../components/WeekStrip';
+import WeeklyPromiseCard from '../components/WeeklyPromiseCard';
+import WeeklyResultModal from '../components/WeeklyResultModal';
+import { useWeeklyPromise } from '../contexts/WeeklyPromiseContext';
+import { readSuppressWeeklyResult } from '../navigation/tabDeepLink';
 import { getItemStatus, getNextActivity, getCurrentActivity, getMinutesUntil, formatRemainingTime } from '../utils/timeUtils';
 import { calculateDayStats, isToday, isPast, isFuture } from '../utils/statsUtils';
 import { toLocalDateString } from '../utils/dateUtils';
@@ -67,6 +71,7 @@ export default function TodayScreen() {
     copyScheduleToDate,
     todayKey,
   } = useSchedule();
+  const { summary: weeklySummary, unseenResults, markResultSeen } = useWeeklyPromise();
   // Day the all-done celebration last showed; the modal shows once per day.
   const lastCelebratedRef = useRef<string | null>(null);
   useEffect(() => {
@@ -341,7 +346,7 @@ export default function TodayScreen() {
           clayShadow,
           {
             padding: isPhone ? cardPad : space,
-            paddingBottom: isPhone ? (isSmallPhone ? 8 : 10) : isCompact ? 12 : 20,
+            paddingBottom: isPhone ? (isSmallPhone ? 14 : 10) : isCompact ? 12 : 20,
             borderRadius: cardRadius,
             marginBottom: isPhone ? space : 20,
           },
@@ -448,6 +453,9 @@ export default function TodayScreen() {
             variant={showDatePicker ? 'summary' : 'full'}
             dense={isSmallPhone}
           />
+          {weeklySummary && isViewingToday && (
+            <WeeklyPromiseCard summary={weeklySummary} dense={isSmallPhone} />
+          )}
         </View>
 
         {scheduleItems.length > 0 && isViewingToday && (currentActivity || nextActivity) && (
@@ -687,17 +695,20 @@ export default function TodayScreen() {
             clayShadow,
             {
               borderRadius: cardRadius,
-              paddingVertical: isCompact ? 32 : 56,
+              paddingVertical: isSmallPhone ? 40 : isCompact ? 32 : 56,
+              paddingHorizontal: isSmallPhone ? 24 : 0,
             },
           ]}>
             <MaterialIcons
               name="calendar-today"
-              size={64}
+              size={isSmallPhone ? 48 : 64}
               color={SoftPopColors.textSecondary}
             />
-            <Text style={styles.emptyTitle}>아직 일정이 없어요</Text>
-            <Text style={styles.emptyMessage}>
-              일정 만들기에서 오늘의 일과를 계획해보세요!
+            <Text style={[styles.emptyTitle, isSmallPhone && styles.emptyTitleSmall]}>
+              {isViewingToday ? '오늘 할 일이 없어요' : '아직 일정이 없어요'}
+            </Text>
+            <Text style={[styles.emptyMessage, isSmallPhone && styles.emptyMessageSmall]}>
+              {isViewingToday ? '일정을 만들어 보세요' : '일정 만들기에서 오늘의 일과를 계획해보세요!'}
             </Text>
             <Pressable
               style={({ pressed }) => [
@@ -790,6 +801,12 @@ export default function TodayScreen() {
         />
       )}
 
+      {/* Weekly promise result: once, after the week ends; never on top of the celebration.
+          -suppressWeeklyResult 1 hides it for this process only (store proof). */}
+      <WeeklyResultModal
+        results={showCelebration || readSuppressWeeklyResult() ? [] : unseenResults}
+        onClose={() => { markResultSeen().catch(e => console.error('Failed to mark result seen:', e)); }}
+      />
 
       <Toast
         message={toastMessage}
@@ -1130,6 +1147,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontFamily: 'BMJUA',
   },
+  emptyTitleSmall: {
+    fontSize: 20,
+    marginTop: 16,
+    marginBottom: 8,
+  },
   emptyMessage: {
     fontSize: 16,
     fontWeight: '500',
@@ -1138,6 +1160,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
     lineHeight: 24,
     fontFamily: 'BMJUA',
+  },
+  emptyMessageSmall: {
+    fontSize: 15,
+    lineHeight: 22,
+    paddingHorizontal: 0,
   },
   emptyCta: {
     flexDirection: 'row',

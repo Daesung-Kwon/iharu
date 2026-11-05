@@ -17,6 +17,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { exportAllData, importAllData, clearAllData, parseBackupData } from '../services/storage';
 import {
   requestNotificationPermissions,
+  getNotificationPermissionStatus,
   loadNotificationsMasterEnabled,
   saveNotificationsMasterEnabled,
   loadNotificationSettings,
@@ -25,6 +26,11 @@ import {
   cancelAllNotifications,
   rescheduleUpcomingNotifications,
 } from '../services/notificationService';
+import {
+  loadWeeklyResultNotificationEnabled,
+  saveWeeklyResultNotificationEnabled,
+  syncWeeklyResultNotifications,
+} from '../services/weeklyResultNotification';
 import { loadSettingsPin, saveSettingsPin, clearSettingsPin } from '../services/pinLock';
 import PinLockModal from '../components/PinLockModal';
 import ParentCheckModal from '../components/ParentCheckModal';
@@ -32,6 +38,14 @@ import { initialRecovery, RecoveryState } from '../utils/parentCheck';
 import { NOTIFICATION_LEAD_OPTIONS, NotificationLeadMinutes } from '../utils/dateUtils';
 import { useActivity } from '../contexts/ActivityContext';
 import { useSchedule } from '../contexts/ScheduleContext';
+import { useWeeklyPromise } from '../contexts/WeeklyPromiseContext';
+import RewardExpansionSheet from '../components/RewardExpansionSheet';
+import { useRewardExpansion } from '../contexts/RewardExpansionContext';
+import { EXPANSION_COPY } from '../utils/rewardExpansion';
+import WeeklyPromiseSheet from '../components/WeeklyPromiseSheet';
+import { daysLine } from '../utils/weeklyPromise';
+import { promiseLine } from '../utils/weeklyPromises';
+import { MULTI_PROMISE_COPY } from '../utils/multiPromiseCopy';
 import { toLocalDateString } from '../utils/dateUtils';
 import TermsModal from '../components/TermsModal';
 import PrivacyModal from '../components/PrivacyModal';
@@ -40,9 +54,11 @@ import { SoftPopColors } from '../constants/theme';
 import { getClayShadow, useLayout } from '../hooks/useLayout';
 import { getVisibleAreaPaddingBottom } from '../utils/safeArea';
 import { useFocusEffect } from '@react-navigation/native';
+import { readLaunchSheet, readLaunchTab } from '../navigation/tabDeepLink';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from '../components/Toast';
 import { BACKUP_SHARE_CLOSED_MESSAGE, formatLastBackup } from '../utils/lastBackup';
+import { DEVICE_MOVE_COPY } from '../utils/deviceMove';
 import { decidePinStep } from '../utils/pinFlow';
 import { lockReducer, lockView } from '../utils/lockState';
 
@@ -51,8 +67,38 @@ const LAST_BACKUP_KEY = '@settings.lastBackupAt';
 export default function ProfileScreen() {
   const { isCompact, isLandscape, space, scrollEndPadding, tabBarOffset, bottomChrome, cardRadius } = useLayout();
   const { resetActivities, reloadFromStorage: reloadActivities } = useActivity();
-  const { resetSchedules, schedules, reloadFromStorage: reloadSchedules } = useSchedule();
+  const { resetSchedules, schedules, reloadFromStorage: reloadSchedules, todayKey } = useSchedule();
+  const weekly = useWeeklyPromise();
+  const [showPromiseSheet, setShowPromiseSheet] = useState(false);
+  const rewardExpansion = useRewardExpansion();
+  const [showExpansionSheet, setShowExpansionSheet] = useState(false);
+  const settingsScrollRef = useRef<ScrollView>(null);
+  const proofScrolled = useRef(false);
+  // Proof only: `-openSheet weeklyPromise|rewardExpansion` opens that sheet.
+  // Absent arg leaves both closed. Does not purchase.
+  useEffect(() => {
+    const sheet = readLaunchSheet();
+    if (sheet === 'weeklyPromise') setShowPromiseSheet(true);
+    else if (sheet === 'rewardExpansion') setShowExpansionSheet(true);
+  }, []);
+  const expansionSummary = rewardExpansion.expansion.unlocked
+    ? EXPANSION_COPY.unlockedSummary + (rewardExpansion.expansion.source === 'test' ? ' (테스트)' : '')
+    : EXPANSION_COPY.lockedSummary;
+  const managed = weekly.managed;
+  const firstLine = managed.length === 1 ? promiseLine(managed[0], todayKey) : null;
+  const weekLine = weekly.summary ? `이번 주: ${daysLine(weekly.summary.progress)}` : '';
+  const weeklySummary = managed.length === 0
+    ? '아직 없어요'
+    : firstLine ? firstLine.title : MULTI_PROMISE_COPY.rowMany(managed.length);
+  const weeklyNote = firstLine?.note || weekLine;
+  const openExpansionFromPromise = () => {
+    setShowPromiseSheet(false);
+    // iOS cannot present a Modal while another one is still closing.
+    setTimeout(() => setShowExpansionSheet(true), 450);
+  };
   const [notificationEnabled, setNotificationEnabled] = useState(false);
+  const [weeklyResultOn, setWeeklyResultOn] = useState(true);
+  const [weeklyResultHint, setWeeklyResultHint] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showLicense, setShowLicense] = useState(false);
@@ -85,6 +131,7 @@ export default function ProfileScreen() {
       dispatchLock({ type: 'LOADED', hasPin: Boolean(pin) });
       const enabled = await loadNotificationsMasterEnabled();
       setNotificationEnabled(enabled);
+      setWeeklyResultOn(await loadWeeklyResultNotificationEnabled());
       setLeadMinutes(await loadNotificationLeadMinutes());
       setLastBackupAt(await AsyncStorage.getItem(LAST_BACKUP_KEY));
     };
@@ -106,6 +153,17 @@ export default function ProfileScreen() {
     });
     return () => sub.remove();
   }, [leave]);
+
+  useEffect(() => {
+    if (view !== 'settings') return;
+    let cancelled = false;
+    getNotificationPermissionStatus()
+      .then(status => {
+        if (!cancelled) setWeeklyResultHint(weeklyResultOn && status === 'denied');
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [view, weeklyResultOn]);
 
   const openUnlock = () => {
     setPinError('');
@@ -163,6 +221,41 @@ export default function ProfileScreen() {
     setNotificationEnabled(false);
     await saveNotificationsMasterEnabled(false);
     await cancelAllNotifications();
+  };
+
+  const handleWeeklyResultToggle = async (value: boolean) => {
+    if (!value) {
+      setWeeklyResultOn(false);
+      setWeeklyResultHint(false);
+      try {
+        await saveWeeklyResultNotificationEnabled(false);
+        await syncWeeklyResultNotifications();
+      } catch {
+        showToast('결과 알림을 끄지 못했어요');
+      }
+      return;
+    }
+    const ok = await requestNotificationPermissions();
+    if (!ok) {
+      setWeeklyResultOn(false);
+      setWeeklyResultHint(true);
+      try {
+        await saveWeeklyResultNotificationEnabled(false);
+        await syncWeeklyResultNotifications();
+      } catch {
+        // The switch already shows off.
+      }
+      Alert.alert('알림 권한 필요', '주간 결과를 알리려면 알림을 허용해 주세요.');
+      return;
+    }
+    setWeeklyResultHint(false);
+    setWeeklyResultOn(true);
+    try {
+      await saveWeeklyResultNotificationEnabled(true);
+      await syncWeeklyResultNotifications();
+    } catch {
+      showToast('결과 알림을 켜지 못했어요');
+    }
   };
 
   const handleLeadMinutes = async (minutes: NotificationLeadMinutes) => {
@@ -363,9 +456,12 @@ export default function ProfileScreen() {
                   const [, restoredSchedules] = await Promise.all([
                     reloadActivities(),
                     reloadSchedules(),
+                    weekly.reload(),
+                    rewardExpansion.reload(),
                   ]);
                   const enabled = await loadNotificationsMasterEnabled();
                   setNotificationEnabled(enabled);
+                  setWeeklyResultOn(await loadWeeklyResultNotificationEnabled());
                   setLeadMinutes(await loadNotificationLeadMinutes());
                   const pin = await loadSettingsPin();
                   setStoredPin(pin);
@@ -396,7 +492,16 @@ export default function ProfileScreen() {
   };
 
   // 데이터 초기화
-  const handleReset = async () => {
+  const handleReset = () => {
+    const P = DEVICE_MOVE_COPY.resetPrompt;
+    Alert.alert(P.title, P.body, [
+      { text: P.cancel, style: 'cancel' },
+      { text: P.backupFirst, onPress: () => { void handleBackup(); } },
+      { text: P.skip, style: 'destructive', onPress: confirmReset },
+    ]);
+  };
+
+  const confirmReset = () => {
     Alert.alert(
       '데이터 초기화',
       '모든 활동과 일정 데이터가 삭제됩니다. 이 작업은 되돌릴 수 없습니다. 계속하시겠습니까?',
@@ -410,7 +515,9 @@ export default function ProfileScreen() {
               await clearAllData();
               resetActivities();
               resetSchedules();
+              await weekly.reload();
               setNotificationEnabled(await loadNotificationsMasterEnabled());
+              setWeeklyResultOn(await loadWeeklyResultNotificationEnabled());
               setLeadMinutes(await loadNotificationLeadMinutes());
               const pin = await loadSettingsPin();
               setStoredPin(pin);
@@ -456,6 +563,7 @@ export default function ProfileScreen() {
         </Pressable>
       ) : (
       <ScrollView
+        ref={settingsScrollRef}
         style={styles.scrollView}
         contentContainerStyle={[
           styles.content,
@@ -541,72 +649,61 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
-        {/* 데이터 관리 섹션 */}
-        <View style={[styles.section, isCompact && styles.sectionCompact]}>
-          <Text style={styles.sectionTitle}>데이터 관리</Text>
-
+        {/* 보상 약속 섹션 */}
+        <View
+          style={[styles.section, isCompact && styles.sectionCompact]}
+          onLayout={(e) => {
+            // Store proof: `-initialTab settings` should land on 보상 약속, which
+            // sits below the fold on SE. A normal open does not scroll.
+            if (proofScrolled.current || readLaunchSheet() || readLaunchTab() !== 'Profile') return;
+            proofScrolled.current = true;
+            const y = e.nativeEvent.layout.y;
+            settingsScrollRef.current?.scrollTo({ y: Math.max(0, y - 8), animated: false });
+          }}
+        >
+          <Text style={styles.sectionTitle}>보상 약속</Text>
           <Pressable
-            style={({ pressed }) => [
-              styles.settingItem,
-              pressed && styles.settingItemPressed
-            ]}
-            onPress={handleBackup}
+            style={({ pressed }) => [styles.settingItem, pressed && styles.settingItemPressed]}
+            onPress={() => setShowPromiseSheet(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`주간 보상 약속, ${weeklySummary}`}
           >
-            <MaterialIcons
-              name="backup"
-              size={28}
-              color={SoftPopColors.textSecondary}
-            />
+            <MaterialIcons name="card-giftcard" size={28} color={SoftPopColors.textSecondary} />
             <View style={styles.settingTextBlock}>
-              <Text style={[styles.settingText, styles.settingTextInBlock]}>데이터 백업</Text>
-              <Text style={styles.settingSubText}>{formatLastBackup(lastBackupAt)}</Text>
+              <Text style={styles.settingText}>주간 약속</Text>
+              <Text style={styles.settingSubText} numberOfLines={1}>{weeklySummary}</Text>
+              {weeklyNote ? <Text style={styles.settingSubText} numberOfLines={1}>{weeklyNote}</Text> : null}
             </View>
-            <MaterialIcons
-              name="chevron-right"
-              size={24}
-              color={SoftPopColors.textSecondary}
-            />
+            <MaterialIcons name="chevron-right" size={24} color={SoftPopColors.textSecondary} />
           </Pressable>
-
+          <View style={styles.settingItem} accessibilityLabel="결과 알림">
+            <MaterialIcons name="notifications" size={28} color={SoftPopColors.textSecondary} />
+            <View style={styles.settingTextBlock}>
+              <Text style={[styles.settingText, styles.settingTextInBlock]}>결과 알림</Text>
+              <Text style={styles.settingSubText}>한 주가 끝나면 알려 드려요</Text>
+              {weeklyResultHint ? (
+                <Text style={styles.settingSubText}>알림 권한이 없어 보내지 못해요</Text>
+              ) : null}
+            </View>
+            <Switch
+              value={weeklyResultOn}
+              onValueChange={handleWeeklyResultToggle}
+              trackColor={{ false: SoftPopColors.background, true: '#FFB3B3' }}
+              thumbColor={weeklyResultOn ? SoftPopColors.primary : SoftPopColors.textSecondary}
+            />
+          </View>
           <Pressable
-            style={({ pressed }) => [
-              styles.settingItem,
-              pressed && styles.settingItemPressed
-            ]}
-            onPress={handleRestore}
+            style={({ pressed }) => [styles.settingItem, pressed && styles.settingItemPressed]}
+            onPress={() => setShowExpansionSheet(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`${EXPANSION_COPY.title}, ${expansionSummary}`}
           >
-            <MaterialIcons
-              name="restore"
-              size={28}
-              color={SoftPopColors.textSecondary}
-            />
-            <Text style={styles.settingText}>데이터 복원</Text>
-            <MaterialIcons
-              name="chevron-right"
-              size={24}
-              color={SoftPopColors.textSecondary}
-            />
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.settingItem,
-              styles.dangerItem,
-              pressed && styles.settingItemPressed
-            ]}
-            onPress={handleReset}
-          >
-            <MaterialIcons
-              name="delete-outline"
-              size={28}
-              color={SoftPopColors.error}
-            />
-            <Text style={[styles.settingText, styles.dangerText]}>데이터 초기화</Text>
-            <MaterialIcons
-              name="chevron-right"
-              size={24}
-              color={SoftPopColors.textSecondary}
-            />
+            <MaterialIcons name={rewardExpansion.expansion.unlocked ? 'verified' : 'add-circle-outline'} size={28} color={SoftPopColors.textSecondary} />
+            <View style={styles.settingTextBlock}>
+              <Text style={styles.settingText}>{EXPANSION_COPY.title}</Text>
+              <Text style={styles.settingSubText} numberOfLines={1}>{expansionSummary}</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color={SoftPopColors.textSecondary} />
           </Pressable>
         </View>
 
@@ -680,9 +777,95 @@ export default function ProfileScreen() {
             <Text style={styles.stateText}>{appVersion}</Text>
           </View>
         </View>
+        {/* 기기 옮기기 섹션: 자주 쓰지 않아 맨 아래 */}
+        <View style={[styles.section, isCompact && styles.sectionCompact]}>
+          <Text style={styles.sectionTitle}>{DEVICE_MOVE_COPY.section}</Text>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.settingItem,
+              pressed && styles.settingItemPressed
+            ]}
+            onPress={handleBackup}
+          >
+            <MaterialIcons
+              name="backup"
+              size={28}
+              color={SoftPopColors.textSecondary}
+            />
+            <View style={styles.settingTextBlock}>
+              <Text style={[styles.settingText, styles.settingTextInBlock]}>{DEVICE_MOVE_COPY.backup}</Text>
+              <Text style={styles.settingSubText}>{formatLastBackup(lastBackupAt)}</Text>
+            </View>
+            <MaterialIcons
+              name="chevron-right"
+              size={24}
+              color={SoftPopColors.textSecondary}
+            />
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.settingItem,
+              pressed && styles.settingItemPressed
+            ]}
+            onPress={handleRestore}
+          >
+            <MaterialIcons
+              name="restore"
+              size={28}
+              color={SoftPopColors.textSecondary}
+            />
+            <Text style={styles.settingText}>{DEVICE_MOVE_COPY.restore}</Text>
+            <MaterialIcons
+              name="chevron-right"
+              size={24}
+              color={SoftPopColors.textSecondary}
+            />
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.settingItem,
+              styles.dangerItem,
+              pressed && styles.settingItemPressed
+            ]}
+            onPress={handleReset}
+          >
+            <MaterialIcons
+              name="delete-outline"
+              size={28}
+              color={SoftPopColors.error}
+            />
+            <Text style={[styles.settingText, styles.dangerText]}>데이터 초기화</Text>
+            <MaterialIcons
+              name="chevron-right"
+              size={24}
+              color={SoftPopColors.textSecondary}
+            />
+          </Pressable>
+        </View>
       </ScrollView>
       )}
 
+
+      <WeeklyPromiseSheet
+        visible={showPromiseSheet}
+        promises={managed}
+        limit={rewardExpansion.slotLimit}
+        canExpand={!rewardExpansion.expansion.unlocked}
+        today={todayKey}
+        onSave={(id, input) => weekly.save(id, input, rewardExpansion.slotLimit)}
+        onStop={weekly.stop}
+        onOpenExpansion={openExpansionFromPromise}
+        onClose={() => setShowPromiseSheet(false)}
+      />
+
+      <RewardExpansionSheet
+        visible={showExpansionSheet}
+        onClose={() => setShowExpansionSheet(false)}
+        onMessage={text => showToast(text)}
+      />
 
       <Toast
         message={toastMessage}

@@ -25,3 +25,31 @@ export const SoftPopColors = {
   // child reads "partly done" as "today".
   partial: '#5B8DEF',
 };
+
+/**
+ * Floating tab bar. The bar is a translucent white clay; the selected icon
+ * pill is solid primary so it reads at a glance. A 15% primary wash
+ * (`#FF6B6B26`) sat about 1.1:1 on that bar. The icon on the pill is white,
+ * same as other primary controls. Inactive tabs stay on `textSecondary`.
+ */
+export const TabBarColors = {
+  bar: 'rgba(255, 255, 255, 0.75)',
+  activePill: SoftPopColors.primary,
+  activeIcon: SoftPopColors.white,
+  activeLabel: SoftPopColors.primary,
+  inactive: SoftPopColors.textSecondary,
+} as const;
+
+/**
+ * One chrome for the bottom sheets (보상 약속, 보상 확장, Plan +추가).
+ * Radius, scrim, and content inset live here so those sheets cannot drift.
+ * The bottom inset is getSheetBottomPadding (max(safe area, 16) + 16), not a
+ * second number in this object. The scrim is one even dim (ModalBackdrop);
+ * sheets do not each invent a blur.
+ */
+export const SheetChrome = {
+  radius: 32,
+  backdrop: 'rgba(0, 0, 0, 0.5)',
+  paddingHorizontal: 20,
+  paddingTop: 20,
+} as const;

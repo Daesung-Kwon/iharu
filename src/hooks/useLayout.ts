@@ -4,7 +4,6 @@
 
 import { Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAdSlot } from '../contexts/AdSlotContext';
 import { getBottomChrome, getScrollEndPadding, getSheetBottomPadding } from '../utils/safeArea';
 import {
   AD_BANNER_HEIGHT,
@@ -55,7 +54,8 @@ export function useLayout() {
   const insets = useSafeAreaInsets();
   const metrics = getLayoutMetrics(width, height);
   const tabBarChrome = getTabBarChrome(metrics.tier, insets.bottom, Platform.OS);
-  const { adHeight } = useAdSlot();
+  // No ads in the app: nothing sits above the tab bar.
+  const adHeight = 0;
   // bottomChrome = tab bar + the shared ad above it (see utils/safeArea).
   // Screens never add the bottom inset themselves: it is already inside.
   const bottomChrome = getBottomChrome(tabBarChrome.offset, adHeight);

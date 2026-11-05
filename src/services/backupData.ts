@@ -6,6 +6,9 @@ import { Activity, Schedule } from '../types';
 import { NotificationLeadMinutes } from '../utils/dateUtils';
 import { BACKUP_JSON_FIELDS, BACKUP_JSON_FIELD_NAMES, KEYS } from './storageKeys';
 import { parseSchemaVersion } from './schema';
+import { isRewardExpansion, mergeOnRestore, parseStoredExpansion, RewardExpansion } from '../utils/rewardExpansion';
+import { isWeeklyPromise, isWeeklyResult, WeeklyPromise, WeeklyResult } from '../utils/weeklyPromise';
+import { normalizePromises } from '../utils/weeklyPromises';
 
 export interface AppData {
   version: string;
@@ -17,6 +20,13 @@ export interface AppData {
   notificationsEnabled: boolean;
   notificationLeadMinutes: NotificationLeadMinutes;
   settingsPin: string | null;
+  /** Weekly reward promise (missing in old backups → null / []). */
+  weeklyPromise?: WeeklyPromise | null;
+  /** All weekly promises (v5+). Old backups: lifted from weeklyPromise. */
+  weeklyPromises?: WeeklyPromise[];
+  weeklyResults?: WeeklyResult[];
+  /** '보상 확장' unlock (missing in old backups → locked). */
+  rewardExpansion?: RewardExpansion;
   lastSync?: string;
   /** Local schema version of the data (missing in old backups → 1). */
   schemaVersion?: number;
@@ -72,6 +82,14 @@ export function isValidAppData(value: unknown): value is AppData {
   if (typeof value.notificationsEnabled !== 'boolean') return false;
   if (!isLeadMinutes(value.notificationLeadMinutes)) return false;
   if (!isSettingsPin(value.settingsPin)) return false;
+  if (value.weeklyPromise !== undefined
+    && !(value.weeklyPromise === null || isWeeklyPromise(value.weeklyPromise))) return false;
+  if (value.weeklyPromises !== undefined
+    && !(Array.isArray(value.weeklyPromises) && value.weeklyPromises.every(isWeeklyPromise)
+      && new Set(value.weeklyPromises.map(p => (p as WeeklyPromise).id)).size === value.weeklyPromises.length)) return false;
+  if (value.weeklyResults !== undefined
+    && !(Array.isArray(value.weeklyResults) && value.weeklyResults.every(isWeeklyResult))) return false;
+  if (value.rewardExpansion !== undefined && !isRewardExpansion(value.rewardExpansion)) return false;
   if (value.lastSync !== undefined && typeof value.lastSync !== 'string') return false;
   if (value.schemaVersion !== undefined
     && !(typeof value.schemaVersion === 'number' && Number.isInteger(value.schemaVersion) && value.schemaVersion >= 1)) return false;
@@ -93,6 +111,11 @@ export function parseBackupData(input: string | unknown): AppData | null {
   }
   if (!isRecord(value)) return null;
 
+  // A broken promise rejects the file (never silently drop a reward).
+  if (value.weeklyPromise != null && !isWeeklyPromise(value.weeklyPromise)) return null;
+  if (value.weeklyPromises !== undefined
+    && !(Array.isArray(value.weeklyPromises) && value.weeklyPromises.every(isWeeklyPromise))) return null;
+
   const normalized = {
     ...value,
     deletedDefaultIds: value.deletedDefaultIds ?? [],
@@ -100,6 +123,12 @@ export function parseBackupData(input: string | unknown): AppData | null {
     notificationsEnabled: value.notificationsEnabled ?? true,
     notificationLeadMinutes: value.notificationLeadMinutes ?? 5,
     settingsPin: value.settingsPin === undefined ? null : value.settingsPin,
+    // Old single promise moves into the list (same id), so results still match.
+    weeklyPromise: null,
+    weeklyPromises: Array.isArray(value.weeklyPromises)
+      ? normalizePromises([...value.weeklyPromises, ...(value.weeklyPromise ? [value.weeklyPromise] : [])])
+      : normalizePromises(value.weeklyPromise ?? null),
+    weeklyResults: value.weeklyResults ?? [],
   };
   return isValidAppData(normalized) ? normalized : null;
 }
@@ -130,10 +159,11 @@ export function appDataFromStorage(
   return {
     version: opts.appVersion,
     userId: get(KEYS.USER_ID) || opts.fallbackUserId,
-    ...(json as Pick<AppData, 'activities' | 'schedules' | 'deletedDefaultIds' | 'notificationSettings'>),
+    ...(json as Pick<AppData, 'activities' | 'schedules' | 'deletedDefaultIds' | 'notificationSettings' | 'weeklyPromise' | 'weeklyPromises' | 'weeklyResults'>),
     notificationsEnabled: enabled === null ? true : enabled === 'true',
     notificationLeadMinutes: parseStoredLeadMinutes(get(KEYS.NOTIFICATION_LEAD_MINUTES)),
     settingsPin: parseStoredPin(get(KEYS.SETTINGS_PIN)),
+    rewardExpansion: parseStoredExpansion(get(KEYS.REWARD_EXPANSION)),
     schemaVersion: parseSchemaVersion(get(KEYS.SCHEMA_VERSION)),
     lastSync: opts.nowIso,
   };
@@ -143,10 +173,13 @@ export function appDataFromStorage(
  * What restoring `data` writes. The schema version comes from the backup
  * (old backups → 1) so the migration runner upgrades restored data.
  */
-export function appDataToStorage(data: AppData): { set: [string, string][]; remove: string[] } {
+export function appDataToStorage(
+  data: AppData,
+  current: { rewardExpansion?: RewardExpansion } = {},
+): { set: [string, string][]; remove: string[] } {
   const set: [string, string][] = BACKUP_JSON_FIELD_NAMES.map(field => [
     BACKUP_JSON_FIELDS[field].key,
-    JSON.stringify(data[field]),
+    JSON.stringify(data[field] ?? BACKUP_JSON_FIELDS[field].empty),
   ]);
   set.push(
     [KEYS.USER_ID, data.userId],
@@ -155,6 +188,10 @@ export function appDataToStorage(data: AppData): { set: [string, string][]; remo
     [KEYS.NOTIFICATION_LEAD_MINUTES, String(data.notificationLeadMinutes)],
     [KEYS.SCHEMA_VERSION, String(data.schemaVersion ?? 1)],
   );
+  // Never take a purchase away; only bring one back.
+  const now = current.rewardExpansion ?? parseStoredExpansion(null);
+  const merged = mergeOnRestore(now, data.rewardExpansion);
+  if (merged !== now) set.push([KEYS.REWARD_EXPANSION, JSON.stringify(merged)]);
   const remove: string[] = [];
   if (data.settingsPin) set.push([KEYS.SETTINGS_PIN, data.settingsPin]);
   else remove.push(KEYS.SETTINGS_PIN);

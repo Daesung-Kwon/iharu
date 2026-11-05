@@ -18,6 +18,25 @@ export const TOAST_CHROME_GAP = 12;
 export const ACTIVITY_CARD_MIN_WIDTH = 140;
 /** Apple HIG minimum touch target (pt). */
 export const MIN_TOUCH_TARGET = 44;
+/**
+ * Visual capsule behind the selected tab icon.
+ * Wider than react-navigation's 31×28 UIKit icon slot; the slot does not
+ * contribute that width to the pressable, so the button sets its own minimum.
+ * 56pt still fits a 320pt bar (four tabs × 80pt) with room for the label.
+ */
+export const TAB_ICON_PILL = { width: 56, height: 30 } as const;
+/**
+ * Touch padding around each tab. Horizontal slop covers the visual pill
+ * when the pressable is only the 44pt minimum: (56 − 44) / 2 = 6.
+ * 44 + 6 + 6 = 56, which is still inside an 80pt slot on a 320pt-wide SE.
+ */
+const TAB_HIT_SLOP_X = Math.max(0, Math.ceil((TAB_ICON_PILL.width - MIN_TOUCH_TARGET) / 2));
+export const TAB_BAR_HIT_SLOP = {
+  top: 4,
+  bottom: 4,
+  left: TAB_HIT_SLOP_X,
+  right: TAB_HIT_SLOP_X,
+} as const;
 
 /**
  * - phoneSmall: SE 2/3 (375x667) — tightest tokens, single-row header.
@@ -115,6 +134,11 @@ export type TabBarChrome = {
   pillMarginHorizontal: number;
   /** Min height of each tab button (always >= 44pt). */
   buttonMinHeight: number;
+  /**
+   * Min width of each tab button (always >= 44pt).
+   * The UIKit icon slot is only 31pt wide, so flex alone does not meet HIG.
+   */
+  buttonMinWidth: number;
   /** Total height the floating tab bar occupies from the screen bottom. */
   offset: number;
 };
@@ -135,6 +159,7 @@ export function getTabBarChrome(
   const inset = Math.max(0, insetsBottom);
   const pillMarginHorizontal = tier === 'tablet' ? 16 : 8;
   const buttonMinHeight = tier === 'phoneSmall' ? 48 : 56;
+  const buttonMinWidth = MIN_TOUCH_TARGET;
 
   if (os === 'android') {
     return {
@@ -143,6 +168,7 @@ export function getTabBarChrome(
       pillMarginBottom: Math.max(inset, 16),
       pillMarginHorizontal,
       buttonMinHeight,
+      buttonMinWidth,
       offset: height + Math.max(inset, 16) + 8,
     };
   }
@@ -155,6 +181,7 @@ export function getTabBarChrome(
       pillMarginBottom: floor,
       pillMarginHorizontal,
       buttonMinHeight,
+      buttonMinWidth,
       offset: height + floor,
     };
   }
@@ -165,6 +192,7 @@ export function getTabBarChrome(
     pillMarginBottom: Math.max(inset, 12),
     pillMarginHorizontal,
     buttonMinHeight,
+    buttonMinWidth,
     offset: height + Math.max(inset, 10),
   };
 }
@@ -233,13 +261,6 @@ export function getLayoutMetrics(width: number, height: number): LayoutMetrics {
     cardPad: tokens.cardPad,
     cardRadius: tokens.cardRadius,
   };
-}
-
-/** Settings has no ad: parents use it and it holds lock/backup controls. */
-export const AD_FREE_ROUTES: readonly string[] = ['Profile'];
-
-export function shouldShowAdForRoute(routeName: string): boolean {
-  return !AD_FREE_ROUTES.includes(routeName);
 }
 
 /**

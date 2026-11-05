@@ -14,80 +14,75 @@ import TodayScreen from '../screens/TodayScreen';
 import PlanScheduleScreen from '../screens/PlanScheduleScreen';
 import ActivitiesScreen from '../screens/ActivitiesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import { SoftPopColors } from '../constants/theme';
+import { SoftPopColors, TabBarColors } from '../constants/theme';
 import { useLayout } from '../hooks/useLayout';
-import { shouldShowAdForRoute, MIN_TOUCH_TARGET } from '../hooks/layoutMetrics';
-import { AdSlotProvider, useAdSlot } from '../contexts/AdSlotContext';
-import { AdBanner } from '../components/AdBanner';
-import { reservedAdHeight } from '../utils/adSlot';
+import { MIN_TOUCH_TARGET, TAB_BAR_HIT_SLOP, TAB_ICON_PILL } from '../hooks/layoutMetrics';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 // 커스텀 탭 바 버튼 (3D 효과)
-const CustomTabBarButton = ({ children, onPress, accessibilityState, style, minHeight }: any) => {
-  const isSelected = accessibilityState?.selected;
+// React Navigation's UIKit icon slot is 31×28 and the item centers its child,
+// so the pressable would otherwise shrink under 44pt. minWidth/minHeight plus
+// hitSlop keep the HIG target. Navigation also adds padding: 5, which clips
+// the 12pt label inside the SE bar (60pt with an 8pt floor); zero it after
+// that style so 오늘/계획/활동/설정 stay on one line at 320pt.
+const CustomTabBarButton = ({
+  children,
+  onPress,
+  onLongPress,
+  accessibilityState,
+  style,
+  minHeight,
+  minWidth,
+  testID,
+  ...rest
+}: any) => {
+  // v7 passes aria-selected; older props used accessibilityState.selected.
+  const isSelected = Boolean(accessibilityState?.selected || rest['aria-selected']);
 
   return (
     <Pressable
+      testID={testID}
+      hitSlop={TAB_BAR_HIT_SLOP}
+      accessibilityState={accessibilityState}
       style={({ pressed }) => [
         tabBarStyles.tabButton,
         style, // React Navigation 기본 스타일 (flex: 1 등)은 유지
-        minHeight != null && { minHeight },
+        {
+          minHeight,
+          minWidth,
+          padding: 0,
+          paddingVertical: 0,
+          paddingHorizontal: 0,
+          justifyContent: 'center',
+        },
         isSelected && tabBarStyles.tabButtonActive,
         pressed && tabBarStyles.tabButtonPressed,
       ]}
       onPress={onPress}
+      onLongPress={onLongPress}
     >
       {children}
     </Pressable>
   );
 };
 
-/**
- * Tab bar + the app's single ad banner directly above it. The whole stack
- * floats (position absolute); its ad height goes to AdSlotContext so screens
- * pad by it. Not mounted on Settings (no ad request there).
- */
-const TabBarWithAd = (props: BottomTabBarProps) => {
-  const { setAdHeight, lastLoadedHeight, setLastLoadedHeight } = useAdSlot();
-  const routeName = props.state.routes[props.state.index]?.name ?? '';
-  const showAd = shouldShowAdForRoute(routeName);
-  React.useEffect(() => {
-    if (!showAd) setAdHeight(0);
-  }, [showAd, setAdHeight]);
-
-  const reserved = reservedAdHeight(lastLoadedHeight);
-
-  return (
-    <View style={tabBarStyles.bottomStack} pointerEvents="box-none">
-      {/* Settings: unmounted, not hidden, so no ad request or refresh runs there.
-          Back on a tab a fresh banner loads while the slot keeps the last
-          ad's height, so the screen doesn't jump. */}
-      {showAd && (
-        <View
-          style={reserved > 0 ? { minHeight: reserved } : undefined}
-          onLayout={(e) => setAdHeight(e.nativeEvent.layout.height)}
-        >
-          <AdBanner onLoadedHeight={setLastLoadedHeight} />
-        </View>
-      )}
-      <BottomTabBar {...props} />
-    </View>
-  );
-};
-
-// Icon with a pill behind it when selected (clear active state, same size).
-const TabIcon = ({ name, color, focused }: { name: keyof typeof MaterialIcons.glyphMap; color: string; focused: boolean }) => (
-  <View style={[tabBarStyles.iconPill, focused && tabBarStyles.iconPillActive]}>
-    <MaterialIcons name={name} size={24} color={color} />
+/** Floating tab bar. The app has no ads, so nothing sits above it. */
+const FloatingTabBar = (props: BottomTabBarProps) => (
+  <View style={tabBarStyles.bottomStack} pointerEvents="box-none">
+    <BottomTabBar {...props} />
   </View>
 );
 
-export const MainTabNavigator: React.FC = () => (
-  <AdSlotProvider>
-    <MainTabs />
-  </AdSlotProvider>
+// Icon with a solid primary pill when selected. The pill stays the same size;
+// only the fill and the icon color change, so the bar does not grow.
+const TabIcon = ({ name, color, focused }: { name: keyof typeof MaterialIcons.glyphMap; color: string; focused: boolean }) => (
+  <View style={[tabBarStyles.iconPill, focused && tabBarStyles.iconPillActive]}>
+    <MaterialIcons name={name} size={24} color={focused ? TabBarColors.activeIcon : color} />
+  </View>
 );
+
+export const MainTabNavigator: React.FC = () => <MainTabs />;
 
 const MainTabs: React.FC = () => {
   // Tier + safe-area aware geometry (SE/home-button: tighter bar with an 8pt
@@ -96,13 +91,13 @@ const MainTabs: React.FC = () => {
 
   return (
     <Tab.Navigator
-      tabBar={(props) => <TabBarWithAd {...props} />}
+      tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{
         headerShown: false, // 각 화면에서 자체 헤더 사용
-        tabBarActiveTintColor: SoftPopColors.primary,
-        tabBarInactiveTintColor: SoftPopColors.textSecondary,
+        tabBarActiveTintColor: TabBarColors.activeLabel,
+        tabBarInactiveTintColor: TabBarColors.inactive,
         // 실제 탭 컨텐츠는 투명/플랫하게 두고, 배경은 tabBarBackground에서만 처리
-        // The wrapper in TabBarWithAd floats; the bar itself stays in its flow.
+        // The wrapper in FloatingTabBar floats; the bar itself stays in its flow.
         tabBarStyle: {
           paddingBottom: tabBarChrome.paddingBottom,
           paddingTop: 0,
@@ -137,7 +132,11 @@ const MainTabs: React.FC = () => {
           justifyContent: 'center',
         },
         tabBarButton: (props) => (
-          <CustomTabBarButton {...props} minHeight={tabBarChrome.buttonMinHeight} />
+          <CustomTabBarButton
+            {...props}
+            minHeight={tabBarChrome.buttonMinHeight}
+            minWidth={tabBarChrome.buttonMinWidth}
+          />
         ),
         // 플로팅 탭 바 배경 (실제 흰색 바 + 그림자 + 라운드)
         tabBarBackground: () => (
@@ -213,20 +212,20 @@ const tabBarStyles = StyleSheet.create({
     bottom: 0,
   },
   iconPill: {
-    width: 56,
-    height: 30,
-    borderRadius: 15,
+    width: TAB_ICON_PILL.width,
+    height: TAB_ICON_PILL.height,
+    borderRadius: TAB_ICON_PILL.height / 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   iconPillActive: {
-    backgroundColor: `${SoftPopColors.primary}26`,
+    backgroundColor: TabBarColors.activePill,
   },
   tabBarBackground: {
     flex: 1,
     marginHorizontal: 16,
     borderRadius: 24, // 둥근 모서리 (rounded-3xl)
-    backgroundColor: 'rgba(255, 255, 255, 0.75)', // 투명 처리
+    backgroundColor: TabBarColors.bar,
     // Strong floating shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
@@ -241,7 +240,10 @@ const tabBarStyles = StyleSheet.create({
     paddingHorizontal: 0,
     borderRadius: 20,
     marginHorizontal: 2,
-    minHeight: Math.max(56, MIN_TOUCH_TARGET),
+    // Floor only. Chrome passes a taller minHeight (48 on SE, 56 elsewhere)
+    // after React Navigation's style, so this cannot force 56 into the 52pt SE band.
+    minHeight: MIN_TOUCH_TARGET,
+    minWidth: MIN_TOUCH_TARGET,
     // iOS 전용 shadow (Android에서는 elevation 제거)
     ...(Platform.OS === 'ios' && {
       shadowColor: '#000',

@@ -20,24 +20,24 @@ test('parseSchemaVersion: missing or junk means v1 (pre-versioning data)', () =>
   assert.equal(parseSchemaVersion('2'), 2);
 });
 
-test('existing v1 data goes to v2 without touching other keys', async () => {
+test('existing v1 data goes to the current version without touching other keys', async () => {
   const store = memoryStore({ [KEYS.SCHEDULES]: '[{"date":"2026-10-19","items":[]}]' });
   const r = await runMigrations(store);
-  assert.deepEqual(r, { from: 1, to: CURRENT_SCHEMA_VERSION, ran: [2] });
-  assert.equal(store.data.get(KEYS.SCHEMA_VERSION), '2');
+  assert.deepEqual(r, { from: 1, to: CURRENT_SCHEMA_VERSION, ran: [2, 3, 4, 5] });
+  assert.equal(store.data.get(KEYS.SCHEMA_VERSION), '5');
   assert.equal(store.data.get(KEYS.SCHEDULES), '[{"date":"2026-10-19","items":[]}]');
 });
 
 test('runner is idempotent: a second run does nothing', async () => {
   const store = memoryStore();
   await runMigrations(store);
-  assert.deepEqual(await runMigrations(store), { from: 2, to: 2, ran: [] });
+  assert.deepEqual(await runMigrations(store), { from: 5, to: 5, ran: [] });
 });
 
 test('data from a newer build is left alone', async () => {
-  const store = memoryStore({ [KEYS.SCHEMA_VERSION]: '5' });
-  assert.deepEqual(await runMigrations(store), { from: 5, to: 5, ran: [] });
-  assert.equal(store.data.get(KEYS.SCHEMA_VERSION), '5');
+  const store = memoryStore({ [KEYS.SCHEMA_VERSION]: '6' });
+  assert.deepEqual(await runMigrations(store), { from: 6, to: 6, ran: [] });
+  assert.equal(store.data.get(KEYS.SCHEMA_VERSION), '6');
 });
 
 test('steps run in version order and the version is saved after each step', async () => {
@@ -60,4 +60,64 @@ test('a failing step stops the run and keeps the last good version', async () =>
   await assert.rejects(runMigrations(store, steps, 3));
   assert.equal(store.data.get(KEYS.SCHEMA_VERSION), '2');
   assert.deepEqual(await runMigrations(store, [{ to: 3, run: async () => {} }], 3), { from: 2, to: 3, ran: [3] });
+});
+
+test('v3 keeps a valid weekly result list and drops broken rows', async () => {
+  const good = {
+    id: 'p:2026-10-12', promiseId: 'p', weekStart: '2026-10-12', weekEnd: '2026-10-18', reward: 'r',
+    goalPercent: 80, doneDays: 1, countedDays: 1, rate: 100, achieved: true, judgedAt: 'j', seenAt: null,
+  };
+  const store = memoryStore({ [KEYS.SCHEMA_VERSION]: '2', [KEYS.WEEKLY_RESULTS]: JSON.stringify([good, { id: 1 }]) });
+  assert.deepEqual(await runMigrations(store), { from: 2, to: 5, ran: [3, 4, 5] });
+  assert.deepEqual(JSON.parse(store.data.get(KEYS.WEEKLY_RESULTS)!), [good]);
+});
+
+test('v3 on a store with no promise data writes nothing new', async () => {
+  const store = memoryStore({ [KEYS.SCHEMA_VERSION]: '2' });
+  await runMigrations(store);
+  assert.equal(store.data.has(KEYS.WEEKLY_RESULTS), false);
+  assert.equal(store.data.has(KEYS.WEEKLY_PROMISES), false);
+  assert.equal(store.data.get(KEYS.SCHEMA_VERSION), '5');
+});
+
+test('v4 rewrites an unreadable expansion flag as locked and keeps a valid one', async () => {
+  const bad = memoryStore({ [KEYS.SCHEMA_VERSION]: '3', [KEYS.REWARD_EXPANSION]: '{oops' });
+  assert.deepEqual(await runMigrations(bad), { from: 3, to: 5, ran: [4, 5] });
+  assert.equal(JSON.parse(bad.data.get(KEYS.REWARD_EXPANSION)!).unlocked, false);
+  const flag = { unlocked: true, source: 'store', productId: 'p', unlockedAt: 'x' };
+  const good = memoryStore({ [KEYS.SCHEMA_VERSION]: '3', [KEYS.REWARD_EXPANSION]: JSON.stringify(flag) });
+  await runMigrations(good);
+  assert.deepEqual(JSON.parse(good.data.get(KEYS.REWARD_EXPANSION)!), flag);
+});
+
+test('v4 on a store without the flag writes nothing new', async () => {
+  const store = memoryStore({ [KEYS.SCHEMA_VERSION]: '3' });
+  await runMigrations(store);
+  assert.equal(store.data.has(KEYS.REWARD_EXPANSION), false);
+});
+
+const legacyPromise = {
+  id: 'promise-1', kind: 'weekly', terms: [{ reward: '게임 재화', goalPercent: 80, effectiveFrom: '2026-10-12' }],
+  endsFrom: null, createdAt: 'c', updatedAt: 'u',
+};
+
+test('v5 moves the single v3/v4 promise into the list with the same id', async () => {
+  const store = memoryStore({ [KEYS.SCHEMA_VERSION]: '4', [KEYS.WEEKLY_PROMISE]: JSON.stringify(legacyPromise) });
+  assert.deepEqual(await runMigrations(store), { from: 4, to: 5, ran: [5] });
+  assert.deepEqual(JSON.parse(store.data.get(KEYS.WEEKLY_PROMISES)!), [legacyPromise]);
+  assert.equal(store.data.get(KEYS.WEEKLY_PROMISE), 'null');
+});
+
+test('v5 keeps an existing list, skips duplicate ids, and drops a broken legacy value', async () => {
+  const other = { ...legacyPromise, id: 'promise-2' };
+  const store = memoryStore({
+    [KEYS.SCHEMA_VERSION]: '4',
+    [KEYS.WEEKLY_PROMISES]: JSON.stringify([legacyPromise, other]),
+    [KEYS.WEEKLY_PROMISE]: JSON.stringify(legacyPromise),
+  });
+  await runMigrations(store);
+  assert.deepEqual(JSON.parse(store.data.get(KEYS.WEEKLY_PROMISES)!).map((p: { id: string }) => p.id), ['promise-1', 'promise-2']);
+  const broken = memoryStore({ [KEYS.SCHEMA_VERSION]: '4', [KEYS.WEEKLY_PROMISE]: '{oops' });
+  await runMigrations(broken);
+  assert.equal(broken.data.get(KEYS.WEEKLY_PROMISES), '[]');
 });

@@ -17,6 +17,16 @@ import { Activity } from '../types';
 import { SoftPopColors } from '../constants/theme';
 import { getClayShadow, useLayout } from '../hooks/useLayout';
 
+/** One horizontal band per row so every card is inside the scroll height. */
+function chunkIntoRows<T>(items: readonly T[], columns: number): T[][] {
+  const size = Math.max(1, columns);
+  const rows: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    rows.push(items.slice(i, i + size));
+  }
+  return rows;
+}
+
 export default function ActivitiesScreen() {
   const {
     width,
@@ -27,6 +37,7 @@ export default function ActivitiesScreen() {
     activityColumns,
     scrollEndPadding,
     cardRadius,
+    isSmallPhone,
   } = useLayout();
   const clayShadow = getClayShadow(isCompact);
   const { activities, addActivity, updateActivity, deleteActivity } = useActivity();
@@ -113,27 +124,28 @@ export default function ActivitiesScreen() {
         </Pressable>
       </View>
 
+      {/* Scrolls behind the tab bar like Today and Plan; one end padding. */}
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[
-          styles.content,
-          {
-            padding: space,
-            paddingBottom: scrollEndPadding,
-          }
-        ]}
+        contentContainerStyle={{
+          paddingTop: space,
+          paddingHorizontal: space,
+          paddingBottom: scrollEndPadding,
+        }}
         showsVerticalScrollIndicator={false}
       >
         {activities.length === 0 ? (
-          <View style={styles.emptyState}>
+          <View style={[styles.emptyState, isSmallPhone && styles.emptyStateSmall]}>
             <MaterialIcons
               name="format-list-bulleted"
-              size={64}
+              size={isSmallPhone ? 48 : 64}
               color={SoftPopColors.textSecondary}
             />
-            <Text style={styles.emptyTitle}>활동이 없어요</Text>
-            <Text style={styles.emptyMessage}>
-              새 활동을 추가해서 시작해보세요!
+            <Text style={[styles.emptyTitle, isSmallPhone && styles.emptyTitleSmall]}>
+              활동이 없어요
+            </Text>
+            <Text style={[styles.emptyMessage, isSmallPhone && styles.emptyMessageSmall]}>
+              활동을 추가해 보세요
             </Text>
           </View>
         ) : (
@@ -145,15 +157,22 @@ export default function ActivitiesScreen() {
                     {group.label}
                   </Text>
                 )}
-                <View style={[styles.activityGrid, { gap: GAP }]}>
-                  {group.items.map((activity) => (
-                    <ActivityCard
-                      key={activity.id}
-                      activity={activity}
-                      onEdit={() => handleEditActivity(activity.id)}
-                      onDelete={() => handleDeleteActivity(activity.id)}
-                      width={cardWidth}
-                    />
+                <View style={{ gap: GAP }}>
+                  {chunkIntoRows(group.items, activityColumns).map((row) => (
+                    <View
+                      key={row.map((activity) => activity.id).join('-')}
+                      style={[styles.activityRow, { gap: GAP }]}
+                    >
+                      {row.map((activity) => (
+                        <ActivityCard
+                          key={activity.id}
+                          activity={activity}
+                          onEdit={() => handleEditActivity(activity.id)}
+                          onDelete={() => handleDeleteActivity(activity.id)}
+                          width={cardWidth}
+                        />
+                      ))}
+                    </View>
                   ))}
                 </View>
               </View>
@@ -267,13 +286,9 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  content: {
-    padding: 32,
-  },
-  activityGrid: {
+  activityRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 20,
+    alignItems: 'stretch',
     justifyContent: 'flex-start',
   },
   emptyState: {
@@ -299,6 +314,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
     lineHeight: 24,
     fontFamily: 'BMJUA',
+  },
+  emptyStateSmall: {
+    paddingVertical: 40,
+    paddingHorizontal: 24,
+  },
+  emptyTitleSmall: {
+    fontSize: 20,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyMessageSmall: {
+    fontSize: 15,
+    lineHeight: 22,
+    paddingHorizontal: 0,
   },
 });
 

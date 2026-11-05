@@ -14,6 +14,15 @@ import { KEYS } from './storage';
 const NOTIFICATION_PREFIX = 'activity-';
 const ANDROID_CHANNEL_ID = 'activity_reminders';
 
+/** Cancel scheduled notifications whose identifier starts with `prefix`. */
+export async function cancelScheduledNotificationsByPrefix(prefix: string): Promise<void> {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  await Promise.all(scheduled.map(req => {
+    if (!req.identifier.startsWith(prefix)) return Promise.resolve();
+    return Notifications.cancelScheduledNotificationAsync(req.identifier).catch(() => {});
+  }));
+}
+
 export type ScheduleNotificationResult =
   | 'scheduled'
   | 'cancelled'
@@ -305,12 +314,12 @@ export async function rescheduleUpcomingNotifications(
 }
 
 /**
- * 모든 알림 취소
+ * 활동 알림만 취소. 주간 약속 결과 알림(weekly-result:)은 따로 켠다.
  */
 export async function cancelAllNotifications(): Promise<void> {
   try {
-    await Notifications.cancelAllScheduledNotificationsAsync();
-    console.log('✅ 모든 알림 취소됨');
+    await cancelScheduledNotificationsByPrefix(NOTIFICATION_PREFIX);
+    console.log('✅ 활동 알림 취소됨');
   } catch (error) {
     console.error('알림 취소 실패:', error);
   }

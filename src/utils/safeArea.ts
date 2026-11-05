@@ -4,8 +4,9 @@
  * - Screens: top inset always; left/right too in landscape. Never bottom:
  *   the floating tab bar (+ ad above it) already owns the bottom inset, so a
  *   screen adding it again would double it (the old Android bug).
- * - Scroll content runs behind the tab bar and ad and ends with one padding:
- *   bottomChrome + SCROLL_END_GAP.
+ * - Scroll content, including Activity, runs behind the tab bar and ad and
+ *   ends with one padding: bottomChrome + SCROLL_END_GAP. The last cards stay
+ *   reachable; while scrolling, content peeks through the translucent bar.
  * - Bottom sheets / forms: max(inset, 16) + 16 under the last control, and at
  *   most SHEET_MAX_WIDTH wide (iPad).
  */

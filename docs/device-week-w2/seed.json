@@ -1,0 +1,90 @@
+{
+  "purpose": "Logical AsyncStorage seed for W2 (2026-11-06 through 2026-11-08). apply-seed.sh fills dates from the Mac calendar (Asia/Seoul) and writes the on-disk manifest. Do not hand-edit the simulator manifest; values longer than 1024 UTF-16 units are stored beside it.",
+  "appId": "com.dailyschedule.app",
+  "simulator": "A3FB3EC7",
+  "schemaVersion": "5",
+  "userId": "w2-seed-user",
+  "childProfileId": "default",
+  "strings": {
+    "@iharu.schemaVersion": "5",
+    "@iharu.weeklyPromise": "null",
+    "@user_id": "w2-seed-user",
+    "@app_version": "1.0.0",
+    "@migrated": "true",
+    "@settings.weeklyResultNotification": "true",
+    "@settings.notificationsEnabled": "true",
+    "@settings.notificationLeadMinutes": "5",
+    "@daily_schedule_activities": "[]",
+    "@daily_schedule_deleted_defaults": "[]",
+    "@daily_schedule_notifications": "{}"
+  },
+  "weeklyResultNotificationState": {
+    "notified": [],
+    "pending": []
+  },
+  "activities": {
+    "hw": {
+      "id": "default-0",
+      "userId": null,
+      "childProfileId": null,
+      "name": "숙제하기",
+      "emojiKey": "homework",
+      "colorKey": "blue",
+      "durationMinutes": 30,
+      "category": "study",
+      "isDefault": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    "book": {
+      "id": "default-1",
+      "userId": null,
+      "childProfileId": null,
+      "name": "책 읽기",
+      "emojiKey": "reading",
+      "colorKey": "purple",
+      "durationMinutes": 30,
+      "category": "reading",
+      "isDefault": true,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    }
+  },
+  "itemTimes": {
+    "hw": ["09:00", "09:30"],
+    "book": ["09:40", "10:10"]
+  },
+  "lastWeekPattern": [
+    {"offset": 0, "items": ["hw:completed"]},
+    {"offset": 1, "items": ["hw:completed"]},
+    {"offset": 2, "items": ["hw:completed"]},
+    {"offset": 3, "items": ["hw:planned"]},
+    {"offset": 4, "items": ["hw:completed", "book:planned"]}
+  ],
+  "thisWeekBeforeToday": ["hw:planned"],
+  "today": ["hw:completed", "book:planned"],
+  "profiles": {
+    "multi": {
+      "rewardExpansion": {
+        "unlocked": true,
+        "source": "test",
+        "productId": "com.dailyschedule.app.reward_expansion"
+      },
+      "promises": [
+        {"id": "w2-ice", "reward": "아이스크림", "goalPercent": 80, "createdOrder": 0},
+        {"id": "w2-park", "reward": "공원 가기", "goalPercent": 60, "createdOrder": 1},
+        {"id": "w2-book", "reward": "책 한 권", "goalPercent": 100, "createdOrder": 2}
+      ]
+    },
+    "single": {
+      "rewardExpansion": {
+        "unlocked": false,
+        "source": null,
+        "productId": null
+      },
+      "promises": [
+        {"id": "w2-ice", "reward": "아이스크림", "goalPercent": 80, "createdOrder": 0}
+      ]
+    }
+  }
+}

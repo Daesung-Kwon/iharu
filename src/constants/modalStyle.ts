@@ -9,11 +9,11 @@
  * gesture that does nothing.
  */
 import { Platform, StyleSheet } from 'react-native';
-import { SoftPopColors } from './theme';
+import { SheetChrome, SoftPopColors } from './theme';
 import { SHEET_MAX_WIDTH } from '../utils/safeArea';
 
-export const MODAL_BACKDROP_COLOR = 'rgba(0, 0, 0, 0.5)';
-export const MODAL_RADIUS = 32;
+export const MODAL_BACKDROP_COLOR = SheetChrome.backdrop;
+export const MODAL_RADIUS = SheetChrome.radius;
 export const DIALOG_MAX_WIDTH = 420;
 export const MODAL_ANIMATION = { sheet: 'slide', dialog: 'fade' } as const;
 
@@ -46,6 +46,11 @@ export const modalStyles = StyleSheet.create({
     borderWidth: 2,
     borderColor: SoftPopColors.white,
     ...shadow(-4),
+  },
+  /** Horizontal and top inset shared by the three bottom sheets. */
+  sheetInset: {
+    paddingHorizontal: SheetChrome.paddingHorizontal,
+    paddingTop: SheetChrome.paddingTop,
   },
   dialog: {
     width: '100%',

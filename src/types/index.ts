@@ -2,6 +2,8 @@
  * 앱 전체에서 사용하는 TypeScript 타입 정의
  */
 
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
 // ==================== Activity (활동) ====================
 export type ActivityColor = 
   | 'purple' 
@@ -101,7 +103,8 @@ export interface TodayScheduleSummary {
 
 // ==================== Navigation ====================
 export type RootStackParamList = {
-  MainTabs: undefined;
+  /** Nested `screen` is how iharu://plan, iharu://activity, and -initialTab open a tab. */
+  MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   Login: undefined;
   Register: undefined;
   ActivityDetail: { activityId?: string }; // activityId가 있으면 수정 모드

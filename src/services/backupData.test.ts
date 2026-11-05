@@ -93,12 +93,12 @@ describe('isValidAppData', () => {
 describe('parseBackupData', () => {
   it('parses a valid JSON string', () => {
     const parsed = parseBackupData(JSON.stringify(validAppData));
-    assert.deepEqual(parsed, validAppData);
+    assert.deepEqual(parsed, { ...validAppData, weeklyPromise: null, weeklyPromises: [], weeklyResults: [] });
   });
 
   it('parses a valid object', () => {
     const parsed = parseBackupData(validAppData);
-    assert.deepEqual(parsed, validAppData);
+    assert.deepEqual(parsed, { ...validAppData, weeklyPromise: null, weeklyPromises: [], weeklyResults: [] });
   });
 
   it('returns null for invalid JSON', () => {
@@ -187,6 +187,9 @@ describe('parseBackupData', () => {
       notificationsEnabled: true,
       notificationLeadMinutes: 5,
       settingsPin: null,
+      weeklyPromise: null,
+      weeklyPromises: [],
+      weeklyResults: [],
     });
   });
 
@@ -279,5 +282,104 @@ describe('backup round trip', () => {
     assert.equal(isValidAppData({ ...validAppData, schemaVersion: 0 }), false);
     assert.equal(isValidAppData({ ...validAppData, schemaVersion: '2' }), false);
     assert.equal(isValidAppData({ ...validAppData, schemaVersion: 2 }), true);
+  });
+});
+
+describe('weekly promise backup', () => {
+  const promise = {
+    id: 'promise-1', kind: 'weekly', endsFrom: null, createdAt: 'c', updatedAt: 'u',
+    terms: [{ reward: '게임 재화 100', goalPercent: 80, effectiveFrom: '2026-10-12' }],
+  };
+  const result = {
+    id: 'promise-1:2026-10-12', promiseId: 'promise-1', weekStart: '2026-10-12', weekEnd: '2026-10-18',
+    reward: '게임 재화 100', goalPercent: 80, doneDays: 4, countedDays: 5, rate: 80, achieved: true,
+    judgedAt: 'j', seenAt: null,
+  };
+  const opts = { appVersion: '1.0.0', fallbackUserId: 'f', nowIso: 'NOW' };
+
+  it('an old single-promise backup restores into the list with the same id', () => {
+    const exported = appDataFromStorage({
+      [KEYS.WEEKLY_PROMISE]: JSON.stringify(promise),
+      [KEYS.WEEKLY_RESULTS]: JSON.stringify([result]),
+      [KEYS.SCHEMA_VERSION]: '3',
+    }, opts);
+    assert.deepEqual(exported.weeklyPromise, promise);
+    const parsed = parseBackupData(JSON.stringify(exported));
+    assert.ok(parsed);
+    const restored = Object.fromEntries(appDataToStorage(parsed).set);
+    assert.deepEqual(JSON.parse(restored[KEYS.WEEKLY_PROMISES]), [promise]);
+    assert.equal(restored[KEYS.WEEKLY_PROMISE], 'null');
+    assert.deepEqual(JSON.parse(restored[KEYS.WEEKLY_RESULTS]), [result]);
+  });
+
+  it('round-trips several promises with stable ids', () => {
+    const two = { ...promise, id: 'promise-2', terms: [{ reward: '공원 가기', goalPercent: 60, effectiveFrom: '2026-10-19' }] };
+    const exported = appDataFromStorage({
+      [KEYS.WEEKLY_PROMISES]: JSON.stringify([promise, two]),
+      [KEYS.WEEKLY_RESULTS]: JSON.stringify([result]),
+      [KEYS.SCHEMA_VERSION]: '5',
+    }, opts);
+    const parsed = parseBackupData(JSON.stringify(exported));
+    assert.ok(parsed);
+    const restored = Object.fromEntries(appDataToStorage(parsed).set);
+    assert.deepEqual(JSON.parse(restored[KEYS.WEEKLY_PROMISES]).map((p: { id: string }) => p.id), ['promise-1', 'promise-2']);
+    assert.deepEqual(appDataFromStorage(restored, opts), exported);
+  });
+
+  it('rejects a backup with a broken promise in the list or duplicate ids', () => {
+    const base = { version: '1', userId: 'u', activities: [], schedules: [] };
+    assert.equal(parseBackupData({ ...base, weeklyPromises: [promise, { id: 'x' }] }), null);
+    assert.equal(isValidAppData({ ...parseBackupData(base)!, weeklyPromises: [promise, promise] }), false);
+  });
+
+  it('a backup without a promise restores as none, and the keys are reset', () => {
+    const restored = Object.fromEntries(appDataToStorage(appDataFromStorage({}, opts)).set);
+    assert.equal(restored[KEYS.WEEKLY_PROMISE], 'null');
+    assert.equal(restored[KEYS.WEEKLY_RESULTS], '[]');
+    assert.ok(RESET_KEYS.includes(KEYS.WEEKLY_PROMISE));
+    assert.ok(RESET_KEYS.includes(KEYS.WEEKLY_PROMISES));
+    assert.equal(restored[KEYS.WEEKLY_PROMISES], '[]');
+    assert.ok(RESET_KEYS.includes(KEYS.WEEKLY_RESULTS));
+  });
+
+  it('rejects a broken promise in a backup', () => {
+    assert.equal(parseBackupData({ version: '1', userId: 'u', activities: [], schedules: [],
+      weeklyPromise: { id: 'x', kind: 'weekly', terms: [{ reward: 'a', goalPercent: 500, effectiveFrom: '2026-10-12' }],
+        endsFrom: null, createdAt: 'c', updatedAt: 'u' } }), null);
+  });
+});
+
+describe('reward expansion backup', () => {
+  const base = {
+    [KEYS.USER_ID]: 'user-1', [KEYS.SCHEDULES]: '[]', [KEYS.ACTIVITIES]: '[]',
+  };
+  const opts = { appVersion: '1.0.0', fallbackUserId: 'f', nowIso: 'NOW' };
+  const bought = { unlocked: true, source: 'store' as const, productId: 'p', unlockedAt: 'x' };
+  const locked = { unlocked: false, source: null, productId: null, unlockedAt: null };
+  const flagWrite = (set: [string, string][]) => set.find(([k]) => k === KEYS.REWARD_EXPANSION);
+
+  it('is exported and read back from the file', () => {
+    const exported = appDataFromStorage({ ...base, [KEYS.REWARD_EXPANSION]: JSON.stringify(bought) }, opts);
+    const parsed = parseBackupData(JSON.stringify(exported))!;
+    assert.deepEqual(parsed.rewardExpansion, bought);
+    const { set } = appDataToStorage(parsed, { rewardExpansion: locked });
+    assert.deepEqual(JSON.parse(flagWrite(set)![1]), bought);
+  });
+
+  it('restoring an old or locked backup never removes a purchase', () => {
+    const old = parseBackupData(JSON.stringify(appDataFromStorage(base, opts)))!;
+    assert.deepEqual(old.rewardExpansion, locked);
+    assert.equal(flagWrite(appDataToStorage(old, { rewardExpansion: bought }).set), undefined);
+    assert.equal(flagWrite(appDataToStorage(old, { rewardExpansion: locked }).set), undefined);
+  });
+
+  it('is backed up but kept on reset', () => {
+    assert.ok(BACKUP_READ_KEYS.includes(KEYS.REWARD_EXPANSION));
+    assert.ok(!RESET_KEYS.includes(KEYS.REWARD_EXPANSION));
+  });
+
+  it('rejects a broken flag in a backup', () => {
+    const exported = appDataFromStorage(base, opts);
+    assert.equal(isValidAppData({ ...exported, rewardExpansion: { unlocked: 'yes' } }), false);
   });
 });

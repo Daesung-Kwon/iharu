@@ -5,6 +5,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { parseStoredExpansion } from '../utils/rewardExpansion';
 import { AppData, appDataFromStorage, appDataToStorage, parseBackupData } from './backupData';
 import { BACKUP_READ_KEYS, KEYS, RESET_KEYS } from './storageKeys';
 import { runMigrations, MigrationResult } from './schema';
@@ -61,7 +62,8 @@ export const importAllData = async (data: unknown): Promise<boolean> => {
   }
 
   try {
-    const { set, remove } = appDataToStorage(parsed);
+    const current = parseStoredExpansion(await AsyncStorage.getItem(KEYS.REWARD_EXPANSION));
+    const { set, remove } = appDataToStorage(parsed, { rewardExpansion: current });
     await AsyncStorage.multiSet(set);
     if (remove.length > 0) await AsyncStorage.multiRemove(remove);
     await ensureSchema();
