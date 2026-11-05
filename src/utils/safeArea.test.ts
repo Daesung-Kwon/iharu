@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   getScreenEdges, getBottomChrome, getScrollEndPadding, getSheetBottomPadding,
-  getVisibleAreaPaddingBottom, getActivityListBottomInset, SCROLL_END_GAP,
+  getVisibleAreaPaddingBottom, SCROLL_END_GAP,
 } from './safeArea';
 import { getTabBarChrome } from '../hooks/layoutMetrics';
 
@@ -32,23 +32,6 @@ describe('bottom chrome and scroll end', () => {
   });
   it('centres the gate on the visible area', () => {
     assert.equal(getVisibleAreaPaddingBottom(126), 126);
-  });
-});
-
-describe('getActivityListBottomInset', () => {
-  it('stops the SE list above the tab bar and leaves a gap under the last card', () => {
-    const chrome = getTabBarChrome('phoneSmall', 0, 'ios');
-    const bottomChrome = getBottomChrome(chrome.offset, 0);
-    const inset = getActivityListBottomInset(bottomChrome);
-    // The scrollport itself ends at the tab bar. The gap under the last card
-    // is only SCROLL_END_GAP, so the two together match the usual end padding.
-    assert.equal(inset.scrollPortBottom, bottomChrome);
-    assert.ok(inset.scrollPortBottom >= chrome.barHeight);
-    assert.equal(inset.contentPaddingBottom, SCROLL_END_GAP);
-    assert.equal(
-      inset.scrollPortBottom + inset.contentPaddingBottom,
-      getScrollEndPadding(bottomChrome),
-    );
   });
 });
 

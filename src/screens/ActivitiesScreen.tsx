@@ -16,7 +16,6 @@ import ActivityFormModal from '../components/ActivityFormModal';
 import { Activity } from '../types';
 import { SoftPopColors } from '../constants/theme';
 import { getClayShadow, useLayout } from '../hooks/useLayout';
-import { getActivityListBottomInset } from '../utils/safeArea';
 
 /** One horizontal band per row so every card is inside the scroll height. */
 function chunkIntoRows<T>(items: readonly T[], columns: number): T[][] {
@@ -36,11 +35,10 @@ export default function ActivitiesScreen() {
     space,
     titleSize,
     activityColumns,
-    bottomChrome,
+    scrollEndPadding,
     cardRadius,
     isSmallPhone,
   } = useLayout();
-  const listInset = getActivityListBottomInset(bottomChrome);
   const clayShadow = getClayShadow(isCompact);
   const { activities, addActivity, updateActivity, deleteActivity } = useActivity();
   const { schedules } = useSchedule();
@@ -126,14 +124,13 @@ export default function ActivitiesScreen() {
         </Pressable>
       </View>
 
-      {/* marginBottom lifts the scrollport above the floating tab bar.
-          paddingBottom is only the gap under the last card. */}
+      {/* Scrolls behind the tab bar like Today and Plan; one end padding. */}
       <ScrollView
-        style={[styles.scrollView, { marginBottom: listInset.scrollPortBottom }]}
+        style={styles.scrollView}
         contentContainerStyle={{
           paddingTop: space,
           paddingHorizontal: space,
-          paddingBottom: listInset.contentPaddingBottom,
+          paddingBottom: scrollEndPadding,
         }}
         showsVerticalScrollIndicator={false}
       >

@@ -4,11 +4,9 @@
  * - Screens: top inset always; left/right too in landscape. Never bottom:
  *   the floating tab bar (+ ad above it) already owns the bottom inset, so a
  *   screen adding it again would double it (the old Android bug).
- * - Scroll content runs behind the tab bar and ad and ends with one padding:
- *   bottomChrome + SCROLL_END_GAP.
- * - Activity is the exception (getActivityListBottomInset): the grid's
- *   scrollport stops above the bar, then SCROLL_END_GAP sits under the last
- *   card. Cards must not show through the translucent tab bar.
+ * - Scroll content, including Activity, runs behind the tab bar and ad and
+ *   ends with one padding: bottomChrome + SCROLL_END_GAP. The last cards stay
+ *   reachable; while scrolling, content peeks through the translucent bar.
  * - Bottom sheets / forms: max(inset, 16) + 16 under the last control, and at
  *   most SHEET_MAX_WIDTH wide (iPad).
  */
@@ -42,25 +40,4 @@ export function getSheetBottomPadding(insetBottom: number): number {
  */
 export function getVisibleAreaPaddingBottom(bottomChrome: number): number {
   return Math.max(0, bottomChrome);
-}
-
-export type ActivityListBottomInset = {
-  /**
-   * Margin under the activity scrollport. Equals the floating tab bar
-   * (safe area is already inside bottomChrome) so the grid ends above the bar.
-   */
-  scrollPortBottom: number;
-  /** Gap inside the scrollport, under the last card. The bar is not counted again. */
-  contentPaddingBottom: number;
-};
-
-/**
- * Activity grid only. Other tabs keep getScrollEndPadding and scroll behind
- * the bar; activity cards were left under it on iPhone SE.
- */
-export function getActivityListBottomInset(bottomChrome: number): ActivityListBottomInset {
-  return {
-    scrollPortBottom: Math.max(0, bottomChrome),
-    contentPaddingBottom: SCROLL_END_GAP,
-  };
 }
