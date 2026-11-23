@@ -133,8 +133,7 @@ export default function DraggableActivityCard({
                         <View style={[styles.emojiContainer, isChip && styles.chipEmoji]}>
                             <ActivityIcon
                                 activity={activity}
-                                size={isChip ? 32 : 36}
-                                color={SoftPopColors.text}
+                                size={isChip ? 44 : 48}
                             />
                         </View>
                     </View>
@@ -199,12 +198,8 @@ const styles = StyleSheet.create({
         paddingRight: 0, // 패딩 제거
     },
     emojiContainer: {
-        width: 56,
-        height: 56,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: SoftPopColors.background,
-        borderRadius: 16,
     },
     infoContainer: {
         flex: 1,
@@ -286,9 +281,8 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     chipEmoji: {
-        width: 52,
-        height: 52,
-        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     chipInfo: {
         flex: 0,

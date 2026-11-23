@@ -9,8 +9,10 @@ import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { TIMELINE_CONFIG } from '../constants/config';
 import { ScheduleItem, Activity } from '../types';
 import ActivityIcon from './ActivityIcon';
+import IconTile from './IconTile';
 import { ActivityMaterialColors } from '../constants/materialDesign';
 import { SoftPopColors } from '../constants/theme';
+import { uiGlyph } from '../constants/activityIcons';
 import { layoutTimelineItems, minuteToY, slotOverlapsSpan, toMinutes } from '../utils/timelineLayout';
 
 // Gap between a block and the slot grid lines, and the smallest block we still draw (10-min items).
@@ -192,20 +194,28 @@ export default function TimelineViewV2({
                 onPress={() => onTimeSlotPress?.(time)}
                 disabled={hasConflict || readOnly}
               >
+                {hasConflict && !readOnly ? (
+                  <View style={styles.conflictLabel}>
+                    <IconTile
+                      name={uiGlyph('overlap').icon}
+                      size={28}
+                      tileColor={uiGlyph('overlap').tile}
+                    />
+                    <Text style={[styles.dropZoneText, styles.dropZoneTextConflict]}>시간 겹침</Text>
+                  </View>
+                ) : (
                 <Text style={[
                   styles.dropZoneText,
                   draggingActivity && !hasConflict && styles.dropZoneTextActive,
-                  hasConflict && styles.dropZoneTextConflict
                 ]}>
                   {readOnly
                     ? ''
-                    : hasConflict
-                    ? '⚠️ 시간 겹침'
                     : draggingActivity
                       ? `${draggingActivity.name} 추가`
                       : '+ 활동 추가'
                   }
                 </Text>
+                )}
               </Pressable>
             </View>
           </View>
@@ -247,8 +257,7 @@ export default function TimelineViewV2({
                   <View style={styles.scheduleEmojiWrapper}>
                     <ActivityIcon
                       activity={scheduleItem.activity}
-                      size={isShort ? 20 : 32}
-                      color={SoftPopColors.text}
+                      size={isShort ? 22 : 40}
                     />
                   </View>
                   <View style={[styles.scheduleInfo, isShort && styles.scheduleInfoShort]}>
@@ -275,7 +284,12 @@ export default function TimelineViewV2({
                     onPress={() => onRemoveItem?.(scheduleItem.id)}
                     accessibilityLabel={`${scheduleItem.activity?.name || '활동'} 삭제`}
                   >
-                    <Text style={[styles.removeButtonText, isShort && styles.removeButtonTextShort]}>✕</Text>
+                    <IconTile
+                      name={uiGlyph('dismiss').icon}
+                      size={isShort ? 28 : 36}
+                      tileColor={uiGlyph('dismiss').tile}
+                      iconColor={SoftPopColors.error}
+                    />
                   </Pressable>}
                 </View>
               </View>
@@ -442,10 +456,6 @@ const styles = StyleSheet.create({
   removeButtonShort: {
     width: 28,
     height: 28,
-    borderRadius: 14,
-  },
-  removeButtonTextShort: {
-    fontSize: 14,
   },
   scheduleBlockHeader: {
     flexDirection: 'row',
@@ -478,14 +488,6 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 20, // rounded-full
-    backgroundColor: '#FFF0F0',
-    // 3D pressable effect
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
   },
   removeButtonPressed: {
     transform: [{ translateY: 2 }],
@@ -493,12 +495,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 2,
     elevation: 2,
-  },
-  removeButtonText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: SoftPopColors.error,
-    fontFamily: 'BMJUA',
   },
   dropZoneReadOnly: {
     borderColor: 'transparent',
@@ -567,6 +563,12 @@ const styles = StyleSheet.create({
     color: SoftPopColors.error,
     fontWeight: '700',
     fontFamily: 'BMJUA',
+  },
+  conflictLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
 });
 

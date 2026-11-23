@@ -133,7 +133,7 @@ export default function AddActivitySheet({ visible, activities, items, nowMin, o
                   >
                     {on
                       ? <MaterialIcons name="check-circle" size={20} color={SoftPopColors.white} />
-                      : <ActivityIcon activity={a} size={22} color={SoftPopColors.text} />}
+                      : <ActivityIcon activity={a} size={28} />}
                     <Text style={[styles.chipText, on && styles.chipTextOn]} numberOfLines={1}>{a.name}</Text>
                   </Pressable>
                 );

@@ -46,8 +46,7 @@ export default function ActivityCard({ activity, onEdit, onDelete, width }: Acti
       <View style={styles.emojiContainer}>
         <ActivityIcon
           activity={activity}
-          size={48}
-          color={SoftPopColors.text}
+          size={56}
         />
       </View>
 

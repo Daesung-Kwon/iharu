@@ -57,41 +57,7 @@ export const EmojiList = Object.entries(ActivityEmojis).map(([key, emoji]) => ({
   emoji,
 }));
 
-/** 이모지 키 → Material Icons 매핑 (아이콘 탭용) */
-export const EmojiToMaterialIcon: Record<string, string> = {
-  // 학습·독서
-  homework: 'edit-document',
-  reading: 'menu-book',
-  study: 'school',
-  science: 'science',
-  math: 'calculate',
-  // 놀이·창작
-  play: 'sports-esports',
-  art: 'palette',
-  music: 'music-note',
-  piano: 'piano',
-  dance: 'celebration',
-  puzzle: 'extension',
-  roleplay: 'theater-comedy',
-  movie: 'movie-creation',
-  // 운동·활동
-  exercise: 'directions-run',
-  swim: 'pool',
-  bike: 'directions-bike',
-  outside: 'park',
-  // 일상
-  meal: 'restaurant',
-  snack: 'cookie',
-  nap: 'bedtime',
-  rest: 'self-improvement',
-  // 사회·기타
-  friend: 'groups',
-  pets: 'pets',
-  garden: 'local-florist',
-  travel: 'flight',
-  computer: 'computer',
-  camera: 'photo-camera',
-  lightbulb: 'lightbulb',
-};
+// Icons: see activityIcons.ts. Emoji characters stay here so legacy saves
+// that stored the character (instead of the preset key) still resolve.
 
 

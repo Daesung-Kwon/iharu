@@ -20,9 +20,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getSheetBottomPadding } from '../utils/safeArea';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Activity, ActivityColor, ActivityCategory } from '../types';
-import { ActivityEmojis, EmojiList, EmojiToMaterialIcon } from '../constants/emojis';
+import { EmojiList } from '../constants/emojis';
+import { resolveActivityIcon } from '../constants/activityIcons';
 import { ActivityMaterialColors } from '../constants/materialDesign';
 import { SoftPopColors } from '../constants/theme';
+import IconTile from './IconTile';
 import ModalBackdrop from './ModalBackdrop';
 import { modalStyles } from '../constants/modalStyle';
 import { useLayout } from '../hooks/useLayout';
@@ -70,16 +72,17 @@ export default function ActivityFormModal({
   const [selectedColor, setSelectedColor] = useState<ActivityColor>('blue');
   const [selectedCategory, setSelectedCategory] = useState<ActivityCategory>('study');
   const [duration, setDuration] = useState(30);
-  const [iconPickerMode, setIconPickerMode] = useState<'emoji' | 'icon'>('emoji');
 
   useEffect(() => {
     if (activity) {
       setName(activity.name);
-      setSelectedEmoji(activity.emojiKey);
+      // Legacy rows may store the emoji character. Highlight the matching preset
+      // key, and keep an unknown value so saving does not silently replace it.
+      const canonical = resolveActivityIcon(activity.emojiKey).key;
+      setSelectedEmoji(canonical ?? activity.emojiKey);
       setSelectedColor(activity.colorKey);
       setSelectedCategory(activity.category);
       setDuration(activity.durationMinutes);
-      setIconPickerMode(activity.displayAsIcon ? 'icon' : 'emoji');
     } else {
       // 초기화
       setName('');
@@ -87,7 +90,6 @@ export default function ActivityFormModal({
       setSelectedColor('blue');
       setSelectedCategory('study');
       setDuration(30);
-      setIconPickerMode('emoji');
     }
   }, [activity, visible]);
 
@@ -101,8 +103,11 @@ export default function ActivityFormModal({
       userId: activity?.userId || null,
       childProfileId: activity?.childProfileId || null,
       name: name.trim(),
+      // Preset key (or an unknown legacy value the user did not replace).
       emojiKey: selectedEmoji,
-      displayAsIcon: iconPickerMode === 'icon',
+      ...(typeof activity?.displayAsIcon === 'boolean'
+        ? { displayAsIcon: activity.displayAsIcon }
+        : {}),
       colorKey: selectedColor,
       category: selectedCategory,
       durationMinutes: duration,
@@ -162,57 +167,35 @@ export default function ActivityFormModal({
               />
             </View>
 
-            {/* Emoji / Icon Selection (확장) */}
+            {/* Icon selection. The stored value is still the preset key. */}
             <View style={[styles.section, isCompact && styles.sectionCompact]}>
-              <View style={styles.emojiSectionHeader}>
-                <Text style={styles.label}>아이콘</Text>
-                <View style={styles.iconModeTabs}>
-                  <Pressable
-                    style={[styles.iconModeTab, iconPickerMode === 'emoji' && styles.iconModeTabActive]}
-                    onPress={() => setIconPickerMode('emoji')}
-                  >
-                    <Text style={[styles.iconModeTabText, iconPickerMode === 'emoji' && styles.iconModeTabTextActive]}>
-                      이모지
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.iconModeTab, iconPickerMode === 'icon' && styles.iconModeTabActive]}
-                    onPress={() => setIconPickerMode('icon')}
-                  >
-                    <MaterialIcons
-                      name="category"
-                      size={18}
-                      color={iconPickerMode === 'icon' ? SoftPopColors.white : SoftPopColors.textSecondary}
-                    />
-                    <Text style={[styles.iconModeTabText, iconPickerMode === 'icon' && styles.iconModeTabTextActive]}>
-                      아이콘
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
+              <Text style={styles.label}>아이콘</Text>
               <View style={[styles.emojiGrid, isCompact && styles.emojiGridCompact]}>
-                {EmojiList.map(({ key, emoji }) => (
-                  <Pressable
-                    key={key}
-                    style={({ pressed }) => [
-                      styles.emojiOption,
-                      { width: emojiSize, height: emojiSize },
-                      selectedEmoji === key && styles.emojiOptionSelected,
-                      pressed && styles.emojiOptionPressed
-                    ]}
-                    onPress={() => setSelectedEmoji(key)}
-                  >
-                    {iconPickerMode === 'emoji' ? (
-                      <Text style={[styles.emojiText, isCompact && styles.emojiTextCompact]}>{emoji}</Text>
-                    ) : (
-                      <MaterialIcons
-                        name={(EmojiToMaterialIcon[key] || 'circle') as React.ComponentProps<typeof MaterialIcons>['name']}
-                        size={isCompact ? 26 : 32}
-                        color={selectedEmoji === key ? SoftPopColors.primary : SoftPopColors.text}
+                {EmojiList.map(({ key }) => {
+                  const icon = resolveActivityIcon(key);
+                  const selected = selectedEmoji === key;
+                  return (
+                    <Pressable
+                      key={key}
+                      accessibilityRole="button"
+                      accessibilityLabel={key}
+                      accessibilityState={{ selected }}
+                      style={({ pressed }) => [
+                        styles.emojiOption,
+                        { width: emojiSize, height: emojiSize, borderRadius: Math.round(emojiSize * 0.32) },
+                        selected && styles.emojiOptionSelected,
+                        pressed && styles.emojiOptionPressed
+                      ]}
+                      onPress={() => setSelectedEmoji(key)}
+                    >
+                      <IconTile
+                        name={icon.icon}
+                        size={emojiSize - 8}
+                        tileColor={icon.tile}
                       />
-                    )}
-                  </Pressable>
-                ))}
+                    </Pressable>
+                  );
+                })}
               </View>
             </View>
 
@@ -422,39 +405,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  emojiSectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  iconModeTabs: {
-    flexDirection: 'row',
-    backgroundColor: SoftPopColors.background,
-    borderRadius: 16,
-    padding: 4,
-    gap: 4,
-  },
-  iconModeTab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 12,
-    gap: 6,
-  },
-  iconModeTabActive: {
-    backgroundColor: SoftPopColors.primary,
-  },
-  iconModeTabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: SoftPopColors.textSecondary,
-    fontFamily: 'BMJUA',
-  },
-  iconModeTabTextActive: {
-    color: SoftPopColors.white,
-  },
   emojiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -467,35 +417,17 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 20,
-    backgroundColor: SoftPopColors.background,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
     borderColor: 'transparent',
-    // Soft shadow
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
   },
   emojiOptionSelected: {
     borderColor: SoftPopColors.primary,
-    backgroundColor: '#FFF0F0',
-    shadowColor: SoftPopColors.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 4,
   },
   emojiOptionPressed: {
     transform: [{ scale: 0.95 }],
-  },
-  emojiText: {
-    fontSize: 32,
-  },
-  emojiTextCompact: {
-    fontSize: 26,
   },
   colorOptionCompact: {
     width: 48,

@@ -30,6 +30,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { KEYS } from '../services/storageKeys';
 import { getLockedItemToast, getUndoStatus, planToggleComplete } from '../utils/completionLogic';
 import ActivityIcon from '../components/ActivityIcon';
+import IconTile from '../components/IconTile';
+import { uiGlyph } from '../constants/activityIcons';
 import Toast from '../components/Toast';
 import { SoftPopColors } from '../constants/theme';
 import { getClayShadow, useLayout } from '../hooks/useLayout';
@@ -488,8 +490,7 @@ export default function TodayScreen() {
                   <View style={styles.currentActivityIconWrapper}>
                     <ActivityIcon
                       activity={currentActivity.activity}
-                      size={isSmallPhone ? 36 : isCompact ? 44 : 52}
-                      color={SoftPopColors.now}
+                      size={isSmallPhone ? 40 : isCompact ? 48 : 56}
                     />
                   </View>
                   <View style={styles.currentActivityInfo}>
@@ -539,8 +540,7 @@ export default function TodayScreen() {
                   <View style={styles.nextActivityIconWrapper}>
                     <ActivityIcon
                       activity={nextActivity.activity}
-                      size={28}
-                      color={SoftPopColors.text}
+                      size={36}
                     />
                   </View>
                   <Text
@@ -580,7 +580,11 @@ export default function TodayScreen() {
                 accessible
                 accessibilityLabel={`${isViewingPast ? '달성 결과' : '진행 상황'} ${dayStats.completedItems}/${dayStats.totalItems}, ${Math.round(dayStats.completionRate)}%`}
               >
-                <Text style={styles.progressInlineIcon}>{isViewingPast ? '📊' : '⭐'}</Text>
+                <IconTile
+                  name={uiGlyph(isViewingPast ? 'progressPast' : 'progressToday').icon}
+                  size={28}
+                  tileColor={uiGlyph(isViewingPast ? 'progressPast' : 'progressToday').tile}
+                />
                 <Text style={styles.progressInlineTitle}>
                   {isViewingPast ? '달성 결과' : '진행 상황'}
                 </Text>
@@ -603,9 +607,11 @@ export default function TodayScreen() {
             ) : (
             <>
             <View style={[styles.progressCardHeader, isPhone && styles.progressCardHeaderPhone]}>
-              <Text style={styles.progressCardIcon}>
-                {isViewingPast ? '📊' : '⭐'}
-              </Text>
+              <IconTile
+                name={uiGlyph(isViewingPast ? 'progressPast' : 'progressToday').icon}
+                size={36}
+                tileColor={uiGlyph(isViewingPast ? 'progressPast' : 'progressToday').tile}
+              />
               <Text style={styles.progressCardTitle}>
                 {isViewingPast ? '달성 결과' : '진행 상황'}
               </Text>
@@ -998,9 +1004,6 @@ const styles = StyleSheet.create({
     gap: 8,
     minHeight: 28,
   },
-  progressInlineIcon: {
-    fontSize: 18,
-  },
   progressInlineTitle: {
     fontSize: 16,
     color: SoftPopColors.text,
@@ -1017,9 +1020,6 @@ const styles = StyleSheet.create({
     fontFamily: 'BMJUA',
     minWidth: 40,
     textAlign: 'right',
-  },
-  progressCardIcon: {
-    fontSize: 28,
   },
   progressCardTitle: {
     fontSize: 20,

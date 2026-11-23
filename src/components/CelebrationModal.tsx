@@ -9,6 +9,8 @@ import { View, Text, StyleSheet, Modal, Pressable, Animated, Platform } from 're
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SoftPopColors } from '../constants/theme';
+import { uiGlyph } from '../constants/activityIcons';
+import IconTile from './IconTile';
 import ModalBackdrop from './ModalBackdrop';
 import { modalStyles } from '../constants/modalStyle';
 import { useReduceMotion } from '../hooks/useReduceMotion';
@@ -163,13 +165,32 @@ export default function CelebrationModal({ visible, onClose }: CelebrationModalP
           </Animated.View>
           </View>
 
-          <Text style={styles.title}>🎉 완벽해요! 🎉</Text>
+          <View style={styles.titleRow}>
+            <IconTile
+              name={uiGlyph('celebration').icon}
+              size={36}
+              tileColor={uiGlyph('celebration').tile}
+            />
+            <Text style={styles.title}>완벽해요!</Text>
+            <IconTile
+              name={uiGlyph('celebration').icon}
+              size={36}
+              tileColor={uiGlyph('celebration').tile}
+            />
+          </View>
           <Text style={styles.message}>
             오늘의 모든 일정을 완료했어요!
           </Text>
-          <Text style={styles.subMessage}>
-            정말 수고했어요! 내일도 화이팅! 💪
-          </Text>
+          <View style={styles.subRow}>
+            <Text style={styles.subMessage}>
+              정말 수고했어요! 내일도 화이팅!
+            </Text>
+            <IconTile
+              name={uiGlyph('encouragement').icon}
+              size={32}
+              tileColor={uiGlyph('encouragement').tile}
+            />
+          </View>
 
           <Pressable
             style={({ pressed }) => [
@@ -212,12 +233,18 @@ const styles = StyleSheet.create({
   confetti: {
     position: 'absolute',
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 12,
+    marginBottom: 16,
+  },
   title: {
     fontSize: 28,
     fontWeight: '700',
     color: SoftPopColors.secondary,
-    marginTop: 12,
-    marginBottom: 16,
     textAlign: 'center',
     lineHeight: 36,
     fontFamily: 'BMJUA',
@@ -231,14 +258,21 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     fontFamily: 'BMJUA',
   },
+  subRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 40,
+  },
   subMessage: {
     fontSize: 16,
     fontWeight: '500',
     color: SoftPopColors.textSecondary,
-    marginBottom: 40,
     textAlign: 'center',
     lineHeight: 24,
     fontFamily: 'BMJUA',
+    flexShrink: 1,
   },
   button: {
     backgroundColor: SoftPopColors.primary,

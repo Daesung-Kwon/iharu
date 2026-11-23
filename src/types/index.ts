@@ -30,8 +30,8 @@ export interface Activity {
   userId?: string | null; // null이면 시스템 기본 활동
   childProfileId?: string | null;
   name: string;
-  emojiKey: string; // 이모지/아이콘 프리셋 키
-  displayAsIcon?: boolean; // true면 Material Icon으로 표시, 미설정/false면 이모지 표시
+  emojiKey: string; // 프리셋 키(예: homework) 또는 예전 이모지 문자. 화면은 항상 아이콘.
+  displayAsIcon?: boolean; // 예전 이모지/아이콘 전환 값. 더 이상 그리지 않고, 기존 저장본 호환용으로만 둔다.
   colorKey: ActivityColor;
   durationMinutes: number; // 10분 단위
   category: ActivityCategory;

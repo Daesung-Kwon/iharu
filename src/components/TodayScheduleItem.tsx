@@ -241,8 +241,7 @@ export default function TodayScheduleItem({
         <View style={styles.emojiWrapper}>
           <ActivityIcon
             activity={activity}
-            size={isCompact ? 36 : 44}
-            color={SoftPopColors.text}
+            size={isCompact ? 40 : 48}
           />
         </View>
 

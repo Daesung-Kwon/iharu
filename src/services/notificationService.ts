@@ -244,6 +244,7 @@ export async function scheduleActivityNotification(
         identifier: notificationId,
         content: {
           title: '활동 시작 예정',
+          // Plain-text OS notification. An in-app icon tile cannot replace this glyph.
           body: `${scheduleItem.activity?.name} ${leadLabel}! 🎯`,
           sound: true,
           data: {

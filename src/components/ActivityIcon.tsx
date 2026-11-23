@@ -1,61 +1,33 @@
 /**
- * ActivityIcon - 활동 이모지 또는 Material Icon 렌더링
- * displayAsIcon이 true면 아이콘, 아니면 이모지로 표시
+ * Activity icon. Stored emoji keys and legacy emoji characters both render
+ * as an Ionicons outline glyph in a pastel tile. Unknown values use the pin.
  */
 
 import React from 'react';
-import { Text, StyleSheet } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { StyleProp, ViewStyle } from 'react-native';
 import { Activity } from '../types';
-import { ActivityEmojis, EmojiToMaterialIcon } from '../constants/emojis';
+import { resolveActivityIcon } from '../constants/activityIcons';
+import IconTile from './IconTile';
 
 interface ActivityIconProps {
-  activity?: Pick<Activity, 'emojiKey' | 'displayAsIcon'> | null;
+  activity?: Pick<Activity, 'emojiKey'> | null;
+  /** Tile size in px. The glyph ink is ACTIVITY_ICON_INK on every screen. */
   size?: number;
-  color?: string;
-  style?: object;
+  style?: StyleProp<ViewStyle>;
 }
-
-const FALLBACK_EMOJI = '📌';
 
 export default function ActivityIcon({
   activity,
   size = 44,
-  color,
   style,
 }: ActivityIconProps) {
-  if (!activity?.emojiKey) {
-    return (
-      <Text style={[styles.emoji, { fontSize: size * 0.9 }, style]}>
-        {FALLBACK_EMOJI}
-      </Text>
-    );
-  }
-
-  const emoji = ActivityEmojis[activity.emojiKey] || activity.emojiKey;
-  const iconName = EmojiToMaterialIcon[activity.emojiKey] || 'circle';
-  const showAsIcon = activity.displayAsIcon === true;
-
-  if (showAsIcon) {
-    return (
-      <MaterialIcons
-        name={iconName as React.ComponentProps<typeof MaterialIcons>['name']}
-        size={size}
-        color={color}
-        style={style}
-      />
-    );
-  }
-
+  const resolved = resolveActivityIcon(activity?.emojiKey);
   return (
-    <Text style={[styles.emoji, { fontSize: size * 0.9 }, style]}>
-      {emoji}
-    </Text>
+    <IconTile
+      name={resolved.icon}
+      size={size}
+      tileColor={resolved.tile}
+      style={style}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  emoji: {
-    textAlign: 'center',
-  },
-});
