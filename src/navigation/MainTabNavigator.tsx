@@ -5,9 +5,10 @@
 
 import React from 'react';
 import { BottomTabBar, BottomTabBarProps, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { MaterialIcons } from '@expo/vector-icons';
 import { Platform, Pressable, View, StyleSheet } from 'react-native';
 import { MainTabParamList } from '../types';
+import { IhIcon } from '../components/icons/IhIcon';
+import { TabIconId, TabIcons } from '../constants/systemIcons';
 
 // 화면 임포트
 import TodayScreen from '../screens/TodayScreen';
@@ -24,7 +25,7 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 // React Navigation's UIKit icon slot is 31×28 and the item centers its child,
 // so the pressable would otherwise shrink under 44pt. minWidth/minHeight plus
 // hitSlop keep the HIG target. Navigation also adds padding: 5, which clips
-// the 12pt label inside the SE bar (60pt with an 8pt floor); zero it after
+// the 11pt label inside the SE bar (60pt with an 8pt floor); zero it after
 // that style so 오늘/계획/활동/설정 stay on one line at 320pt.
 const CustomTabBarButton = ({
   children,
@@ -74,13 +75,23 @@ const FloatingTabBar = (props: BottomTabBarProps) => (
   </View>
 );
 
-// Icon with a solid primary pill when selected. The pill stays the same size;
-// only the fill and the icon color change, so the bar does not grow.
-const TabIcon = ({ name, color, focused }: { name: keyof typeof MaterialIcons.glyphMap; color: string; focused: boolean }) => (
+// Soft pill when selected. The pill stays the same size; only the fill,
+// the icon (outline vs filled), and the tint change, so the bar does not grow.
+const TabIcon = ({ name, color, focused }: { name: TabIconId; color: string; focused: boolean }) => (
   <View style={[tabBarStyles.iconPill, focused && tabBarStyles.iconPillActive]}>
-    <MaterialIcons name={name} size={24} color={focused ? TabBarColors.activeIcon : color} />
+    <IhIcon
+      name={focused ? TabIcons[name].fill : TabIcons[name].outline}
+      size={24}
+      color={focused ? TabBarColors.activeIcon : color}
+    />
   </View>
 );
+
+const tabLabelFont = Platform.select({
+  ios: 'System',
+  android: 'sans-serif',
+  default: 'System',
+});
 
 export const MainTabNavigator: React.FC = () => <MainTabs />;
 
@@ -108,12 +119,12 @@ const MainTabs: React.FC = () => {
           shadowOpacity: 0,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '600',
           marginTop: 4,
           marginBottom: 0,
           textAlign: 'center',
-          fontFamily: 'BMJUA',
+          fontFamily: tabLabelFont,
           includeFontPadding: false,
           // Android 폰트 정렬 개선
           ...(Platform.OS === 'android' && {
@@ -172,7 +183,7 @@ const MainTabs: React.FC = () => {
           tabBarLabel: '계획',
           tabBarAccessibilityLabel: '일정 만들기',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="event-note" color={color} focused={focused} />
+            <TabIcon name="plan" color={color} focused={focused} />
           ),
         }}
       />
@@ -184,7 +195,7 @@ const MainTabs: React.FC = () => {
           tabBarLabel: '활동',
           tabBarAccessibilityLabel: '활동 관리',
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="format-list-bulleted" color={color} focused={focused} />
+            <TabIcon name="activity" color={color} focused={focused} />
           ),
         }}
       />

@@ -1,16 +1,16 @@
 /**
- * CelebrationModal 컴포넌트
- * 모든 일정 완료 시 축하 애니메이션
- * Soft Pop 3D (Claymorphism) 디자인 적용
+ * CelebrationModal
+ * Shown once when every activity for the day is done.
+ * The hero is 하루 해님 (cheer). No emoji, no star ring.
  */
 
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Modal, Pressable, Animated, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
-import { SoftPopColors } from '../constants/theme';
-import { uiGlyph } from '../constants/activityIcons';
-import IconTile from './IconTile';
+import { BrandAccent, SoftPopColors } from '../constants/theme';
+import { CELEBRATION_COPY, CELEBRATION_MASCOT_SIZE } from '../constants/celebration';
+import { Fonts } from '../constants/fonts';
+import { HaruSun } from './icons/HaruSun';
 import ModalBackdrop from './ModalBackdrop';
 import { modalStyles } from '../constants/modalStyle';
 import { useReduceMotion } from '../hooks/useReduceMotion';
@@ -20,25 +20,25 @@ interface CelebrationModalProps {
   onClose: () => void;
 }
 
+const systemFont = Platform.select({
+  ios: 'System',
+  android: 'sans-serif',
+  default: 'System',
+});
+
 export default function CelebrationModal({ visible, onClose }: CelebrationModalProps) {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
   const scaleAnim = useRef(new Animated.Value(0)).current;
-  const rotationAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
-  const confettiScaleAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible && reduceMotion) {
-      // Reduce Motion: just appear (fade-in only), no spin or bounce.
       scaleAnim.setValue(1);
-      rotationAnim.setValue(0);
-      confettiScaleAnim.setValue(1);
       Animated.timing(opacityAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
       return;
     }
     if (visible) {
-      // Modal scale animation
       Animated.spring(scaleAnim, {
         toValue: 1,
         tension: 50,
@@ -46,71 +46,20 @@ export default function CelebrationModal({ visible, onClose }: CelebrationModalP
         useNativeDriver: true,
       }).start();
 
-      // Opacity animation
       Animated.timing(opacityAnim, {
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
       }).start();
-
-      // Rotation animation (continuous)
-      // One calm turn, not an endless spin.
-      const rotateAnimation = Animated.timing(rotationAnim, {
-        toValue: 1,
-        duration: 900,
-        useNativeDriver: true,
-      });
-      rotateAnimation.start();
-
-      // Confetti scale animation
-      Animated.sequence([
-        Animated.timing(confettiScaleAnim, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(confettiScaleAnim, {
-          toValue: 1.2,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(confettiScaleAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
     } else {
       scaleAnim.setValue(0);
-      rotationAnim.setValue(0);
       opacityAnim.setValue(0);
-      confettiScaleAnim.setValue(0);
     }
-  }, [visible, reduceMotion]);
+  }, [visible, reduceMotion, opacityAnim, scaleAnim]);
 
   const modalStyle = {
     transform: [{ scale: scaleAnim }],
     opacity: opacityAnim,
-  };
-
-  const rotation = rotationAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  const starStyle = {
-    transform: [
-      { rotate: rotation },
-      { scale: confettiScaleAnim },
-    ],
-  };
-
-  const confettiStyle = {
-    transform: [{ scale: confettiScaleAnim }],
-    opacity: confettiScaleAnim.interpolate({
-      inputRange: [0, 1, 1.2],
-      outputRange: [0, 1, 0.8],
-    }),
   };
 
   return (
@@ -123,74 +72,11 @@ export default function CelebrationModal({ visible, onClose }: CelebrationModalP
       <View style={modalStyles.dialogOverlay}>
         <ModalBackdrop onPress={onClose} />
         <Animated.View style={[modalStyles.dialog, styles.modalContainer, modalStyle]}>
-          {/* Hero: the star ring is centred on the icon so it never runs into the title. */}
-          <View style={styles.hero}>
-          <Animated.View style={[styles.confettiContainer, confettiStyle]}>
-            {[...Array(12)].map((_, i) => {
-              const angle = (i * 360) / 12;
-              const radius = HERO_RADIUS;
-              const x = Math.cos((angle * Math.PI) / 180) * radius;
-              const y = Math.sin((angle * Math.PI) / 180) * radius;
+          <HaruSun mood="cheer" size={CELEBRATION_MASCOT_SIZE} />
 
-              return (
-                <View
-                  key={i}
-                  style={[
-                    styles.confetti,
-                    {
-                      transform: [
-                        { translateX: x },
-                        { translateY: y },
-                      ],
-                    },
-                  ]}
-                >
-                  <MaterialIcons
-                    name="star"
-                    size={20}
-                    color={SoftPopColors.secondary}
-                  />
-                </View>
-              );
-            })}
-          </Animated.View>
-
-          {/* Main Content */}
-          <Animated.View style={starStyle}>
-            <MaterialIcons
-              name="celebration"
-              size={72}
-              color={SoftPopColors.secondary}
-            />
-          </Animated.View>
-          </View>
-
-          <View style={styles.titleRow}>
-            <IconTile
-              name={uiGlyph('celebration').icon}
-              size={36}
-              tileColor={uiGlyph('celebration').tile}
-            />
-            <Text style={styles.title}>완벽해요!</Text>
-            <IconTile
-              name={uiGlyph('celebration').icon}
-              size={36}
-              tileColor={uiGlyph('celebration').tile}
-            />
-          </View>
-          <Text style={styles.message}>
-            오늘의 모든 일정을 완료했어요!
-          </Text>
-          <View style={styles.subRow}>
-            <Text style={styles.subMessage}>
-              정말 수고했어요! 내일도 화이팅!
-            </Text>
-            <IconTile
-              name={uiGlyph('encouragement').icon}
-              size={32}
-              tileColor={uiGlyph('encouragement').tile}
-            />
-          </View>
+          <Text style={styles.title}>{CELEBRATION_COPY.title}</Text>
+          <Text style={styles.message}>{CELEBRATION_COPY.message}</Text>
+          <Text style={styles.subMessage}>{CELEBRATION_COPY.sub}</Text>
 
           <Pressable
             style={({ pressed }) => [
@@ -198,11 +84,11 @@ export default function CelebrationModal({ visible, onClose }: CelebrationModalP
               pressed && styles.buttonPressed,
               Platform.OS === 'android' && {
                 marginBottom: Math.max(insets.bottom, 16),
-              }
+              },
             ]}
             onPress={onClose}
           >
-            <Text style={styles.buttonText}>확인</Text>
+            <Text style={styles.buttonText}>{CELEBRATION_COPY.confirm}</Text>
           </Pressable>
         </Animated.View>
       </View>
@@ -210,97 +96,67 @@ export default function CelebrationModal({ visible, onClose }: CelebrationModalP
   );
 }
 
-const HERO_SIZE = 168;
-const HERO_RADIUS = 70;
-
 const styles = StyleSheet.create({
-  hero: {
-    width: HERO_SIZE,
-    height: HERO_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   modalContainer: {
-    padding: 40,
+    paddingTop: 28,
+    paddingBottom: 32,
+    paddingHorizontal: 28,
     alignItems: 'center',
     maxWidth: 400,
   },
-  confettiContainer: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  confetti: {
-    position: 'absolute',
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    marginTop: 12,
-    marginBottom: 16,
-  },
   title: {
     fontSize: 28,
-    fontWeight: '700',
-    color: SoftPopColors.secondary,
+    color: SoftPopColors.text,
     textAlign: 'center',
     lineHeight: 36,
-    fontFamily: 'BMJUA',
+    fontFamily: Fonts.jua,
+    marginTop: 4,
   },
   message: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: '600',
+    lineHeight: 24,
     color: SoftPopColors.text,
-    marginBottom: 12,
+    marginTop: 12,
     textAlign: 'center',
-    lineHeight: 28,
-    fontFamily: 'BMJUA',
-  },
-  subRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: 40,
+    fontFamily: systemFont,
   },
   subMessage: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '400',
+    lineHeight: 22,
     color: SoftPopColors.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
-    fontFamily: 'BMJUA',
-    flexShrink: 1,
+    fontFamily: systemFont,
+    marginTop: 8,
+    marginBottom: 28,
   },
   button: {
-    backgroundColor: SoftPopColors.primary,
+    backgroundColor: BrandAccent.strong,
+    height: 48,
     paddingHorizontal: 40,
-    paddingVertical: 16,
-    borderRadius: 28, // rounded-full
+    borderRadius: 999,
     minWidth: 140,
-    // 3D pressable effect
-    shadowColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#2D3436',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 5,
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 2,
   },
   buttonPressed: {
     transform: [{ translateY: 2 }],
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    elevation: 1,
   },
   buttonText: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
+    lineHeight: 24,
     color: SoftPopColors.white,
     textAlign: 'center',
-    letterSpacing: 0.5,
-    fontFamily: 'BMJUA',
+    fontFamily: systemFont,
   },
 });
-

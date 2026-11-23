@@ -7,7 +7,7 @@
  */
 export const SoftPopColors = {
   background: '#FFF9F0', // Cream
-  primary: '#FF6B6B', // Soft Red — alerts, notifications, tab chrome
+  primary: '#FF6B6B', // Soft Red — alerts, progress, large surfaces. Not the tab pill.
   secondary: '#FFD93D', // Banana Yellow
   text: '#2D3436', // Soft Black
   textSecondary: '#636E72', // Soft Gray
@@ -27,16 +27,29 @@ export const SoftPopColors = {
 };
 
 /**
- * Floating tab bar. The bar is a translucent white clay; the selected icon
- * pill is solid primary so it reads at a glance. A 15% primary wash
- * (`#FF6B6B26`) sat about 1.1:1 on that bar. The icon on the pill is white,
- * same as other primary controls. Inactive tabs stay on `textSecondary`.
+ * Coral roles locked 11/23. `primary` stays the large-surface coral.
+ * The tab pill and the celebration button use these instead.
+ */
+export const BrandAccent = {
+  /** White-label fill buttons (15pt+ bold). */
+  strong: '#F0565A',
+  /** Coral type and the active tab icon. */
+  text: '#D6393E',
+  /** Selected chip and the active tab pill. */
+  soft: '#FFEDEA',
+} as const;
+
+/**
+ * Floating tab bar. The bar stays a translucent white clay. The selected
+ * tab is a soft pill (`accentSoft`) with a filled ih-* icon and label in
+ * `accentText`. Inactive tabs are outline icons and labels in ink2.
+ * The solid #FF6B6B pill is retired: that coral is 2.45:1 on the soft pill.
  */
 export const TabBarColors = {
   bar: 'rgba(255, 255, 255, 0.75)',
-  activePill: SoftPopColors.primary,
-  activeIcon: SoftPopColors.white,
-  activeLabel: SoftPopColors.primary,
+  activePill: BrandAccent.soft,
+  activeIcon: BrandAccent.text,
+  activeLabel: BrandAccent.text,
   inactive: SoftPopColors.textSecondary,
 } as const;
 

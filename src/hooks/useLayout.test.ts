@@ -221,7 +221,7 @@ describe('getTabBarChrome', () => {
     assert.ok(touchWidth <= slot, `touch width ${touchWidth} crosses the ${slot}pt slot`);
     assert.ok(touchHeight >= MIN_TOUCH_TARGET);
 
-    // Two Korean glyphs at 12pt (about 16pt each) stay inside the pressable and the slot.
+    // Two Korean glyphs. 11pt labels are inside this 12pt (about 16pt each) budget.
     const labelWidth = 16 * 2;
     assert.ok(labelWidth <= pressableWidth);
     assert.ok(labelWidth <= slot);

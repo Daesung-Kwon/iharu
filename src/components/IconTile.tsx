@@ -1,12 +1,12 @@
 /**
- * Ionicons outline glyph on a soft pastel tile.
+ * ih-* glyph on a soft pastel tile.
  * One radius and one glyph ratio so the stroke reads the same on every screen.
  */
 
 import React from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { ACTIVITY_ICON_INK, ICON_GLYPH_RATIO } from '../constants/activityIcons';
+import { IhIcon } from './icons/IhIcon';
 
 interface IconTileProps {
   name: string;
@@ -42,11 +42,7 @@ export default function IconTile({
         style,
       ]}
     >
-      <Ionicons
-        name={name as React.ComponentProps<typeof Ionicons>['name']}
-        size={glyph}
-        color={iconColor}
-      />
+      <IhIcon name={name} size={glyph} color={iconColor} />
     </View>
   );
 }

@@ -22,12 +22,12 @@ export const MIN_TOUCH_TARGET = 44;
  * Visual capsule behind the selected tab icon.
  * Wider than react-navigation's 31×28 UIKit icon slot; the slot does not
  * contribute that width to the pressable, so the button sets its own minimum.
- * 56pt still fits a 320pt bar (four tabs × 80pt) with room for the label.
+ * 52pt is the soft pill and still fits a 320pt bar (four tabs × 80pt).
  */
-export const TAB_ICON_PILL = { width: 56, height: 30 } as const;
+export const TAB_ICON_PILL = { width: 52, height: 30 } as const;
 /**
  * Touch padding around each tab. Horizontal slop covers the visual pill
- * when the pressable is only the 44pt minimum: (56 − 44) / 2 = 6.
+ * when the pressable is only the 44pt minimum: (52 - 44) / 2 = 4.
  * 44 + 6 + 6 = 56, which is still inside an 80pt slot on a 320pt-wide SE.
  */
 const TAB_HIT_SLOP_X = Math.max(0, Math.ceil((TAB_ICON_PILL.width - MIN_TOUCH_TARGET) / 2));

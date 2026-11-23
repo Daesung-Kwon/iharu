@@ -1,6 +1,6 @@
 /**
  * Activity icon. Stored emoji keys and legacy emoji characters both render
- * as an Ionicons outline glyph in a pastel tile. Unknown values use the pin.
+ * as an ih-* glyph in a pastel tile. Unknown values use ih-pin on lilac.
  */
 
 import React from 'react';

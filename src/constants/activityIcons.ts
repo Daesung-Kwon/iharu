@@ -1,12 +1,12 @@
 /**
- * Ionicons outline icons for every activity emoji and the other UI glyphs.
+ * In-house `ih-*` icons for every activity emoji and the other UI glyphs.
  *
  * Stored activities keep their existing `emojiKey` (a preset key such as
  * "homework", or a legacy emoji character). Nothing is migrated. Unknown
- * values render as the pin fallback so a cell is never blank.
+ * values render as `ih-pin` on the lilac tile so a cell is never blank.
  *
- * Outline icons share one stroke. Tile colors are soft pastels; the glyph
- * ink is the same on every screen (`ACTIVITY_ICON_INK`, SoftPopColors.text).
+ * Tile colors stay the soft pastels. The glyph ink is `ACTIVITY_ICON_INK`
+ * (the SVG ink, SoftPopColors.text) unless a caller tints it.
  */
 
 import { ActivityEmojis } from './emojis';
@@ -37,51 +37,51 @@ type IconChoice = {
 };
 
 /**
- * Preset key → Ionicons outline name. Keys match `ActivityEmojis`.
+ * Preset key → `ih-{key}`. Keys match `ActivityEmojis`.
  * The picker stores the key, not the icon name, so older saves keep working.
  */
 export const ActivityIconByKey: Record<string, IconChoice> = {
-  homework: { icon: 'document-text-outline', tile: 'sky' },
-  reading: { icon: 'book-outline', tile: 'lilac' },
-  study: { icon: 'pencil-outline', tile: 'lemon' },
-  science: { icon: 'flask-outline', tile: 'aqua' },
-  math: { icon: 'calculator-outline', tile: 'peach' },
-  play: { icon: 'game-controller-outline', tile: 'rose' },
-  art: { icon: 'color-palette-outline', tile: 'cream' },
-  music: { icon: 'musical-notes-outline', tile: 'lemon' },
-  piano: { icon: 'musical-note-outline', tile: 'lilac' },
-  dance: { icon: 'body-outline', tile: 'rose' },
-  puzzle: { icon: 'extension-puzzle-outline', tile: 'mint' },
-  roleplay: { icon: 'happy-outline', tile: 'peach' },
-  movie: { icon: 'film-outline', tile: 'sky' },
-  exercise: { icon: 'walk-outline', tile: 'mint' },
-  swim: { icon: 'water-outline', tile: 'aqua' },
-  bike: { icon: 'bicycle-outline', tile: 'sky' },
-  outside: { icon: 'leaf-outline', tile: 'mint' },
-  meal: { icon: 'nutrition-outline', tile: 'rose' },
-  snack: { icon: 'ice-cream-outline', tile: 'cream' },
-  nap: { icon: 'bed-outline', tile: 'aqua' },
-  rest: { icon: 'fitness-outline', tile: 'lilac' },
-  friend: { icon: 'people-outline', tile: 'peach' },
-  pets: { icon: 'paw-outline', tile: 'cream' },
-  garden: { icon: 'flower-outline', tile: 'lemon' },
-  travel: { icon: 'airplane-outline', tile: 'sky' },
-  computer: { icon: 'laptop-outline', tile: 'aqua' },
-  camera: { icon: 'camera-outline', tile: 'rose' },
-  lightbulb: { icon: 'bulb-outline', tile: 'lemon' },
+  homework: { icon: 'ih-homework', tile: 'sky' },
+  reading: { icon: 'ih-reading', tile: 'lilac' },
+  study: { icon: 'ih-study', tile: 'lemon' },
+  science: { icon: 'ih-science', tile: 'aqua' },
+  math: { icon: 'ih-math', tile: 'peach' },
+  play: { icon: 'ih-play', tile: 'rose' },
+  art: { icon: 'ih-art', tile: 'cream' },
+  music: { icon: 'ih-music', tile: 'lemon' },
+  piano: { icon: 'ih-piano', tile: 'lilac' },
+  dance: { icon: 'ih-dance', tile: 'rose' },
+  puzzle: { icon: 'ih-puzzle', tile: 'mint' },
+  roleplay: { icon: 'ih-roleplay', tile: 'peach' },
+  movie: { icon: 'ih-movie', tile: 'sky' },
+  exercise: { icon: 'ih-exercise', tile: 'mint' },
+  swim: { icon: 'ih-swim', tile: 'aqua' },
+  bike: { icon: 'ih-bike', tile: 'sky' },
+  outside: { icon: 'ih-outside', tile: 'mint' },
+  meal: { icon: 'ih-meal', tile: 'rose' },
+  snack: { icon: 'ih-snack', tile: 'cream' },
+  nap: { icon: 'ih-nap', tile: 'aqua' },
+  rest: { icon: 'ih-rest', tile: 'lilac' },
+  friend: { icon: 'ih-friend', tile: 'peach' },
+  pets: { icon: 'ih-pets', tile: 'cream' },
+  garden: { icon: 'ih-garden', tile: 'lemon' },
+  travel: { icon: 'ih-travel', tile: 'sky' },
+  computer: { icon: 'ih-computer', tile: 'aqua' },
+  camera: { icon: 'ih-camera', tile: 'rose' },
+  lightbulb: { icon: 'ih-lightbulb', tile: 'lemon' },
 };
 
-/** UI glyphs that are not activity presets. `fallback` replaces the old pin emoji. */
+/** UI glyphs that are not activity presets. `fallback` is ih-pin on lilac. */
 export const UiGlyphs = {
-  progressToday: { emoji: '⭐', icon: 'star-outline', tile: 'lemon' },
-  progressPast: { emoji: '📊', icon: 'stats-chart-outline', tile: 'sky' },
-  celebration: { emoji: '🎉', icon: 'balloon-outline', tile: 'rose' },
-  encouragement: { emoji: '💪', icon: 'barbell-outline', tile: 'peach' },
-  overlap: { emoji: '⚠️', icon: 'warning-outline', tile: 'amber' },
-  planHint: { emoji: '✨', icon: 'sparkles-outline', tile: 'lemon' },
-  fallback: { emoji: '📌', icon: 'pin-outline', tile: 'lilac' },
-  complete: { emoji: '✓', icon: 'checkmark-outline', tile: 'mint' },
-  dismiss: { emoji: '✕', icon: 'close-outline', tile: 'rose' },
+  progressToday: { emoji: '⭐', icon: 'ih-star', tile: 'lemon' },
+  progressPast: { emoji: '📊', icon: 'ih-chart', tile: 'sky' },
+  celebration: { emoji: '🎉', icon: 'ih-party', tile: 'rose' },
+  encouragement: { emoji: '💪', icon: 'ih-cheer', tile: 'peach' },
+  overlap: { emoji: '⚠️', icon: 'ih-warn', tile: 'amber' },
+  planHint: { emoji: '✨', icon: 'ih-sparkle', tile: 'lemon' },
+  fallback: { emoji: '📌', icon: 'ih-pin', tile: 'lilac' },
+  complete: { emoji: '✓', icon: 'ih-check', tile: 'mint' },
+  dismiss: { emoji: '✕', icon: 'ih-close', tile: 'rose' },
 } as const;
 
 export type UiGlyphId = keyof typeof UiGlyphs;
@@ -89,7 +89,7 @@ export type UiGlyphId = keyof typeof UiGlyphs;
 export const FALLBACK_ACTIVITY_ICON = UiGlyphs.fallback.icon;
 
 export type ResolvedActivityIcon = {
-  /** Ionicons outline name. Always set. */
+  /** `ih-*` icon name. Always set. */
   icon: string;
   /** Soft pastel tile fill. */
   tile: string;
@@ -126,9 +126,9 @@ const fallbackIcon = (): ResolvedActivityIcon => ({
 });
 
 /**
- * Map a stored activity value to an outline icon.
+ * Map a stored activity value to an ih-* icon.
  * Accepts a preset key (`homework`) or the emoji that key used to display (`📝`).
- * Null, blank, and anything we do not know become the pin outline.
+ * Null, blank, and anything we do not know become ih-pin on lilac.
  */
 export function resolveActivityIcon(stored: string | null | undefined): ResolvedActivityIcon {
   if (typeof stored !== 'string') return fallbackIcon();

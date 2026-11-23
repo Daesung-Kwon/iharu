@@ -1,0 +1,4 @@
+<!-- iHaru icon v0.1 · 24 grid · live 20 · stroke 2 round · duotone tint .18 -->
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" ><path d="M20.6 12.6A8.6 8.6 0 1 1 11.4 3.4a2.6 2.6 0 0 0 3 2.9 2.6 2.6 0 0 0 3.1 3.1 2.6 2.6 0 0 0 3.1 3.2z" fill="currentColor" fill-opacity=".18"/>
+<path d="M20.6 12.6A8.6 8.6 0 1 1 11.4 3.4a2.6 2.6 0 0 0 3 2.9 2.6 2.6 0 0 0 3.1 3.1 2.6 2.6 0 0 0 3.1 3.2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="8.4" cy="10" r="1.2" fill="currentColor"/><circle cx="12.3" cy="14.6" r="1.2" fill="currentColor"/><circle cx="16" cy="15.6" r="1.2" fill="currentColor"/><circle cx="8.2" cy="15.4" r="1.2" fill="currentColor"/><circle cx="12" cy="9.3" r="1" fill="currentColor"/></svg>
