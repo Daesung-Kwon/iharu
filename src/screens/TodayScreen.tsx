@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Platform, Linking, AppState } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Alert, Platform, Linking, AppState, Animated } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { MainTabParamList } from '../types';
@@ -16,6 +16,7 @@ import TodayScheduleItem from '../components/TodayScheduleItem';
 import CelebrationModal from '../components/CelebrationModal';
 import HorizontalDatePicker from '../components/HorizontalDatePicker';
 import WeekStrip from '../components/WeekStrip';
+import TodayCollapsingHeader from '../components/TodayCollapsingHeader';
 import WeeklyPromiseCard from '../components/WeeklyPromiseCard';
 import WeeklyResultModal from '../components/WeeklyResultModal';
 import { useWeeklyPromise } from '../contexts/WeeklyPromiseContext';
@@ -33,8 +34,22 @@ import ActivityIcon from '../components/ActivityIcon';
 import IconTile from '../components/IconTile';
 import { uiGlyph } from '../constants/activityIcons';
 import Toast from '../components/Toast';
-import { SoftPopColors } from '../constants/theme';
+import { BrandAccent, SoftPopColors } from '../constants/theme';
 import { getClayShadow, useLayout } from '../hooks/useLayout';
+import { useCollapsingHeader } from '../hooks/useCollapsingHeader';
+import {
+  TODAY_ACCESSORY_FADE_AT,
+  TODAY_DATE_PICKER_MARGIN_TOP,
+  todayCollapseDistance,
+  todayCollapsingMetrics,
+  todayCompactTitle,
+  todayCompactTitleSize,
+  todayCompletionColor,
+  todayCompletionLabel,
+  todayLargeTitle,
+  todayListPadding,
+  todayShowsCompletion,
+} from './todayHeader';
 import {
   getNotificationPermissionStatus,
   requestNotificationPermissions,
@@ -330,135 +345,82 @@ export default function TodayScreen() {
     });
   };
 
+  const showPromise = Boolean(weeklySummary && isViewingToday);
+  const showPastBadge = !isPhone && isViewingPast;
+  const showTodayButton = !isViewingToday;
+  const headerMetrics = todayCollapsingMetrics({
+    isPhone,
+    isSmallPhone,
+    isCompact,
+    space,
+    cardPad,
+    cardRadius,
+    titleSize,
+    showPromise,
+    showDatePicker,
+    showPastBadge,
+    showTodayButton,
+  });
+  const accessoryKey = `${showPromise}:${showPastBadge}:${showDatePicker}:${isPhone}:${isSmallPhone}`;
+  const [measuredAccessory, setMeasuredAccessory] = useState<{ key: string; height: number } | null>(null);
+  const measuredMatch = measuredAccessory?.key === accessoryKey ? measuredAccessory.height : null;
+  // Prefer the laid-out stack when it differs from the style minimums, so the
+  // resting card matches the old header instead of clipping or growing past it.
+  const accessoryHeight = measuredMatch ?? headerMetrics.accessoryHeight;
+  const expandedHeight = headerMetrics.expandedHeight
+    + (accessoryHeight - headerMetrics.accessoryHeight);
+  const collapse = useCollapsingHeader({
+    distance: todayCollapseDistance(expandedHeight, headerMetrics.compactHeight),
+    fadeAt: TODAY_ACCESSORY_FADE_AT,
+    snapLayout: false,
+  });
+  const shortDate = selectedDate.toLocaleDateString('ko-KR', {
+    month: 'long',
+    day: 'numeric',
+    weekday: 'short',
+  });
+  const longDate = selectedDate.toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long',
+  });
+  const largeTitle = todayLargeTitle(isViewingToday);
+  const compactTitle = todayCompactTitle(isViewingToday, shortDate);
+  const completionLabel = todayShowsCompletion(totalItems)
+    ? todayCompletionLabel(dayStats.completionRate)
+    : null;
+
+  const handleAccessoryLayout = (height: number) => {
+    const next = Math.ceil(height);
+    if (next < 80) return;
+    // A collapsed bar clips this stack. Ignore that short reading and keep
+    // the resting height; a real growth (promise arriving) still applies.
+    if ((collapse.faded || collapse.compactActive) && next + 1 < headerMetrics.accessoryHeight) return;
+    setMeasuredAccessory((prev) => {
+      if (prev && prev.key === accessoryKey && Math.abs(prev.height - next) <= 1) return prev;
+      if (prev && prev.key === accessoryKey && next < prev.height - 1) return prev;
+      return { key: accessoryKey, height: next };
+    });
+  };
+
   return (
     <ScreenContainer style={isLandscape && styles.containerLandscape}>
       <View style={styles.mainColumn}>
-      <ScrollView
+      <Animated.ScrollView
+        testID="today-scroll"
         style={styles.scrollView}
-        contentContainerStyle={[
-          styles.content,
-          // Scrolls behind the tab bar and ad like every tab; one end padding.
-          { padding: space, paddingBottom: scrollEndPadding },
-        ]}
+        contentContainerStyle={todayListPadding({
+          space,
+          expandedHeight,
+          listGap: headerMetrics.listGap,
+          scrollEndPadding,
+        })}
+        contentInsetAdjustmentBehavior="never"
+        onScroll={collapse.onScroll}
+        scrollEventThrottle={collapse.scrollEventThrottle}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header Section */}
-        <View style={[
-          styles.header,
-          clayShadow,
-          {
-            padding: isPhone ? cardPad : space,
-            paddingBottom: isPhone ? (isSmallPhone ? 14 : 10) : isCompact ? 12 : 20,
-            borderRadius: cardRadius,
-            marginBottom: isPhone ? space : 20,
-          },
-        ]}>
-          {isPhone ? (
-            /* Phones: one-line title + short date; WeekStrip (full) is the
-               only date UI. 오늘 pill appears when another day is selected. */
-            <View style={styles.phoneHeaderRow}>
-              <View style={styles.phoneTitleGroup}>
-                <Text
-                  style={[styles.phoneTitle, { fontSize: titleSize, lineHeight: titleSize + 8 }]}
-                  accessibilityRole="header"
-                >
-                  {isViewingToday ? '오늘의 일정' : '일정 이력'}
-                </Text>
-                <Text style={styles.phoneDateText}>
-                  {selectedDate.toLocaleDateString('ko-KR', {
-                    month: 'long',
-                    day: 'numeric',
-                    weekday: 'short',
-                  })}
-                </Text>
-              </View>
-              {!isViewingToday && (
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.todayButton,
-                    styles.todayButtonPhone,
-                    { backgroundColor: SoftPopColors.today },
-                    pressed && styles.todayButtonPressed
-                  ]}
-                  onPress={handleGoToToday}
-                  accessibilityRole="button"
-                  accessibilityLabel="오늘로 돌아가기"
-                >
-                  <MaterialIcons
-                    name="today"
-                    size={18}
-                    color={SoftPopColors.white}
-                  />
-                  <Text style={[styles.todayButtonText, styles.todayButtonTextPhone]}>오늘</Text>
-                </Pressable>
-              )}
-            </View>
-          ) : (
-          <View style={styles.headerContent}>
-            <View style={styles.headerTop}>
-              <View style={styles.headerTitleContainer}>
-                <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleSize + 8 }]}>
-                  {isViewingToday ? '오늘의 일정' : '일정 이력'}
-                </Text>
-                <Text style={styles.selectedDateText}>
-                  {selectedDate.toLocaleDateString('ko-KR', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    weekday: 'long',
-                  })}
-                </Text>
-              </View>
-              {!isViewingToday && (
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.todayButton,
-                    { backgroundColor: SoftPopColors.today },
-                    pressed && styles.todayButtonPressed
-                  ]}
-                  onPress={handleGoToToday}
-                >
-                  <MaterialIcons
-                    name="today"
-                    size={20}
-                    color={SoftPopColors.white}
-                  />
-                  <Text style={styles.todayButtonText}>오늘</Text>
-                </Pressable>
-              )}
-            </View>
-            {isViewingPast && (
-              <View style={styles.pastBadge}>
-                <Text style={styles.pastBadgeText}>과거</Text>
-              </View>
-            )}
-          </View>
-          )}
-
-          {/* Tablet: horizontal date picker + week summary dots.
-              Phones: a single WeekStrip with day numbers and week arrows. */}
-          {showDatePicker && (
-            <View style={styles.datePickerContainer}>
-              <HorizontalDatePicker
-                selectedDate={selectedDate}
-                onDateSelect={handleDateSelect}
-                schedules={schedules}
-                cardWidth={dateCardWidth}
-              />
-            </View>
-          )}
-
-          <WeekStrip
-            selectedDate={selectedDate}
-            schedules={schedules}
-            onDateSelect={handleDateSelect}
-            variant={showDatePicker ? 'summary' : 'full'}
-            dense={isSmallPhone}
-          />
-          {weeklySummary && isViewingToday && (
-            <WeeklyPromiseCard summary={weeklySummary} dense={isSmallPhone} />
-          )}
-        </View>
 
         {scheduleItems.length > 0 && isViewingToday && (currentActivity || nextActivity) && (
           <View style={[
@@ -599,9 +561,9 @@ export default function TodayScreen() {
                 </Text>
                 <Text style={[
                   styles.progressInlinePercent,
-                  dayStats.completionRate === 100 && styles.progressPercentagePerfect,
+                  { color: todayCompletionColor(dayStats.completionRate) },
                 ]}>
-                  {Math.round(dayStats.completionRate)}%
+                  {todayCompletionLabel(dayStats.completionRate)}
                 </Text>
               </View>
             ) : (
@@ -617,9 +579,9 @@ export default function TodayScreen() {
               </Text>
               <Text style={[
                 styles.progressPercentage,
-                dayStats.completionRate === 100 && styles.progressPercentagePerfect
+                { color: todayCompletionColor(dayStats.completionRate) },
               ]}>
-                {Math.round(dayStats.completionRate)}%
+                {todayCompletionLabel(dayStats.completionRate)}
               </Text>
             </View>
 
@@ -791,7 +753,58 @@ export default function TodayScreen() {
             })}
           </View>
         )}
-      </ScrollView>
+      </Animated.ScrollView>
+
+      <TodayCollapsingHeader
+        largeTitle={largeTitle}
+        compactTitle={compactTitle}
+        dateLabel={isPhone ? shortDate : longDate}
+        stackedDate={!isPhone}
+        largeFontSize={titleSize}
+        compactFontSize={todayCompactTitleSize(titleSize)}
+        metrics={headerMetrics}
+        expandedHeight={expandedHeight}
+        accessoryHeight={accessoryHeight}
+        shadow={clayShadow}
+        heightProgress={collapse.heightProgress}
+        motionProgress={collapse.motionProgress}
+        compactActive={collapse.compactActive}
+        faded={collapse.faded}
+        showTodayButton={showTodayButton}
+        onPressToday={handleGoToToday}
+        completionLabel={completionLabel}
+        completionColor={todayCompletionColor(dayStats.completionRate)}
+        onAccessoryLayout={handleAccessoryLayout}
+        accessory={(
+          <>
+            {showPastBadge && (
+              <View style={styles.pastBadge}>
+                <Text style={styles.pastBadgeText}>과거</Text>
+              </View>
+            )}
+            {showDatePicker && (
+              <View style={{ marginTop: TODAY_DATE_PICKER_MARGIN_TOP }}>
+                <HorizontalDatePicker
+                  selectedDate={selectedDate}
+                  onDateSelect={handleDateSelect}
+                  schedules={schedules}
+                  cardWidth={dateCardWidth}
+                />
+              </View>
+            )}
+            <WeekStrip
+              selectedDate={selectedDate}
+              schedules={schedules}
+              onDateSelect={handleDateSelect}
+              variant={showDatePicker ? 'summary' : 'full'}
+              dense={isSmallPhone}
+            />
+            {showPromise && weeklySummary ? (
+              <WeeklyPromiseCard summary={weeklySummary} dense={isSmallPhone} />
+            ) : null}
+          </>
+        )}
+      />
 
       </View>
 
@@ -842,121 +855,6 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  content: {
-    padding: 32,
-  },
-  header: {
-    padding: 32,
-    paddingBottom: 20,
-    backgroundColor: SoftPopColors.white,
-    borderRadius: 24,
-    marginBottom: 20,
-    borderWidth: 2,
-    borderColor: SoftPopColors.white,
-  },
-  headerContent: {
-    flex: 1,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 20,
-  },
-  headerTitleContainer: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 28,
-    // Android에서는 fontWeight 제거 (커스텀 폰트와 충돌)
-    ...(Platform.OS === 'ios' && {
-      fontWeight: '700',
-    }),
-    color: SoftPopColors.text,
-    marginBottom: 8,
-    lineHeight: 36,
-    fontFamily: 'BMJUA',
-    // Android 폰트 렌더링 최적화
-    ...(Platform.OS === 'android' && {
-      includeFontPadding: false,
-      textAlignVertical: 'center',
-    }),
-  },
-  todayButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: SoftPopColors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 28, // rounded-full
-    gap: 8,
-    minHeight: 56,
-    // 3D pressable effect
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 5,
-  },
-  todayButtonPhone: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    gap: 4,
-    minHeight: 44,
-    borderRadius: 22,
-  },
-  todayButtonTextPhone: {
-    fontSize: 16,
-  },
-  phoneHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  phoneTitleGroup: {
-    flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'baseline',
-    columnGap: 8,
-  },
-  phoneTitle: {
-    color: SoftPopColors.text,
-    fontFamily: 'BMJUA',
-    ...(Platform.OS === 'ios' && {
-      fontWeight: '700',
-    }),
-    ...(Platform.OS === 'android' && {
-      includeFontPadding: false,
-    }),
-  },
-  phoneDateText: {
-    fontSize: 15,
-    lineHeight: 20,
-    color: SoftPopColors.textSecondary,
-    fontFamily: 'BMJUA',
-  },
-  todayButtonPressed: {
-    transform: [{ translateY: 2 }],
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  todayButtonText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: SoftPopColors.white,
-    fontFamily: 'BMJUA',
-  },
-  selectedDateText: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: SoftPopColors.textSecondary,
-    lineHeight: 24,
-    fontFamily: 'BMJUA',
-  },
   pastBadge: {
     marginTop: 12,
     alignSelf: 'flex-start',
@@ -970,9 +868,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: SoftPopColors.white,
     fontFamily: 'BMJUA',
-  },
-  datePickerContainer: {
-    marginTop: 20,
   },
   progressCard: {
     backgroundColor: SoftPopColors.white,
@@ -1016,7 +911,7 @@ const styles = StyleSheet.create({
   },
   progressInlinePercent: {
     fontSize: 17,
-    color: SoftPopColors.today,
+    color: BrandAccent.text,
     fontFamily: 'BMJUA',
     minWidth: 40,
     textAlign: 'right',
@@ -1031,11 +926,8 @@ const styles = StyleSheet.create({
   progressPercentage: {
     fontSize: 24,
     fontWeight: '700',
-    color: SoftPopColors.today,
+    color: BrandAccent.text,
     fontFamily: 'BMJUA',
-  },
-  progressPercentagePerfect: {
-    color: SoftPopColors.complete,
   },
   progressFillPerfect: {
     backgroundColor: SoftPopColors.complete,

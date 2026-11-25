@@ -7,6 +7,14 @@
  *
  * `compactActive` flips only when the compact title becomes the one a
  * screen reader should land on, so scrolling does not re-render every frame.
+ *
+ * `fadeAt` is optional. When it is set, `faded` flips once progress reaches
+ * that point (Today uses it so a fading week strip stops taking taps).
+ * Activity omits it, and the hook then never stores an extra flag.
+ *
+ * `snapLayout` defaults to true: Reduce Motion snaps height as well as
+ * opacity. Today passes false so a tall card keeps tracking the finger
+ * (no hole, no overlap) while the crossfade still snaps.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -14,26 +22,39 @@ import { Animated, NativeScrollEvent, NativeSyntheticEvent } from 'react-native'
 import {
   COLLAPSE_SCROLL_THROTTLE,
   DEFAULT_COLLAPSE_DISTANCE,
+  collapseProgress,
   compactTitleIsPrimary,
   resolveCollapseProgress,
   scrollProgressStops,
 } from './collapsingHeader';
 import { useReduceMotion } from './useReduceMotion';
 
-export function useCollapsingHeader(options?: { distance?: number }) {
+export function useCollapsingHeader(options?: {
+  distance?: number;
+  fadeAt?: number;
+  snapLayout?: boolean;
+}) {
   const distance = options?.distance ?? DEFAULT_COLLAPSE_DISTANCE;
+  const fadeAt = options?.fadeAt;
+  const snapLayout = options?.snapLayout !== false;
   const reduceMotion = useReduceMotion();
   const reduceRef = useRef(reduceMotion);
   const distanceRef = useRef(distance);
+  const fadeAtRef = useRef(fadeAt);
+  const snapLayoutRef = useRef(snapLayout);
   reduceRef.current = reduceMotion;
   distanceRef.current = distance;
+  fadeAtRef.current = fadeAt;
+  snapLayoutRef.current = snapLayout;
 
   const nativeScrollY = useRef(new Animated.Value(0)).current;
   const heightProgress = useRef(new Animated.Value(0)).current;
   const lastY = useRef(0);
   const mounted = useRef(true);
   const compactRef = useRef(false);
+  const fadedRef = useRef(false);
   const [compactActive, setCompactActive] = useState(false);
+  const [faded, setFaded] = useState(false);
   const publishRef = useRef<(scrollY: number) => void>(() => {});
 
   useEffect(() => {
@@ -43,27 +64,49 @@ export function useCollapsingHeader(options?: { distance?: number }) {
     };
   }, []);
 
-  publishRef.current = (scrollY: number) => {
-    lastY.current = scrollY;
-    const progress = resolveCollapseProgress(scrollY, {
-      reduceMotion: reduceRef.current,
-      distance: distanceRef.current,
-    });
-    heightProgress.setValue(progress);
+  const syncFlags = (progress: number) => {
     const primary = compactTitleIsPrimary(progress);
     if (primary !== compactRef.current && mounted.current) {
       compactRef.current = primary;
       setCompactActive(primary);
     }
+    const gate = fadeAtRef.current;
+    if (gate == null || !Number.isFinite(gate)) return;
+    const nextFaded = progress >= gate;
+    if (nextFaded !== fadedRef.current && mounted.current) {
+      fadedRef.current = nextFaded;
+      setFaded(nextFaded);
+    }
+  };
+
+  const readProgress = (scrollY: number, reduce: boolean, span: number) => {
+    const visual = resolveCollapseProgress(scrollY, { reduceMotion: reduce, distance: span });
+    const layout = !reduce || snapLayoutRef.current
+      ? visual
+      : collapseProgress(scrollY, span);
+    return { visual, layout };
+  };
+
+  publishRef.current = (scrollY: number) => {
+    lastY.current = scrollY;
+    const { visual, layout } = readProgress(scrollY, reduceRef.current, distanceRef.current);
+    heightProgress.setValue(layout);
+    syncFlags(visual);
   };
 
   useEffect(() => {
-    const progress = resolveCollapseProgress(lastY.current, { reduceMotion, distance });
-    heightProgress.setValue(progress);
-    const primary = compactTitleIsPrimary(progress);
+    const { visual, layout } = readProgress(lastY.current, reduceMotion, distance);
+    heightProgress.setValue(layout);
+    const primary = compactTitleIsPrimary(visual);
     compactRef.current = primary;
     setCompactActive(primary);
-  }, [reduceMotion, distance, heightProgress]);
+    const gate = fadeAtRef.current;
+    if (gate != null && Number.isFinite(gate)) {
+      const nextFaded = visual >= gate;
+      fadedRef.current = nextFaded;
+      setFaded(nextFaded);
+    }
+  }, [reduceMotion, distance, fadeAt, snapLayout, heightProgress]);
 
   const onScroll = useMemo(
     () =>
@@ -94,6 +137,8 @@ export function useCollapsingHeader(options?: { distance?: number }) {
     heightProgress,
     motionProgress,
     compactActive,
+    /** True once scroll progress has reached `fadeAt`. Stays false when `fadeAt` is omitted. */
+    faded,
     reduceMotion,
   };
 }
