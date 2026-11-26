@@ -25,6 +25,7 @@ import {
   collapseProgress,
   collapseReleaseHasMomentum,
   collapseSnapAnimated,
+  collapseSnapRepeats,
   collapseSnapTarget,
   compactTitleIsPrimary,
   resolveCollapseProgress,
@@ -54,6 +55,7 @@ export function useCollapsingHeader(options?: {
   const heightProgress = useRef(new Animated.Value(0)).current;
   const scrollRef = useRef<ScrollView>(null);
   const lastY = useRef(0);
+  const lastSnap = useRef<{ from: number; target: number } | null>(null);
   const mounted = useRef(true);
   const compactRef = useRef(false);
   const fadedRef = useRef(false);
@@ -114,7 +116,13 @@ export function useCollapsingHeader(options?: {
 
   const snapSettledOffset = useCallback((scrollY: number) => {
     const target = collapseSnapTarget(scrollY, distanceRef.current);
-    if (target == null) return;
+    if (target == null) {
+      lastSnap.current = null;
+      return;
+    }
+    // The last snap from here could not move (unreachable offset): stop.
+    if (collapseSnapRepeats(lastSnap.current, scrollY, target)) return;
+    lastSnap.current = { from: scrollY, target };
     const animated = collapseSnapAnimated(reduceRef.current);
     scrollRef.current?.scrollTo({ y: target, animated });
     if (!animated) {

@@ -10,7 +10,9 @@ import {
   collapseProgress,
   collapseReleaseHasMomentum,
   collapseSnapAnimated,
+  collapseSnapRepeats,
   collapseSnapTarget,
+  COLLAPSE_SNAP_EPSILON,
   collapsingBarHeight,
   compactTitleIsPrimary,
   compactTitleOpacity,
@@ -82,6 +84,20 @@ describe('collapseSnapTarget', () => {
     assert.equal(collapseSnapTarget(Number.NaN, distance), null);
     assert.equal(collapseSnapTarget(20, 0), null);
     assert.equal(collapseSnapTarget(20, Number.NaN), null);
+  });
+
+  it('counts an Android whole-pixel offset just short of an end as resting', () => {
+    // 185pt on a 2.625x Pixel 7 is 485.625px; the ScrollView stops at 485px.
+    assert.equal(collapseSnapTarget(485 / 2.625, 185), null);
+    assert.equal(collapseSnapTarget(COLLAPSE_SNAP_EPSILON / 2, distance), null);
+    assert.equal(collapseSnapTarget(distance - COLLAPSE_SNAP_EPSILON / 2, distance), null);
+  });
+
+  it('does not repeat a snap that could not move the offset', () => {
+    assert.equal(collapseSnapRepeats(null, 120, distance), false);
+    assert.equal(collapseSnapRepeats({ from: 179.2, target: distance }, 179.2, distance), true);
+    assert.equal(collapseSnapRepeats({ from: 179.2, target: distance }, 120, distance), false);
+    assert.equal(collapseSnapRepeats({ from: 40, target: 0 }, 40, distance), false);
   });
 
   it('treats a zero release velocity as no momentum, and skips the animation when Reduce Motion is on', () => {

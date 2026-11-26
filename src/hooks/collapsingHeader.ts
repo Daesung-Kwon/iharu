@@ -63,16 +63,38 @@ export function clamp01(value: number): number {
 }
 
 /**
+ * Offsets this close to an end count as resting on it. Android scrolls in
+ * whole pixels, so a fractional distance (185pt = 485.625px on a 2.625x
+ * Pixel) can only reach 184.76pt. Without this slack the snap asked for
+ * 185 forever and the ScrollView, always "animating", ate every tap.
+ */
+export const COLLAPSE_SNAP_EPSILON = 0.5;
+
+/**
  * Where a resting finger should land if it stopped inside the collapse.
  * `null` means the offset is already on an end (or past it) and should stay.
  * The exact midpoint finishes the collapse, since neither end is nearer.
  */
 export function collapseSnapTarget(scrollY: number, distance: number): number | null {
   if (!Number.isFinite(scrollY) || !Number.isFinite(distance) || distance <= 0) return null;
-  if (scrollY <= 0 || scrollY >= distance) return null;
+  if (scrollY <= COLLAPSE_SNAP_EPSILON || scrollY >= distance - COLLAPSE_SNAP_EPSILON) return null;
   const toStart = scrollY;
   const toEnd = distance - scrollY;
   return toEnd < toStart ? distance : toStart < toEnd ? 0 : distance;
+}
+
+/**
+ * True when a snap would repeat the last one from the same resting offset:
+ * the previous scroll could not move, so asking again only restarts a
+ * momentum animation (and blocks taps) without ever arriving.
+ */
+export function collapseSnapRepeats(
+  last: { from: number; target: number } | null,
+  scrollY: number,
+  target: number,
+): boolean {
+  if (!last) return false;
+  return last.target === target && Math.abs(last.from - scrollY) < COLLAPSE_SNAP_EPSILON;
 }
 
 /** A drag release with no velocity has no momentum scroll after it. */
