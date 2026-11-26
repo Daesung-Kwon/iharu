@@ -13,6 +13,7 @@ import { ScheduleItem } from '../types';
 import ActivityIcon from './ActivityIcon';
 import { ActivityMaterialColors } from '../constants/materialDesign';
 import { SoftPopColors } from '../constants/theme';
+import { overdueScheduleAppearance } from '../utils/overdueCard';
 import { getClayShadow, useLayout } from '../hooks/useLayout';
 import { getCheckboxState } from '../utils/completionLogic';
 
@@ -101,11 +102,14 @@ export default function TodayScheduleItem({
           borderColor: SoftPopColors.complete,
           opacity: 0.9,
         };
-      case 'missed':
+      case 'missed': {
+        // Same card as any other item. Lateness is only the amber tag.
+        const look = overdueScheduleAppearance(colorScheme.surface || SoftPopColors.white);
         return {
-          backgroundColor: '#FFF0F0',
-          borderColor: SoftPopColors.error,
+          backgroundColor: look.card.backgroundColor,
+          borderColor: look.card.borderColor,
         };
+      }
       case 'future':
         return {
           backgroundColor: SoftPopColors.background,
@@ -119,7 +123,13 @@ export default function TodayScheduleItem({
     }
   };
 
-  const getStatusBadge = () => {
+  const getStatusBadge = (): {
+    text: string;
+    color: string;
+    icon: 'play-circle' | 'schedule' | 'event';
+    iconColor?: string;
+    backgroundColor?: string;
+  } | null => {
     switch (itemStatus) {
       case 'current':
         return {
@@ -127,12 +137,16 @@ export default function TodayScheduleItem({
           color: SoftPopColors.now,
           icon: 'play-circle' as const,
         };
-      case 'missed':
+      case 'missed': {
+        const look = overdueScheduleAppearance(SoftPopColors.white);
         return {
-          text: '시간 지남',
-          color: SoftPopColors.error,
+          text: look.tag.text,
+          color: look.tag.textColor,
+          iconColor: look.tag.iconColor,
+          backgroundColor: look.tag.backgroundColor,
           icon: 'schedule' as const,
         };
+      }
       case 'future':
         return {
           text: '예정된 일정',
@@ -241,8 +255,7 @@ export default function TodayScheduleItem({
         <View style={styles.emojiWrapper}>
           <ActivityIcon
             activity={activity}
-            size={isCompact ? 36 : 44}
-            color={SoftPopColors.text}
+            size={isCompact ? 40 : 48}
           />
         </View>
 
@@ -275,11 +288,13 @@ export default function TodayScheduleItem({
           </View>
 
           {statusBadge && (
-            <View style={[styles.statusBadge, { backgroundColor: `${statusBadge.color}20` }]}>
+            <View style={[styles.statusBadge, {
+              backgroundColor: statusBadge.backgroundColor ?? `${statusBadge.color}20`,
+            }]}>
               <MaterialIcons
                 name={statusBadge.icon}
                 size={16}
-                color={statusBadge.color}
+                color={statusBadge.iconColor ?? statusBadge.color}
               />
               <Text style={[styles.statusBadgeText, { color: statusBadge.color }]}>
                 {statusBadge.text}

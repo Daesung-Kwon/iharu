@@ -7,7 +7,8 @@
 import React, { useState, useCallback, useRef, useReducer, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Switch, Image, Platform, AppState } from 'react-native';
 import ScreenContainer from '../components/ScreenContainer';
-import { MaterialIcons } from '@expo/vector-icons';
+import { IhIcon } from '../components/icons/IhIcon';
+import type { IhIconName } from '../components/icons/ihIconPaths';
 import Constants from 'expo-constants';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
@@ -53,7 +54,7 @@ import LicenseModal from '../components/LicenseModal';
 import { SoftPopColors } from '../constants/theme';
 import { getClayShadow, useLayout } from '../hooks/useLayout';
 import { getVisibleAreaPaddingBottom } from '../utils/safeArea';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { readLaunchSheet, readLaunchTab } from '../navigation/tabDeepLink';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from '../components/Toast';
@@ -61,10 +62,24 @@ import { BACKUP_SHARE_CLOSED_MESSAGE, formatLastBackup } from '../utils/lastBack
 import { DEVICE_MOVE_COPY } from '../utils/deviceMove';
 import { decidePinStep } from '../utils/pinFlow';
 import { lockReducer, lockView } from '../utils/lockState';
+import { useAppUpdateBlocker } from '../hooks/useAppUpdateBlocker';
 
 const LAST_BACKUP_KEY = '@settings.lastBackupAt';
 
+function SettingsIcon({
+  name,
+  size = 28,
+  color = SoftPopColors.textSecondary,
+}: {
+  name: IhIconName;
+  size?: number;
+  color?: string;
+}) {
+  return <IhIcon name={name} size={size} color={color} />;
+}
+
 export default function ProfileScreen() {
+  const isFocused = useIsFocused();
   const { isCompact, isLandscape, space, scrollEndPadding, tabBarOffset, bottomChrome, cardRadius } = useLayout();
   const { resetActivities, reloadFromStorage: reloadActivities } = useActivity();
   const { resetSchedules, schedules, reloadFromStorage: reloadSchedules, todayKey } = useSchedule();
@@ -72,6 +87,8 @@ export default function ProfileScreen() {
   const [showPromiseSheet, setShowPromiseSheet] = useState(false);
   const rewardExpansion = useRewardExpansion();
   const [showExpansionSheet, setShowExpansionSheet] = useState(false);
+  const [rewardHandoff, setRewardHandoff] = useState(false);
+  const rewardHandoffTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settingsScrollRef = useRef<ScrollView>(null);
   const proofScrolled = useRef(false);
   // Proof only: `-openSheet weeklyPromise|rewardExpansion` opens that sheet.
@@ -80,6 +97,9 @@ export default function ProfileScreen() {
     const sheet = readLaunchSheet();
     if (sheet === 'weeklyPromise') setShowPromiseSheet(true);
     else if (sheet === 'rewardExpansion') setShowExpansionSheet(true);
+  }, []);
+  useEffect(() => () => {
+    if (rewardHandoffTimer.current) clearTimeout(rewardHandoffTimer.current);
   }, []);
   const expansionSummary = rewardExpansion.expansion.unlocked
     ? EXPANSION_COPY.unlockedSummary + (rewardExpansion.expansion.source === 'test' ? ' (테스트)' : '')
@@ -93,8 +113,13 @@ export default function ProfileScreen() {
   const weeklyNote = firstLine?.note || weekLine;
   const openExpansionFromPromise = () => {
     setShowPromiseSheet(false);
+    setRewardHandoff(true);
+    if (rewardHandoffTimer.current) clearTimeout(rewardHandoffTimer.current);
     // iOS cannot present a Modal while another one is still closing.
-    setTimeout(() => setShowExpansionSheet(true), 450);
+    rewardHandoffTimer.current = setTimeout(() => {
+      setShowExpansionSheet(true);
+      setRewardHandoff(false);
+    }, 450);
   };
   const [notificationEnabled, setNotificationEnabled] = useState(false);
   const [weeklyResultOn, setWeeklyResultOn] = useState(true);
@@ -107,6 +132,12 @@ export default function ProfileScreen() {
   const [lockState, dispatchLock] = useReducer(lockReducer, 'loading');
   const view = lockView(lockState);
   const [pinModal, setPinModal] = useState<'unlock' | 'set' | 'confirm' | 'remove' | 'recover' | null>(null);
+  useAppUpdateBlocker('settings-lock', isFocused && (view === 'gate' || view === 'placeholder'));
+  useAppUpdateBlocker('pin', pinModal !== null);
+  useAppUpdateBlocker(
+    'reward',
+    showPromiseSheet || showExpansionSheet || rewardHandoff,
+  );
   const [recovery, setRecovery] = useState<RecoveryState>(initialRecovery);
   const [pendingPin, setPendingPin] = useState('');
   const [pinError, setPinError] = useState('');
@@ -546,7 +577,7 @@ export default function ProfileScreen() {
           accessibilityRole="button"
           accessibilityLabel="설정이 잠겨 있어요. 잠금 풀기"
         >
-          <MaterialIcons name="lock" size={48} color={SoftPopColors.primary} />
+          <IhIcon name="ih-lock" size={48} color={SoftPopColors.primary} />
           <Text style={styles.lockTitle}>설정이 잠겨 있어요</Text>
           <Text style={styles.lockMessage}>부모님만 바꿀 수 있게 잠가 두었어요.</Text>
           <View style={styles.lockButton}>
@@ -587,11 +618,7 @@ export default function ProfileScreen() {
 
           {/* 알림 설정 */}
           <View style={styles.settingItem}>
-            <MaterialIcons
-              name="notifications"
-              size={28}
-              color={SoftPopColors.textSecondary}
-            />
+            <SettingsIcon name="ih-notification" />
             <Text style={styles.settingText}>알림</Text>
             <Switch
               value={notificationEnabled}
@@ -632,20 +659,12 @@ export default function ProfileScreen() {
               setPinModal(storedPin ? 'remove' : 'set');
             }}
           >
-            <MaterialIcons
-              name={storedPin ? 'lock' : 'lock-open'}
-              size={28}
-              color={SoftPopColors.textSecondary}
-            />
+            <SettingsIcon name={storedPin ? 'ih-lock' : 'ih-lock-open'} />
             <Text style={styles.settingText}>설정 잠금</Text>
             <Text style={[styles.stateText, storedPin && styles.stateTextOn]}>
               {storedPin ? '켜짐' : '꺼짐'}
             </Text>
-            <MaterialIcons
-              name="chevron-right"
-              size={24}
-              color={SoftPopColors.textSecondary}
-            />
+            <SettingsIcon name="ih-chevron" size={24} />
           </Pressable>
         </View>
 
@@ -668,16 +687,16 @@ export default function ProfileScreen() {
             accessibilityRole="button"
             accessibilityLabel={`주간 보상 약속, ${weeklySummary}`}
           >
-            <MaterialIcons name="card-giftcard" size={28} color={SoftPopColors.textSecondary} />
+            <SettingsIcon name="ih-gift" />
             <View style={styles.settingTextBlock}>
               <Text style={styles.settingText}>주간 약속</Text>
               <Text style={styles.settingSubText} numberOfLines={1}>{weeklySummary}</Text>
               {weeklyNote ? <Text style={styles.settingSubText} numberOfLines={1}>{weeklyNote}</Text> : null}
             </View>
-            <MaterialIcons name="chevron-right" size={24} color={SoftPopColors.textSecondary} />
+            <SettingsIcon name="ih-chevron" size={24} />
           </Pressable>
           <View style={styles.settingItem} accessibilityLabel="결과 알림">
-            <MaterialIcons name="notifications" size={28} color={SoftPopColors.textSecondary} />
+            <SettingsIcon name="ih-notification" />
             <View style={styles.settingTextBlock}>
               <Text style={[styles.settingText, styles.settingTextInBlock]}>결과 알림</Text>
               <Text style={styles.settingSubText}>한 주가 끝나면 알려 드려요</Text>
@@ -698,12 +717,12 @@ export default function ProfileScreen() {
             accessibilityRole="button"
             accessibilityLabel={`${EXPANSION_COPY.title}, ${expansionSummary}`}
           >
-            <MaterialIcons name={rewardExpansion.expansion.unlocked ? 'verified' : 'add-circle-outline'} size={28} color={SoftPopColors.textSecondary} />
+            <SettingsIcon name={rewardExpansion.expansion.unlocked ? 'ih-verified' : 'ih-add-circle'} />
             <View style={styles.settingTextBlock}>
               <Text style={styles.settingText}>{EXPANSION_COPY.title}</Text>
               <Text style={styles.settingSubText} numberOfLines={1}>{expansionSummary}</Text>
             </View>
-            <MaterialIcons name="chevron-right" size={24} color={SoftPopColors.textSecondary} />
+            <SettingsIcon name="ih-chevron" size={24} />
           </Pressable>
         </View>
 
@@ -718,17 +737,9 @@ export default function ProfileScreen() {
             ]}
             onPress={() => setShowTerms(true)}
           >
-            <MaterialIcons
-              name="description"
-              size={28}
-              color={SoftPopColors.textSecondary}
-            />
+            <SettingsIcon name="ih-document" />
             <Text style={styles.settingText}>이용약관</Text>
-            <MaterialIcons
-              name="chevron-right"
-              size={24}
-              color={SoftPopColors.textSecondary}
-            />
+            <SettingsIcon name="ih-chevron" size={24} />
           </Pressable>
 
           <Pressable
@@ -738,17 +749,9 @@ export default function ProfileScreen() {
             ]}
             onPress={() => setShowPrivacy(true)}
           >
-            <MaterialIcons
-              name="privacy-tip"
-              size={28}
-              color={SoftPopColors.textSecondary}
-            />
+            <SettingsIcon name="ih-privacy" />
             <Text style={styles.settingText}>개인정보처리방침</Text>
-            <MaterialIcons
-              name="chevron-right"
-              size={24}
-              color={SoftPopColors.textSecondary}
-            />
+            <SettingsIcon name="ih-chevron" size={24} />
           </Pressable>
 
           <Pressable
@@ -758,21 +761,13 @@ export default function ProfileScreen() {
             ]}
             onPress={() => setShowLicense(true)}
           >
-            <MaterialIcons
-              name="code"
-              size={28}
-              color={SoftPopColors.textSecondary}
-            />
+            <SettingsIcon name="ih-code" />
             <Text style={styles.settingText}>오픈소스 라이센스</Text>
-            <MaterialIcons
-              name="chevron-right"
-              size={24}
-              color={SoftPopColors.textSecondary}
-            />
+            <SettingsIcon name="ih-chevron" size={24} />
           </Pressable>
 
           <View style={styles.settingItem} accessible accessibilityLabel={`버전 ${appVersion}`}>
-            <MaterialIcons name="info-outline" size={28} color={SoftPopColors.textSecondary} />
+            <SettingsIcon name="ih-info" />
             <Text style={styles.settingText}>버전</Text>
             <Text style={styles.stateText}>{appVersion}</Text>
           </View>
@@ -788,20 +783,12 @@ export default function ProfileScreen() {
             ]}
             onPress={handleBackup}
           >
-            <MaterialIcons
-              name="backup"
-              size={28}
-              color={SoftPopColors.textSecondary}
-            />
+            <SettingsIcon name="ih-backup" />
             <View style={styles.settingTextBlock}>
               <Text style={[styles.settingText, styles.settingTextInBlock]}>{DEVICE_MOVE_COPY.backup}</Text>
               <Text style={styles.settingSubText}>{formatLastBackup(lastBackupAt)}</Text>
             </View>
-            <MaterialIcons
-              name="chevron-right"
-              size={24}
-              color={SoftPopColors.textSecondary}
-            />
+            <SettingsIcon name="ih-chevron" size={24} />
           </Pressable>
 
           <Pressable
@@ -811,17 +798,9 @@ export default function ProfileScreen() {
             ]}
             onPress={handleRestore}
           >
-            <MaterialIcons
-              name="restore"
-              size={28}
-              color={SoftPopColors.textSecondary}
-            />
+            <SettingsIcon name="ih-restore" />
             <Text style={styles.settingText}>{DEVICE_MOVE_COPY.restore}</Text>
-            <MaterialIcons
-              name="chevron-right"
-              size={24}
-              color={SoftPopColors.textSecondary}
-            />
+            <SettingsIcon name="ih-chevron" size={24} />
           </Pressable>
 
           <Pressable
@@ -832,17 +811,9 @@ export default function ProfileScreen() {
             ]}
             onPress={handleReset}
           >
-            <MaterialIcons
-              name="delete-outline"
-              size={28}
-              color={SoftPopColors.error}
-            />
+            <SettingsIcon name="ih-delete" color={SoftPopColors.error} />
             <Text style={[styles.settingText, styles.dangerText]}>데이터 초기화</Text>
-            <MaterialIcons
-              name="chevron-right"
-              size={24}
-              color={SoftPopColors.textSecondary}
-            />
+            <SettingsIcon name="ih-chevron" size={24} />
           </Pressable>
         </View>
       </ScrollView>

@@ -3,8 +3,9 @@ name: CI
 on:
   push:
     branches: [ main, develop ]
+  # No branch filter, so a pull request stacked on a feature branch still
+  # runs type-check and tests. Pushes stay on main and develop.
   pull_request:
-    branches: [ main, develop ]
 
 jobs:
   type-check:

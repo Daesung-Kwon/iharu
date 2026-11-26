@@ -53,8 +53,7 @@ export default function ScheduleItemCard({
         <View style={styles.emojiContainer}>
           <ActivityIcon
             activity={activity}
-            size={compact ? 32 : 40}
-            color={SoftPopColors.text}
+            size={compact ? 40 : 48}
           />
         </View>
 
@@ -150,12 +149,8 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   emojiContainer: {
-    width: 56,
-    height: 56,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: SoftPopColors.background,
-    borderRadius: 16,
   },
   infoContainer: {
     flex: 1,

@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Schedule, ScheduleItem } from '../types';
 import { getActivityNotificationTime, NotificationLeadMinutes } from '../utils/dateUtils';
 import { KEYS } from './storage';
+import { formatActivityStartBody } from '../utils/notificationCopy';
 
 const NOTIFICATION_PREFIX = 'activity-';
 const ANDROID_CHANNEL_ID = 'activity_reminders';
@@ -244,7 +245,7 @@ export async function scheduleActivityNotification(
         identifier: notificationId,
         content: {
           title: '활동 시작 예정',
-          body: `${scheduleItem.activity?.name} ${leadLabel}! 🎯`,
+          body: formatActivityStartBody(scheduleItem.activity?.name, leadLabel),
           sound: true,
           data: {
             scheduleItemId: scheduleItem.id,

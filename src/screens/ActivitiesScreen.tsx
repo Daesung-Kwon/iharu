@@ -1,21 +1,30 @@
 /**
  * 활동 관리 화면
  * 자주 하는 활동을 추가/수정/삭제
- * Soft Pop 3D (Claymorphism) 디자인 적용
+ *
+ * The header card stays fixed above the list (it is already short, so it
+ * does not collapse). The list ends with scrollEndPadding so the last row
+ * clears the tab bar.
  */
 
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Platform, Alert, ScrollView } from 'react-native';
 import ScreenContainer from '../components/ScreenContainer';
 import { MaterialIcons } from '@expo/vector-icons';
+import { IhIcon } from '../components/icons/IhIcon';
 import { useActivity } from '../contexts/ActivityContext';
 import { useSchedule } from '../contexts/ScheduleContext';
 import { groupActivitiesByUsage } from '../utils/activityGroups';
 import ActivityCard from '../components/ActivityCard';
 import ActivityFormModal from '../components/ActivityFormModal';
 import { Activity } from '../types';
-import { SoftPopColors } from '../constants/theme';
-import { getClayShadow, useLayout } from '../hooks/useLayout';
+import { BrandAccent, SoftPopColors } from '../constants/theme';
+import { getClayShadow, MIN_TOUCH_TARGET, useLayout } from '../hooks/useLayout';
+
+const ACTIVITY_TITLE = '활동 관리';
+const ACTIVITY_ADD_LABEL = '활동 추가';
+const ACTIVITY_ADD_ICON = 'ih-add-circle';
+const ACTIVITY_ADD_ICON_SIZE = 20;
 
 /** One horizontal band per row so every card is inside the scroll height. */
 function chunkIntoRows<T>(items: readonly T[], columns: number): T[][] {
@@ -25,6 +34,32 @@ function chunkIntoRows<T>(items: readonly T[], columns: number): T[][] {
     rows.push(items.slice(i, i + size));
   }
   return rows;
+}
+
+const systemFont = Platform.select({
+  ios: 'System',
+  android: 'sans-serif',
+  default: 'System',
+});
+
+function AddActivityButton({ onPress, label, icon, iconSize }: {
+  onPress: () => void;
+  label: string;
+  icon: string;
+  iconSize: number;
+}) {
+  return (
+    <Pressable
+      testID="activity-add-button"
+      style={({ pressed }) => [styles.addButton, pressed && styles.addButtonPressed]}
+      onPress={onPress}
+      accessibilityLabel={label}
+      accessibilityRole="button"
+    >
+      <IhIcon name={icon} size={iconSize} color={SoftPopColors.white} />
+      <Text style={styles.addButtonText}>{label}</Text>
+    </Pressable>
+  );
 }
 
 export default function ActivitiesScreen() {
@@ -97,89 +132,94 @@ export default function ActivitiesScreen() {
 
   return (
     <ScreenContainer style={isLandscape && styles.containerLandscape}>
-      <View style={[
-        styles.header,
-        clayShadow,
-        {
-          padding: space,
-          paddingBottom: isCompact ? 12 : 20,
-          marginHorizontal: space,
-          marginTop: space,
-          borderRadius: cardRadius,
-        },
-      ]}>
+      <View
+        testID="activity-header"
+        style={[
+          styles.header,
+          clayShadow,
+          {
+            padding: space,
+            paddingBottom: isCompact ? 12 : 20,
+            marginHorizontal: space,
+            marginTop: space,
+            borderRadius: cardRadius,
+          },
+        ]}
+      >
         <View style={styles.headerText}>
-          <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleSize + 8 }]}>
-            활동 관리
+          <Text
+            style={[styles.title, { fontSize: titleSize, lineHeight: titleSize + 8 }]}
+            accessibilityRole="header"
+          >
+            {ACTIVITY_TITLE}
           </Text>
         </View>
-        <Pressable
-          style={({ pressed }) => [styles.addButton, pressed && styles.fabPressed]}
+        <AddActivityButton
           onPress={handleAddActivity}
-          accessibilityLabel="활동 추가"
-          accessibilityRole="button"
-        >
-          <MaterialIcons name="add" size={22} color={SoftPopColors.white} />
-          <Text style={styles.addButtonText}>활동 추가</Text>
-        </Pressable>
+          label={ACTIVITY_ADD_LABEL}
+          icon={ACTIVITY_ADD_ICON}
+          iconSize={ACTIVITY_ADD_ICON_SIZE}
+        />
       </View>
 
-      {/* Scrolls behind the tab bar like Today and Plan; one end padding. */}
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={{
-          paddingTop: space,
-          paddingHorizontal: space,
-          paddingBottom: scrollEndPadding,
-        }}
-        showsVerticalScrollIndicator={false}
-      >
-        {activities.length === 0 ? (
-          <View style={[styles.emptyState, isSmallPhone && styles.emptyStateSmall]}>
-            <MaterialIcons
-              name="format-list-bulleted"
-              size={isSmallPhone ? 48 : 64}
-              color={SoftPopColors.textSecondary}
-            />
-            <Text style={[styles.emptyTitle, isSmallPhone && styles.emptyTitleSmall]}>
-              활동이 없어요
-            </Text>
-            <Text style={[styles.emptyMessage, isSmallPhone && styles.emptyMessageSmall]}>
-              활동을 추가해 보세요
-            </Text>
-          </View>
-        ) : (
-          <View style={{ gap: GAP + 4 }}>
-            {groups.map((group) => (
-              <View key={group.key} style={{ gap: 10 }}>
-                {group.label && (
-                  <Text style={styles.groupTitle} accessibilityRole="header">
-                    {group.label}
-                  </Text>
-                )}
-                <View style={{ gap: GAP }}>
-                  {chunkIntoRows(group.items, activityColumns).map((row) => (
-                    <View
-                      key={row.map((activity) => activity.id).join('-')}
-                      style={[styles.activityRow, { gap: GAP }]}
-                    >
-                      {row.map((activity) => (
-                        <ActivityCard
-                          key={activity.id}
-                          activity={activity}
-                          onEdit={() => handleEditActivity(activity.id)}
-                          onDelete={() => handleDeleteActivity(activity.id)}
-                          width={cardWidth}
-                        />
-                      ))}
-                    </View>
-                  ))}
+      <View style={styles.body}>
+        <ScrollView
+          testID="activity-list"
+          style={styles.scrollView}
+          contentContainerStyle={{
+            paddingTop: space,
+            paddingHorizontal: space,
+            paddingBottom: scrollEndPadding,
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          {activities.length === 0 ? (
+            <View style={[styles.emptyState, isSmallPhone && styles.emptyStateSmall]}>
+              <MaterialIcons
+                name="format-list-bulleted"
+                size={isSmallPhone ? 48 : 64}
+                color={SoftPopColors.textSecondary}
+              />
+              <Text style={[styles.emptyTitle, isSmallPhone && styles.emptyTitleSmall]}>
+                활동이 없어요
+              </Text>
+              <Text style={[styles.emptyMessage, isSmallPhone && styles.emptyMessageSmall]}>
+                활동을 추가해 보세요
+              </Text>
+            </View>
+          ) : (
+            <View style={{ gap: GAP + 4 }}>
+              {groups.map((group) => (
+                <View key={group.key} style={{ gap: 10 }}>
+                  {group.label ? (
+                    <Text style={styles.groupTitle} accessibilityRole="header">
+                      {group.label}
+                    </Text>
+                  ) : null}
+                  <View style={{ gap: GAP }}>
+                    {chunkIntoRows(group.items, activityColumns).map((row) => (
+                      <View
+                        key={row.map((activity) => activity.id).join('-')}
+                        style={[styles.activityRow, { gap: GAP }]}
+                      >
+                        {row.map((activity) => (
+                          <ActivityCard
+                            key={activity.id}
+                            activity={activity}
+                            onEdit={() => handleEditActivity(activity.id)}
+                            onDelete={() => handleDeleteActivity(activity.id)}
+                            width={cardWidth}
+                          />
+                        ))}
+                      </View>
+                    ))}
+                  </View>
                 </View>
-              </View>
-            ))}
-          </View>
-        )}
-      </ScrollView>
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      </View>
 
       <ActivityFormModal
         visible={modalVisible}
@@ -196,92 +236,55 @@ export default function ActivitiesScreen() {
 }
 
 const styles = StyleSheet.create({
+  body: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: SoftPopColors.white,
+    borderWidth: 2,
+    borderColor: SoftPopColors.white,
+  },
+  headerText: {
+    flex: 1,
+  },
+  title: {
+    color: SoftPopColors.text,
+    fontFamily: 'BMJUA',
+  },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
-    minHeight: 44,
+    minHeight: MIN_TOUCH_TARGET,
+    minWidth: MIN_TOUCH_TARGET,
     paddingHorizontal: 14,
-    borderRadius: 22,
-    backgroundColor: SoftPopColors.primary,
+    borderRadius: 999,
+    backgroundColor: BrandAccent.strong,
+    flexShrink: 0,
   },
   addButtonText: {
     color: SoftPopColors.white,
-    fontSize: 16,
-    fontFamily: 'BMJUA',
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '700',
+    fontFamily: systemFont,
+    includeFontPadding: false,
+  },
+  addButtonPressed: {
+    opacity: 0.88,
   },
   groupTitle: {
     fontSize: 16,
     color: SoftPopColors.textSecondary,
     fontFamily: 'BMJUA',
   },
-  container: {
-    flex: 1,
-    backgroundColor: SoftPopColors.background, // Cream
-  },
   containerLandscape: {
     paddingTop: 0,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    padding: 32,
-    paddingBottom: 20,
-    backgroundColor: SoftPopColors.white,
-    borderRadius: 24,
-    marginBottom: 12,
-    borderWidth: 2,
-    borderColor: SoftPopColors.white,
-    // Soft floating effect
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  headerText: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: Platform.OS === 'android' ? 'normal' : '700',
-    color: SoftPopColors.text,
-    marginBottom: 8,
-    lineHeight: 40,
-    fontFamily: 'BMJUA',
-  },
-  subtitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: SoftPopColors.textSecondary,
-    lineHeight: 24,
-    fontFamily: 'BMJUA',
-  },
-  fab: {
-    width: 64,
-    height: 64,
-    borderRadius: 32, // rounded-full
-    backgroundColor: SoftPopColors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    // Strong 3D effect
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  fabPressed: {
-    transform: [{ translateY: 2 }],
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 5,
-  },
-  fabCompact: {
-    position: 'absolute',
-    zIndex: 20,
   },
   scrollView: {
     flex: 1,
@@ -330,4 +333,3 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
   },
 });
-

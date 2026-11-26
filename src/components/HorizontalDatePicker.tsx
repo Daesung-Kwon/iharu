@@ -6,7 +6,8 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { MaterialColors, Typography, Spacing, Elevation, Shape } from '../constants/materialDesign';
-import { SoftPopColors } from '../constants/theme';
+import { uiGlyph } from '../constants/activityIcons';
+import IconTile from './IconTile';
 import { Schedule } from '../types';
 import { calculateDayStats, getDayDotColor, getDayDotStatus } from '../utils/statsUtils';
 import { toLocalDateString } from '../utils/dateUtils';
@@ -154,9 +155,11 @@ export default function HorizontalDatePicker({
               { backgroundColor: statusColor }
             ]} />
             {dotStatus === 'complete' && (
-              <View style={styles.perfectBadge}>
-                <Text style={styles.perfectBadgeText}>✓</Text>
-              </View>
+              <IconTile
+                name={uiGlyph('complete').icon}
+                size={16}
+                tileColor={uiGlyph('complete').tile}
+              />
             )}
           </View>
         )}
@@ -342,19 +345,6 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: Shape.round,
-  },
-  perfectBadge: {
-    width: 14,
-    height: 14,
-    borderRadius: Shape.round,
-    backgroundColor: SoftPopColors.complete,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  perfectBadgeText: {
-    fontSize: 10,
-    color: MaterialColors.surface.default,
-    fontWeight: 'bold',
   },
   todayDot: {
     position: 'absolute',

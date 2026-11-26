@@ -74,6 +74,13 @@ export const OPEN_SOURCE_LICENSES: LicenseInfo[] = [
     url: 'https://github.com/expo/vector-icons',
     description: '아이콘 라이브러리 모음'
   },
+  {
+    name: 'react-native-svg',
+    version: '15.12.1',
+    license: 'MIT',
+    url: 'https://github.com/software-mansion/react-native-svg',
+    description: 'SVG 렌더링. 하루 아이콘과 해님 마스코트'
+  },
 ];
 
 export const FONT_LICENSES: LicenseInfo[] = [

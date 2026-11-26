@@ -11,7 +11,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useActivity } from '../contexts/ActivityContext';
 import { useSchedule } from '../contexts/ScheduleContext';
 import DraggableActivityCard from '../components/DraggableActivityCard';
-import ActivityIcon from '../components/ActivityIcon';
+import IconTile from '../components/IconTile';
+import { uiGlyph } from '../constants/activityIcons';
 import ScheduleItemCard from '../components/ScheduleItemCard';
 import TimelineViewV2 from '../components/TimelineViewV2';
 import { Activity } from '../types';
@@ -550,16 +551,24 @@ export default function PlanScheduleScreen() {
               ) : (
                 <View style={styles.activityListContent}>
                   <View style={styles.instructionBanner}>
-                    <MaterialIcons
-                      name="info-outline"
-                      size={22}
-                      color={SoftPopColors.primary}
-                    />
+                    {draggingActivity && canEdit ? (
+                      <IconTile
+                        name={uiGlyph('planHint').icon}
+                        size={32}
+                        tileColor={uiGlyph('planHint').tile}
+                      />
+                    ) : (
+                      <MaterialIcons
+                        name="info-outline"
+                        size={22}
+                        color={SoftPopColors.primary}
+                      />
+                    )}
                     <Text style={styles.instructionText}>
                       {!canEdit
                         ? PAST_DAY_NOTICE
                         : draggingActivity
-                        ? '✨ 타임라인에서 원하는 시간을 탭하세요!'
+                        ? '타임라인에서 원하는 시간을 탭하세요!'
                         : SELECT_INSTRUCTION}
                     </Text>
                   </View>

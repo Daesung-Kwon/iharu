@@ -1,17 +1,34 @@
 /**
- * ActivityCard 컴포넌트
- * 활동을 카드 형태로 표시
- * Soft Pop 3D (Claymorphism) 디자인 적용
+ * ActivityCard
+ * Activity tab grid card (brand-guide §3/§5/§6, icons/tile-mockup-activity.png):
+ * white card r24 with the one soft shadow, left-aligned. 52pt tile r16 in the
+ * activity's brand hue with a 28pt glyph in the darker ink of that hue, then the
+ * name (system 17/700) and the duration (13, ink2) with a small clock.
  */
 
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { Activity } from '../types';
-import ActivityIcon from './ActivityIcon';
-import { ActivityMaterialColors } from '../constants/materialDesign';
+import IconTile from './IconTile';
+import { activityBrandHue, resolveActivityIcon } from '../constants/activityIcons';
 import { SoftPopColors } from '../constants/theme';
 import { ACTIVITY_CARD_MIN_WIDTH } from '../hooks/layoutMetrics';
+
+export const ACTIVITY_CARD_TILE = 52;
+export const ACTIVITY_CARD_TILE_RADIUS = 16;
+export const ACTIVITY_CARD_GLYPH = 28;
+export const ACTIVITY_CARD_RADIUS = 24;
+export const ACTIVITY_CARD_MIN_HEIGHT = 148;
+
+const INK = '#2D3436';
+const INK2 = '#636E72';
+
+const systemFont = Platform.select({
+  ios: 'System',
+  android: 'sans-serif',
+  default: 'System',
+});
 
 interface ActivityCardProps {
   activity: Activity;
@@ -24,14 +41,14 @@ interface ActivityCardProps {
 }
 
 export default function ActivityCard({ activity, onEdit, onDelete, width }: ActivityCardProps) {
-  const colorScheme = ActivityMaterialColors[activity.colorKey];
+  const hue = activityBrandHue(activity.colorKey);
+  const icon = resolveActivityIcon(activity.emojiKey).icon;
   const cardWidth = width !== undefined ? Math.max(width, ACTIVITY_CARD_MIN_WIDTH) : undefined;
 
   return (
     <Pressable
       style={({ pressed }) => [
         styles.card,
-        { backgroundColor: colorScheme.surface },
         cardWidth !== undefined && { width: cardWidth },
         pressed && styles.cardPressed,
       ]}
@@ -42,17 +59,16 @@ export default function ActivityCard({ activity, onEdit, onDelete, width }: Acti
       accessibilityLabel={`${activity.name}, ${activity.durationMinutes}분`}
       accessibilityHint="눌러서 수정"
     >
-      {/* Emoji/Icon - 배경 완전히 투명 */}
-      <View style={styles.emojiContainer}>
-        <ActivityIcon
-          activity={activity}
-          size={48}
-          color={SoftPopColors.text}
-        />
-      </View>
+      <IconTile
+        name={icon}
+        size={ACTIVITY_CARD_TILE}
+        radius={ACTIVITY_CARD_TILE_RADIUS}
+        glyphSize={ACTIVITY_CARD_GLYPH}
+        tileColor={hue.tint}
+        iconColor={hue.ink}
+      />
 
-      {/* Activity Info - 배경 완전히 투명 */}
-      <View style={styles.infoContainer}>
+      <View style={styles.info}>
         <Text
           style={styles.name}
           numberOfLines={2}
@@ -60,120 +76,61 @@ export default function ActivityCard({ activity, onEdit, onDelete, width }: Acti
         >
           {activity.name}
         </Text>
-        <View style={styles.durationContainer}>
-          <MaterialIcons
-            name="schedule"
-            size={16}
-            color={SoftPopColors.textSecondary}
-          />
-          <Text style={styles.duration}>
-            {activity.durationMinutes}분
-          </Text>
+        <View style={styles.duration}>
+          <Ionicons name="time-outline" size={14} color={INK2} />
+          <Text style={styles.durationText}>{activity.durationMinutes}분</Text>
         </View>
       </View>
-
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  card: {
+    width: 180,
+    minHeight: ACTIVITY_CARD_MIN_HEIGHT,
+    borderRadius: ACTIVITY_CARD_RADIUS,
+    paddingTop: 18,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    backgroundColor: SoftPopColors.white,
+    alignItems: 'flex-start',
+    // One soft shadow (brand-guide §5): 0 4 16 rgba(45,52,54,.06).
+    shadowColor: INK,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
   cardPressed: {
     transform: [{ scale: 0.97 }],
     opacity: 0.9,
   },
-  card: {
-    width: 180,
-    minHeight: 180,
-    borderRadius: 32, // rounded-[32px]
-    padding: 24, // p-6
-    // backgroundColor는 동적으로 colorScheme.surface로 설정됨 (단일 클레이 카드)
-    // 외부 그림자: shadow-[8px_8px_16px_rgba(0,0,0,0.05)]
-    shadowColor: '#000',
-    shadowOffset: { width: 8, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 10,
-    // marginBottom은 그리드 gap으로 처리
-    // flex-col items-center justify-between
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    // 단일 클레이 카드 효과를 위한 테두리
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.6)', // 밝은 테두리로 도톰한 느낌
-  },
-  emojiContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    minHeight: 72,
-    // 배경 제거 - bg-transparent
-    backgroundColor: 'transparent',
-    width: '100%',
-  },
-  infoContainer: {
-    flex: 1,
-    marginBottom: 12,
-    // 배경 제거 - bg-transparent
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
+  info: {
+    marginTop: 'auto',
+    paddingTop: 12,
+    alignSelf: 'stretch',
   },
   name: {
     fontSize: 17,
-    fontWeight: '600',
-    color: SoftPopColors.text,
-    marginBottom: 8,
-    textAlign: 'center',
-    lineHeight: 22,
-    fontFamily: 'BMJUA',
-    width: '100%',
-    flexShrink: 1,
-  },
-  durationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
+    lineHeight: 24,
+    fontWeight: '700',
+    fontFamily: systemFont,
+    color: INK,
+    includeFontPadding: false,
   },
   duration: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: SoftPopColors.textSecondary,
-    lineHeight: 20,
-    fontFamily: 'BMJUA',
-  },
-  actionsContainer: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-    paddingTop: 12,
-    // 테두리 제거 - 단일 클레이 카드 효과
-    borderTopWidth: 0,
-    // 배경 제거 - bg-transparent
-    backgroundColor: 'transparent',
-  },
-  actionButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
     alignItems: 'center',
-    // 배경 제거 - bg-transparent (또는 매우 연한 배경)
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 20, // rounded-full
-    // 미묘한 3D pressable effect
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: Platform.OS === 'android' ? 0 : 1,
+    gap: 4,
+    marginTop: 2,
   },
-  actionButtonPressed: {
-    transform: [{ scale: 0.95 }],
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 1,
+  durationText: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '400',
+    fontFamily: systemFont,
+    color: INK2,
+    includeFontPadding: false,
   },
 });
-
-

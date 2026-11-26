@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { SheetChrome, SoftPopColors, TabBarColors } from './theme';
+import { BrandAccent, LateStatus, SheetChrome, SoftPopColors, TabBarColors } from './theme';
 
 function linear(channel: number): number {
   const s = channel / 255;
@@ -55,21 +55,49 @@ describe('SoftPopColors role colours', () => {
   });
 });
 
+describe('LateStatus', () => {
+  it('uses the brand amber tag, not coral or red', () => {
+    assert.equal(LateStatus.text, '#A35C22');
+    assert.equal(LateStatus.icon, '#B86A26');
+    assert.equal(LateStatus.soft, '#FFF3E3');
+    for (const color of [LateStatus.text, LateStatus.icon, LateStatus.soft]) {
+      assert.notEqual(color, SoftPopColors.error);
+      assert.notEqual(color, SoftPopColors.primary);
+      assert.notEqual(color, BrandAccent.text);
+      assert.notEqual(color, BrandAccent.strong);
+    }
+    assert.ok(contrast(LateStatus.text, LateStatus.soft) >= 4.5);
+  });
+});
+
 describe('TabBarColors', () => {
-  it('selected pill is solid primary and separates from the white bar', () => {
-    assert.equal(TabBarColors.activePill, SoftPopColors.primary);
-    assert.equal(TabBarColors.activePill, '#FF6B6B');
-    assert.equal(TabBarColors.activeIcon, SoftPopColors.white);
-    assert.equal(TabBarColors.activeLabel, SoftPopColors.primary);
+  it('selected tab is a soft pill with coral ink, and the bar stays translucent', () => {
+    assert.equal(BrandAccent.soft, '#FFEDEA');
+    assert.equal(BrandAccent.text, '#D6393E');
+    assert.equal(BrandAccent.strong, '#F0565A');
+    assert.equal(TabBarColors.activePill, BrandAccent.soft);
+    assert.equal(TabBarColors.activePill, '#FFEDEA');
+    assert.equal(TabBarColors.activeIcon, BrandAccent.text);
+    assert.equal(TabBarColors.activeIcon, '#D6393E');
+    assert.equal(TabBarColors.activeLabel, '#D6393E');
+    assert.equal(TabBarColors.inactive, '#636E72');
     assert.equal(TabBarColors.inactive, SoftPopColors.textSecondary);
     assert.equal(TabBarColors.bar, 'rgba(255, 255, 255, 0.75)');
 
-    const onWhite = contrast(TabBarColors.activePill, '#FFFFFF');
+    assert.notEqual(TabBarColors.activePill, '#FF6B6B');
+    assert.notEqual(TabBarColors.activePill, SoftPopColors.primary);
+    assert.notEqual(TabBarColors.activeIcon, SoftPopColors.white);
+    assert.notEqual(TabBarColors.inactive, TabBarColors.activeIcon);
+
+    // Icon on the soft pill needs 3:1. #FF6B6B on this pill is about 2.45:1.
+    assert.ok(contrast(TabBarColors.activeIcon, TabBarColors.activePill) >= 3);
+    assert.ok(contrast('#FF6B6B', TabBarColors.activePill) < 3);
+    // Label sits on the white bar, not inside the pill.
+    assert.ok(contrast(TabBarColors.activeLabel, '#FFFFFF') >= 4.5);
+    assert.ok(contrast(TabBarColors.inactive, '#FFFFFF') >= 4.5);
+
     const wash = contrast(legacyWash(), '#FFFFFF');
-    assert.ok(onWhite > wash * 2, `solid pill ${onWhite.toFixed(2)} vs 15% wash ${wash.toFixed(2)}`);
-    assert.ok(onWhite >= 2.5);
-    assert.ok(contrast(TabBarColors.activeIcon, TabBarColors.activePill) >= 2.5);
-    assert.notEqual(TabBarColors.inactive, TabBarColors.activePill);
+    assert.ok(wash < 1.2);
   });
 });
 

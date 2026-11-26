@@ -1,4 +1,9 @@
-/** In-repo privacy copy and iOS version sources stay on the no-ads 1.1.0 (8) tip. */
+/**
+ * In-repo privacy copy and version sources. Marketing version is 1.1.1 on iOS
+ * and Android. The build number stays 8 in the repo: EAS production uses
+ * appVersionSource remote + autoIncrement, so the uploaded build gets the next
+ * remote number (12 after 1.1.0 (11)).
+ */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
@@ -47,22 +52,24 @@ test('canonical public privacy page matches the no-ads in-app policy', async () 
   assert.doesNotMatch(html, AD_SDK);
 });
 
-test('ios version settings match app.json 1.1.0 (8)', () => {
+test('ios and android version settings match app.json 1.1.1 (8)', () => {
   const app = JSON.parse(read('app.json'));
-  assert.equal(app.expo.version, '1.1.0');
+  assert.equal(app.expo.version, '1.1.1');
   assert.equal(app.expo.ios.buildNumber, '8');
   const plist = read('ios/i/Info.plist');
-  assert.match(plist, /<key>CFBundleShortVersionString<\/key>\s*<string>1\.1\.0<\/string>/);
+  assert.match(plist, /<key>CFBundleShortVersionString<\/key>\s*<string>1\.1\.1<\/string>/);
   assert.match(plist, /<key>CFBundleVersion<\/key>\s*<string>8<\/string>/);
   const pbx = read('ios/i.xcodeproj/project.pbxproj');
   assert.deepEqual(pbx.match(/MARKETING_VERSION = [^;]+;/g), [
-    'MARKETING_VERSION = 1.1.0;',
-    'MARKETING_VERSION = 1.1.0;',
+    'MARKETING_VERSION = 1.1.1;',
+    'MARKETING_VERSION = 1.1.1;',
   ]);
   assert.deepEqual(pbx.match(/CURRENT_PROJECT_VERSION = [^;]+;/g), [
     'CURRENT_PROJECT_VERSION = 8;',
     'CURRENT_PROJECT_VERSION = 8;',
   ]);
+  assert.equal(JSON.parse(read('package.json')).version, '1.1.1');
+  assert.match(read('android/app/build.gradle'), /versionName "1\.1\.1"/);
 });
 
 test('checked-in Info.plist matches app.json ITSAppUsesNonExemptEncryption', () => {
