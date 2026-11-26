@@ -27,6 +27,17 @@ export const SoftPopColors = {
 };
 
 /**
+ * Overdue ("시간 지남"). The card stays a normal card. Only a small amber
+ * tag uses these. Text is 4.67:1 on `soft` (brand guide: 4.7:1).
+ * Coral and red are not used here.
+ */
+export const LateStatus = {
+  text: '#A35C22',
+  icon: '#B86A26',
+  soft: '#FFF3E3',
+} as const;
+
+/**
  * Coral roles locked 11/23. `primary` stays the large-surface coral.
  * The tab pill and the celebration button use these instead.
  */

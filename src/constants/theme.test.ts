@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { BrandAccent, SheetChrome, SoftPopColors, TabBarColors } from './theme';
+import { BrandAccent, LateStatus, SheetChrome, SoftPopColors, TabBarColors } from './theme';
 
 function linear(channel: number): number {
   const s = channel / 255;
@@ -52,6 +52,21 @@ describe('SoftPopColors role colours', () => {
         `partial must differ from ${role}`,
       );
     }
+  });
+});
+
+describe('LateStatus', () => {
+  it('uses the brand amber tag, not coral or red', () => {
+    assert.equal(LateStatus.text, '#A35C22');
+    assert.equal(LateStatus.icon, '#B86A26');
+    assert.equal(LateStatus.soft, '#FFF3E3');
+    for (const color of [LateStatus.text, LateStatus.icon, LateStatus.soft]) {
+      assert.notEqual(color, SoftPopColors.error);
+      assert.notEqual(color, SoftPopColors.primary);
+      assert.notEqual(color, BrandAccent.text);
+      assert.notEqual(color, BrandAccent.strong);
+    }
+    assert.ok(contrast(LateStatus.text, LateStatus.soft) >= 4.5);
   });
 });
 
