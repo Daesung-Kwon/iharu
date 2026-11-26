@@ -37,6 +37,7 @@ import Toast from '../components/Toast';
 import { BrandAccent, SoftPopColors } from '../constants/theme';
 import { getClayShadow, useLayout } from '../hooks/useLayout';
 import { useCollapsingHeader } from '../hooks/useCollapsingHeader';
+import { useAppUpdateBlocker } from '../hooks/useAppUpdateBlocker';
 import {
   TODAY_ACCESSORY_FADE_AT,
   TODAY_DATE_PICKER_MARGIN_TOP,
@@ -98,6 +99,11 @@ export default function TodayScreen() {
   const selectedSchedule = getScheduleForDate(selectedDate);
   const scheduleItems = selectedSchedule?.items || [];
   const [showCelebration, setShowCelebration] = useState(false);
+  useAppUpdateBlocker('celebration', showCelebration);
+  useAppUpdateBlocker(
+    'weekly-result',
+    !showCelebration && !readSuppressWeeklyResult() && unseenResults.length > 0,
+  );
   const celebrationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Ad sits in layout flow; 0 until the banner has actually loaded (or failed → null).
   const [currentTime, setCurrentTime] = useState(new Date());

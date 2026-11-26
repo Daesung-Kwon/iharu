@@ -14,6 +14,8 @@ import { ScheduleProvider } from './src/contexts/ScheduleContext';
 import { WeeklyPromiseProvider } from './src/contexts/WeeklyPromiseContext';
 import { RewardExpansionProvider } from './src/contexts/RewardExpansionContext';
 import CustomSplashScreen from './src/screens/SplashScreen';
+import AppUpdatePrompt from './src/components/AppUpdatePrompt';
+import { useAppUpdateBlocker } from './src/hooks/useAppUpdateBlocker';
 
 // 스플래시 스크린을 유지하도록 설정
 SplashScreen.preventAutoHideAsync();
@@ -29,6 +31,7 @@ export default function App() {
     });
 
     const [isSplashFinished, setIsSplashFinished] = React.useState(false);
+    useAppUpdateBlocker('splash', !isSplashFinished || (!fontsLoaded && !fontError));
     useEffect(() => {
         if (fontsLoaded) {
             if (__DEV__) {
@@ -76,6 +79,7 @@ export default function App() {
                             <RewardExpansionProvider>
                                 <StatusBar style="auto" />
                                 <AppNavigator />
+                                <AppUpdatePrompt />
                                 {!isSplashFinished && (
                                     <CustomSplashScreen onFinish={() => setIsSplashFinished(true)} />
                                 )}

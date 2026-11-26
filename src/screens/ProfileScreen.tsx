@@ -54,7 +54,7 @@ import LicenseModal from '../components/LicenseModal';
 import { SoftPopColors } from '../constants/theme';
 import { getClayShadow, useLayout } from '../hooks/useLayout';
 import { getVisibleAreaPaddingBottom } from '../utils/safeArea';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { readLaunchSheet, readLaunchTab } from '../navigation/tabDeepLink';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from '../components/Toast';
@@ -62,6 +62,7 @@ import { BACKUP_SHARE_CLOSED_MESSAGE, formatLastBackup } from '../utils/lastBack
 import { DEVICE_MOVE_COPY } from '../utils/deviceMove';
 import { decidePinStep } from '../utils/pinFlow';
 import { lockReducer, lockView } from '../utils/lockState';
+import { useAppUpdateBlocker } from '../hooks/useAppUpdateBlocker';
 
 const LAST_BACKUP_KEY = '@settings.lastBackupAt';
 
@@ -78,6 +79,7 @@ function SettingsIcon({
 }
 
 export default function ProfileScreen() {
+  const isFocused = useIsFocused();
   const { isCompact, isLandscape, space, scrollEndPadding, tabBarOffset, bottomChrome, cardRadius } = useLayout();
   const { resetActivities, reloadFromStorage: reloadActivities } = useActivity();
   const { resetSchedules, schedules, reloadFromStorage: reloadSchedules, todayKey } = useSchedule();
@@ -85,6 +87,8 @@ export default function ProfileScreen() {
   const [showPromiseSheet, setShowPromiseSheet] = useState(false);
   const rewardExpansion = useRewardExpansion();
   const [showExpansionSheet, setShowExpansionSheet] = useState(false);
+  const [rewardHandoff, setRewardHandoff] = useState(false);
+  const rewardHandoffTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settingsScrollRef = useRef<ScrollView>(null);
   const proofScrolled = useRef(false);
   // Proof only: `-openSheet weeklyPromise|rewardExpansion` opens that sheet.
@@ -93,6 +97,9 @@ export default function ProfileScreen() {
     const sheet = readLaunchSheet();
     if (sheet === 'weeklyPromise') setShowPromiseSheet(true);
     else if (sheet === 'rewardExpansion') setShowExpansionSheet(true);
+  }, []);
+  useEffect(() => () => {
+    if (rewardHandoffTimer.current) clearTimeout(rewardHandoffTimer.current);
   }, []);
   const expansionSummary = rewardExpansion.expansion.unlocked
     ? EXPANSION_COPY.unlockedSummary + (rewardExpansion.expansion.source === 'test' ? ' (테스트)' : '')
@@ -106,8 +113,13 @@ export default function ProfileScreen() {
   const weeklyNote = firstLine?.note || weekLine;
   const openExpansionFromPromise = () => {
     setShowPromiseSheet(false);
+    setRewardHandoff(true);
+    if (rewardHandoffTimer.current) clearTimeout(rewardHandoffTimer.current);
     // iOS cannot present a Modal while another one is still closing.
-    setTimeout(() => setShowExpansionSheet(true), 450);
+    rewardHandoffTimer.current = setTimeout(() => {
+      setShowExpansionSheet(true);
+      setRewardHandoff(false);
+    }, 450);
   };
   const [notificationEnabled, setNotificationEnabled] = useState(false);
   const [weeklyResultOn, setWeeklyResultOn] = useState(true);
@@ -120,6 +132,12 @@ export default function ProfileScreen() {
   const [lockState, dispatchLock] = useReducer(lockReducer, 'loading');
   const view = lockView(lockState);
   const [pinModal, setPinModal] = useState<'unlock' | 'set' | 'confirm' | 'remove' | 'recover' | null>(null);
+  useAppUpdateBlocker('settings-lock', isFocused && (view === 'gate' || view === 'placeholder'));
+  useAppUpdateBlocker('pin', pinModal !== null);
+  useAppUpdateBlocker(
+    'reward',
+    showPromiseSheet || showExpansionSheet || rewardHandoff,
+  );
   const [recovery, setRecovery] = useState<RecoveryState>(initialRecovery);
   const [pendingPin, setPendingPin] = useState('');
   const [pinError, setPinError] = useState('');
