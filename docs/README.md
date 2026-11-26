@@ -7,7 +7,9 @@
 ### 런칭 가이드
 
 - **[Android Play Store 런칭 가이드](./ANDROID_PLAY_STORE_LAUNCH.md)**
-  - Google Play Store에 앱을 배포하는 방법
+  - Google Play Store에 앱을 배포하는 방법 (2026-11-26 갱신)
+- **[Play 재점검·초안](./store-play/README.md)**
+  - 블로커 표, Data safety / Families 답안 초안, Console 확인 목록
   - 빌드, 업로드, 심사 제출 가이드
 
 - **[iOS App Store 런칭 가이드](./APP_STORE_LAUNCH_GUIDE.md)**
