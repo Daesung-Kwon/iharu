@@ -258,6 +258,16 @@ export function todayCollapseDistance(expandedHeight: number, compactHeight: num
   return Math.max(1, expandedHeight - compactHeight);
 }
 
+/**
+ * Short lists still need `distance` pt of travel, or the crossfade stops halfway.
+ * The extra room is below the sections, so the first row stays where it is.
+ */
+export function todayScrollContentMinHeight(viewportHeight: number, distance: number): number {
+  const viewport = Number.isFinite(viewportHeight) && viewportHeight > 0 ? viewportHeight : 0;
+  const span = Number.isFinite(distance) && distance > 0 ? distance : 0;
+  return viewport + span;
+}
+
 /** Scroll padding that parks the first section where the old header's margin did. */
 export function todayListPadding(options: {
   space: number;

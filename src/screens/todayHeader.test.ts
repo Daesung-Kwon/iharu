@@ -30,6 +30,7 @@ import {
   todayLargeTitle,
   todayListPadding,
   todayRestingContentTop,
+  todayScrollContentMinHeight,
   todayShowsCompletion,
   weekStripBlock,
   type TodayHeaderInput,
@@ -236,6 +237,27 @@ describe('today collapse does not overlap or jump', () => {
       assert.equal(padding.paddingTop, layout.space + metrics.expandedHeight + metrics.listGap);
     }
   });
+
+  it('gives a short list enough travel to finish the collapse without moving the first section', () => {
+    const metrics = todayCollapsingMetrics(inputFor(375, 667, { showPromise: true }));
+    const distance = todayCollapseDistance(metrics.expandedHeight, metrics.compactHeight);
+    const viewport = 500;
+    const minHeight = todayScrollContentMinHeight(viewport, distance);
+    assert.equal(minHeight, viewport + distance);
+    assert.ok(minHeight - viewport >= distance);
+    const padding = todayListPadding({
+      space: 12,
+      expandedHeight: metrics.expandedHeight,
+      listGap: metrics.listGap,
+      scrollEndPadding: 84,
+    });
+    assert.equal(padding.paddingTop, todayRestingContentTop(12, metrics.expandedHeight, metrics.listGap));
+    assert.equal(padding.paddingTop, 12 + metrics.expandedHeight + 12);
+    assert.equal(todayScrollContentMinHeight(0, distance), distance);
+    assert.equal(todayScrollContentMinHeight(Number.NaN, distance), distance);
+    assert.equal(todayScrollContentMinHeight(viewport, 0), viewport);
+    assert.equal(todayScrollContentMinHeight(-20, Number.NaN), 0);
+  });
 });
 
 describe('today header render states', () => {
@@ -390,6 +412,11 @@ describe('today header wiring', () => {
       'snapLayout: false',
       'TODAY_ACCESSORY_FADE_AT',
       'todayListPadding',
+      'todayScrollContentMinHeight',
+      'minHeight: contentMinHeight',
+      'onScrollEndDrag={collapse.onScrollEndDrag}',
+      'onMomentumScrollEnd={collapse.onMomentumScrollEnd}',
+      'ref={collapse.scrollRef}',
       'scrollEndPadding',
       'contentInsetAdjustmentBehavior="never"',
       'TodayCollapsingHeader',
@@ -400,6 +427,11 @@ describe('today header wiring', () => {
     }
     assert.equal(activity.includes('fadeAt'), false);
     assert.equal(activity.includes('snapLayout'), false);
+    assert.ok(activity.includes('onScrollEndDrag={collapse.onScrollEndDrag}'));
+    assert.ok(activity.includes('onMomentumScrollEnd={collapse.onMomentumScrollEnd}'));
+    assert.ok(activity.includes('ref={collapse.scrollRef}'));
+    assert.match(hook, /collapseSnapTarget/);
+    assert.match(hook, /collapseSnapAnimated/);
     for (const token of [
       'stopRanges(LARGE_TITLE_OPACITY_STOPS)',
       'stopRanges(COMPACT_TITLE_OPACITY_STOPS)',

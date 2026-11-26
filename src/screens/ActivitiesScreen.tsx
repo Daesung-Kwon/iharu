@@ -145,6 +145,7 @@ export default function ActivitiesScreen() {
     <ScreenContainer style={isLandscape && styles.containerLandscape}>
       <View style={styles.body}>
         <Animated.ScrollView
+          ref={collapse.scrollRef}
           testID="activity-list"
           style={styles.scrollView}
           contentContainerStyle={activityListPadding({
@@ -154,6 +155,8 @@ export default function ActivitiesScreen() {
           })}
           contentInsetAdjustmentBehavior="never"
           onScroll={collapse.onScroll}
+          onScrollEndDrag={collapse.onScrollEndDrag}
+          onMomentumScrollEnd={collapse.onMomentumScrollEnd}
           scrollEventThrottle={collapse.scrollEventThrottle}
           showsVerticalScrollIndicator={false}
         >

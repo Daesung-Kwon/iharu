@@ -48,6 +48,7 @@ import {
   todayCompletionLabel,
   todayLargeTitle,
   todayListPadding,
+  todayScrollContentMinHeight,
   todayShowsCompletion,
 } from './todayHeader';
 import {
@@ -369,11 +370,14 @@ export default function TodayScreen() {
   const accessoryHeight = measuredMatch ?? headerMetrics.accessoryHeight;
   const expandedHeight = headerMetrics.expandedHeight
     + (accessoryHeight - headerMetrics.accessoryHeight);
+  const collapseDistance = todayCollapseDistance(expandedHeight, headerMetrics.compactHeight);
   const collapse = useCollapsingHeader({
-    distance: todayCollapseDistance(expandedHeight, headerMetrics.compactHeight),
+    distance: collapseDistance,
     fadeAt: TODAY_ACCESSORY_FADE_AT,
     snapLayout: false,
   });
+  const [scrollViewport, setScrollViewport] = useState(0);
+  const contentMinHeight = todayScrollContentMinHeight(scrollViewport, collapseDistance);
   const shortDate = selectedDate.toLocaleDateString('ko-KR', {
     month: 'long',
     day: 'numeric',
@@ -408,16 +412,26 @@ export default function TodayScreen() {
     <ScreenContainer style={isLandscape && styles.containerLandscape}>
       <View style={styles.mainColumn}>
       <Animated.ScrollView
+        ref={collapse.scrollRef}
         testID="today-scroll"
         style={styles.scrollView}
-        contentContainerStyle={todayListPadding({
-          space,
-          expandedHeight,
-          listGap: headerMetrics.listGap,
-          scrollEndPadding,
-        })}
+        contentContainerStyle={[
+          todayListPadding({
+            space,
+            expandedHeight,
+            listGap: headerMetrics.listGap,
+            scrollEndPadding,
+          }),
+          { minHeight: contentMinHeight },
+        ]}
         contentInsetAdjustmentBehavior="never"
+        onLayout={(event) => {
+          const next = Math.round(event.nativeEvent.layout.height);
+          setScrollViewport((prev) => (prev === next ? prev : next));
+        }}
         onScroll={collapse.onScroll}
+        onScrollEndDrag={collapse.onScrollEndDrag}
+        onMomentumScrollEnd={collapse.onMomentumScrollEnd}
         scrollEventThrottle={collapse.scrollEventThrottle}
         showsVerticalScrollIndicator={false}
       >

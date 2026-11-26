@@ -17,12 +17,15 @@
  * (no hole, no overlap) while the crossfade still snaps.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, NativeScrollEvent, NativeSyntheticEvent, ScrollView } from 'react-native';
 import {
   COLLAPSE_SCROLL_THROTTLE,
   DEFAULT_COLLAPSE_DISTANCE,
   collapseProgress,
+  collapseReleaseHasMomentum,
+  collapseSnapAnimated,
+  collapseSnapTarget,
   compactTitleIsPrimary,
   resolveCollapseProgress,
   scrollProgressStops,
@@ -49,6 +52,7 @@ export function useCollapsingHeader(options?: {
 
   const nativeScrollY = useRef(new Animated.Value(0)).current;
   const heightProgress = useRef(new Animated.Value(0)).current;
+  const scrollRef = useRef<ScrollView>(null);
   const lastY = useRef(0);
   const mounted = useRef(true);
   const compactRef = useRef(false);
@@ -108,6 +112,26 @@ export function useCollapsingHeader(options?: {
     }
   }, [reduceMotion, distance, fadeAt, snapLayout, heightProgress]);
 
+  const snapSettledOffset = useCallback((scrollY: number) => {
+    const target = collapseSnapTarget(scrollY, distanceRef.current);
+    if (target == null) return;
+    const animated = collapseSnapAnimated(reduceRef.current);
+    scrollRef.current?.scrollTo({ y: target, animated });
+    if (!animated) {
+      nativeScrollY.setValue(target);
+      publishRef.current(target);
+    }
+  }, [nativeScrollY]);
+
+  const onScrollEndDrag = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (collapseReleaseHasMomentum(event.nativeEvent.velocity?.y)) return;
+    snapSettledOffset(event.nativeEvent.contentOffset.y);
+  }, [snapSettledOffset]);
+
+  const onMomentumScrollEnd = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    snapSettledOffset(event.nativeEvent.contentOffset.y);
+  }, [snapSettledOffset]);
+
   const onScroll = useMemo(
     () =>
       Animated.event(
@@ -132,7 +156,10 @@ export function useCollapsingHeader(options?: {
   }, [nativeScrollY, distance, reduceMotion]);
 
   return {
+    scrollRef,
     onScroll,
+    onScrollEndDrag,
+    onMomentumScrollEnd,
     scrollEventThrottle: COLLAPSE_SCROLL_THROTTLE,
     heightProgress,
     motionProgress,

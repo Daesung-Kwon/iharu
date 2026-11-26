@@ -8,6 +8,9 @@ import {
   REDUCE_MOTION_SNAP_AT,
   SUBTITLE_OPACITY_STOPS,
   collapseProgress,
+  collapseReleaseHasMomentum,
+  collapseSnapAnimated,
+  collapseSnapTarget,
   collapsingBarHeight,
   compactTitleIsPrimary,
   compactTitleOpacity,
@@ -57,6 +60,40 @@ describe('collapseProgress', () => {
       assert.ok(next <= 1);
       previous = next;
     }
+  });
+});
+
+describe('collapseSnapTarget', () => {
+  const distance = 180;
+
+  it('picks the nearer end and finishes the collapse on a tie', () => {
+    assert.equal(collapseSnapTarget(1, distance), 0);
+    assert.equal(collapseSnapTarget(distance / 2 - 0.1, distance), 0);
+    assert.equal(collapseSnapTarget(distance / 2, distance), distance);
+    assert.equal(collapseSnapTarget(distance / 2 + 0.1, distance), distance);
+    assert.equal(collapseSnapTarget(distance - 1, distance), distance);
+  });
+
+  it('leaves the ends and anything outside the collapse alone', () => {
+    assert.equal(collapseSnapTarget(0, distance), null);
+    assert.equal(collapseSnapTarget(-12, distance), null);
+    assert.equal(collapseSnapTarget(distance, distance), null);
+    assert.equal(collapseSnapTarget(distance + 40, distance), null);
+    assert.equal(collapseSnapTarget(Number.NaN, distance), null);
+    assert.equal(collapseSnapTarget(20, 0), null);
+    assert.equal(collapseSnapTarget(20, Number.NaN), null);
+  });
+
+  it('treats a zero release velocity as no momentum, and skips the animation when Reduce Motion is on', () => {
+    assert.equal(collapseReleaseHasMomentum(undefined), false);
+    assert.equal(collapseReleaseHasMomentum(null), false);
+    assert.equal(collapseReleaseHasMomentum(0), false);
+    assert.equal(collapseReleaseHasMomentum(-0), false);
+    assert.equal(collapseReleaseHasMomentum(0.4), true);
+    assert.equal(collapseReleaseHasMomentum(-1.2), true);
+    assert.equal(collapseReleaseHasMomentum(Number.NaN), false);
+    assert.equal(collapseSnapAnimated(false), true);
+    assert.equal(collapseSnapAnimated(true), false);
   });
 });
 

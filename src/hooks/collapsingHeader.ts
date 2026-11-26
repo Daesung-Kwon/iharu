@@ -62,6 +62,30 @@ export function clamp01(value: number): number {
   return value;
 }
 
+/**
+ * Where a resting finger should land if it stopped inside the collapse.
+ * `null` means the offset is already on an end (or past it) and should stay.
+ * The exact midpoint finishes the collapse, since neither end is nearer.
+ */
+export function collapseSnapTarget(scrollY: number, distance: number): number | null {
+  if (!Number.isFinite(scrollY) || !Number.isFinite(distance) || distance <= 0) return null;
+  if (scrollY <= 0 || scrollY >= distance) return null;
+  const toStart = scrollY;
+  const toEnd = distance - scrollY;
+  return toEnd < toStart ? distance : toStart < toEnd ? 0 : distance;
+}
+
+/** A drag release with no velocity has no momentum scroll after it. */
+export function collapseReleaseHasMomentum(velocityY: number | null | undefined): boolean {
+  if (velocityY == null || !Number.isFinite(velocityY)) return false;
+  return velocityY !== 0;
+}
+
+/** Reduce Motion jumps. Everyone else gets one short scroll animation. */
+export function collapseSnapAnimated(reduceMotion: boolean): boolean {
+  return !reduceMotion;
+}
+
 /** 0 at rest, 1 after `distance` pt of downward scroll. */
 export function collapseProgress(
   scrollY: number,
