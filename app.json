@@ -52,7 +52,14 @@
         "android.permission.ACCESS_ADSERVICES_AD_ID",
         "android.permission.ACCESS_ADSERVICES_ATTRIBUTION",
         "android.permission.ACCESS_ADSERVICES_TOPICS",
-        "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE"
+        "com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.USE_EXACT_ALARM"
+      ],
+      "permissions": [
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECEIVE_BOOT_COMPLETED"
       ]
     },
     "plugins": [
@@ -65,6 +72,11 @@
               1,
               2
             ]
+          },
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "minSdkVersion": 24
           }
         }
       ],
