@@ -2,15 +2,14 @@
  * 활동 관리 화면
  * 자주 하는 활동을 추가/수정/삭제
  *
- * The header card stays fixed and collapses to a one-line bar as the list
- * scrolls. The list still ends with scrollEndPadding so the last row clears
- * the tab bar, and it scrolls behind the bar once the collapse is done.
+ * The header card stays fixed above the list (it is already short, so it
+ * does not collapse). The list ends with scrollEndPadding so the last row
+ * clears the tab bar.
  */
 
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Platform, Alert, Animated } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Platform, Alert, ScrollView } from 'react-native';
 import ScreenContainer from '../components/ScreenContainer';
-import CollapsingHeader from '../components/CollapsingHeader';
 import { MaterialIcons } from '@expo/vector-icons';
 import { IhIcon } from '../components/icons/IhIcon';
 import { useActivity } from '../contexts/ActivityContext';
@@ -21,12 +20,11 @@ import ActivityFormModal from '../components/ActivityFormModal';
 import { Activity } from '../types';
 import { BrandAccent, SoftPopColors } from '../constants/theme';
 import { getClayShadow, MIN_TOUCH_TARGET, useLayout } from '../hooks/useLayout';
-import { useCollapsingHeader } from '../hooks/useCollapsingHeader';
-import {
-  activityCollapsingMetrics,
-  activityHeaderType,
-  activityListPadding,
-} from './activityHeader';
+
+const ACTIVITY_TITLE = '활동 관리';
+const ACTIVITY_ADD_LABEL = '활동 추가';
+const ACTIVITY_ADD_ICON = 'ih-add-circle';
+const ACTIVITY_ADD_ICON_SIZE = 20;
 
 /** One horizontal band per row so every card is inside the scroll height. */
 function chunkIntoRows<T>(items: readonly T[], columns: number): T[][] {
@@ -80,15 +78,6 @@ export default function ActivitiesScreen() {
   const { activities, addActivity, updateActivity, deleteActivity } = useActivity();
   const { schedules } = useSchedule();
   const groups = useMemo(() => groupActivitiesByUsage(activities, schedules), [activities, schedules]);
-  const headerType = activityHeaderType(titleSize);
-  const headerMetrics = activityCollapsingMetrics({
-    space,
-    titleSize,
-    isCompact,
-    cardRadius,
-  });
-  const collapseDistance = Math.max(1, headerMetrics.expandedHeight - headerMetrics.compactHeight);
-  const collapse = useCollapsingHeader({ distance: collapseDistance });
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
@@ -143,21 +132,45 @@ export default function ActivitiesScreen() {
 
   return (
     <ScreenContainer style={isLandscape && styles.containerLandscape}>
+      <View
+        testID="activity-header"
+        style={[
+          styles.header,
+          clayShadow,
+          {
+            padding: space,
+            paddingBottom: isCompact ? 12 : 20,
+            marginHorizontal: space,
+            marginTop: space,
+            borderRadius: cardRadius,
+          },
+        ]}
+      >
+        <View style={styles.headerText}>
+          <Text
+            style={[styles.title, { fontSize: titleSize, lineHeight: titleSize + 8 }]}
+            accessibilityRole="header"
+          >
+            {ACTIVITY_TITLE}
+          </Text>
+        </View>
+        <AddActivityButton
+          onPress={handleAddActivity}
+          label={ACTIVITY_ADD_LABEL}
+          icon={ACTIVITY_ADD_ICON}
+          iconSize={ACTIVITY_ADD_ICON_SIZE}
+        />
+      </View>
+
       <View style={styles.body}>
-        <Animated.ScrollView
-          ref={collapse.scrollRef}
+        <ScrollView
           testID="activity-list"
           style={styles.scrollView}
-          contentContainerStyle={activityListPadding({
-            space,
-            expandedHeight: headerMetrics.expandedHeight,
-            scrollEndPadding,
-          })}
-          contentInsetAdjustmentBehavior="never"
-          onScroll={collapse.onScroll}
-          onScrollEndDrag={collapse.onScrollEndDrag}
-          onMomentumScrollEnd={collapse.onMomentumScrollEnd}
-          scrollEventThrottle={collapse.scrollEventThrottle}
+          contentContainerStyle={{
+            paddingTop: space,
+            paddingHorizontal: space,
+            paddingBottom: scrollEndPadding,
+          }}
           showsVerticalScrollIndicator={false}
         >
           {activities.length === 0 ? (
@@ -205,27 +218,7 @@ export default function ActivitiesScreen() {
               ))}
             </View>
           )}
-        </Animated.ScrollView>
-
-        <CollapsingHeader
-          testID="activity-header"
-          title={headerType.title}
-          largeFontSize={headerType.largeFontSize}
-          compactFontSize={headerType.compactFontSize}
-          metrics={headerMetrics}
-          shadow={clayShadow}
-          heightProgress={collapse.heightProgress}
-          motionProgress={collapse.motionProgress}
-          compactActive={collapse.compactActive}
-          trailing={(
-            <AddActivityButton
-              onPress={handleAddActivity}
-              label={headerType.addLabel}
-              icon={headerType.addIcon}
-              iconSize={headerType.addIconSize}
-            />
-          )}
-        />
+        </ScrollView>
       </View>
 
       <ActivityFormModal
@@ -245,6 +238,22 @@ export default function ActivitiesScreen() {
 const styles = StyleSheet.create({
   body: {
     flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: SoftPopColors.white,
+    borderWidth: 2,
+    borderColor: SoftPopColors.white,
+  },
+  headerText: {
+    flex: 1,
+  },
+  title: {
+    color: SoftPopColors.text,
+    fontFamily: 'BMJUA',
   },
   addButton: {
     flexDirection: 'row',

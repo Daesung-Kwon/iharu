@@ -402,7 +402,7 @@ describe('today header render states', () => {
 });
 
 describe('today header wiring', () => {
-  it('the screen reuses the collapsing hook without changing Activity', () => {
+  it('the screen uses the collapsing hook and Activity does not', () => {
     const screen = read('src/screens/TodayScreen.tsx');
     const header = read('src/components/TodayCollapsingHeader.tsx');
     const hook = read('src/hooks/useCollapsingHeader.ts');
@@ -427,9 +427,9 @@ describe('today header wiring', () => {
     }
     assert.equal(activity.includes('fadeAt'), false);
     assert.equal(activity.includes('snapLayout'), false);
-    assert.ok(activity.includes('onScrollEndDrag={collapse.onScrollEndDrag}'));
-    assert.ok(activity.includes('onMomentumScrollEnd={collapse.onMomentumScrollEnd}'));
-    assert.ok(activity.includes('ref={collapse.scrollRef}'));
+    // Activity keeps a fixed header; only Today collapses.
+    assert.equal(activity.includes('useCollapsingHeader'), false);
+    assert.equal(activity.includes('collapse.'), false);
     assert.match(hook, /collapseSnapTarget/);
     assert.match(hook, /collapseSnapAnimated/);
     for (const token of [
