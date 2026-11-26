@@ -2,13 +2,18 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createStoreIap, IapClient, PurchaseOutcome } from '../services/iap';
 import { loadRewardExpansion, saveRewardExpansion } from '../services/rewardExpansionStore';
-import { LOCKED, RewardExpansion, rewardSlotLimit, testOff, unlock } from '../utils/rewardExpansion';
+import {
+  LOCKED, RewardExpansion, rewardSlotLimit, StoreAvailability, storeAvailabilityFromPrice, testOff, unlock,
+} from '../utils/rewardExpansion';
 
 interface RewardExpansionContextType {
   expansion: RewardExpansion;
   slotLimit: number;
   loaded: boolean;
-  getPrice: () => Promise<string | null>;
+  /** From the one product fetch at launch. Entry points hide unless 'available'. */
+  storeAvailability: StoreAvailability;
+  /** Localized price from that fetch, or null. */
+  price: string | null;
   purchase: () => Promise<PurchaseOutcome>;
   /** 'restored' | 'none' */
   restore: () => Promise<'restored' | 'none'>;
@@ -23,6 +28,22 @@ export function RewardExpansionProvider({ children, iap }: { children: React.Rea
   const client = useRef(iap ?? createStoreIap()).current;
   const [expansion, setExpansion] = useState<RewardExpansion>(LOCKED);
   const [loaded, setLoaded] = useState(false);
+  const [storeAvailability, setStoreAvailability] = useState<StoreAvailability>('unknown');
+  const [price, setPrice] = useState<string | null>(null);
+
+  // One product fetch per launch decides whether the purchase is offered at
+  // all (product not approved / not attached → hidden, not a dead button).
+  useEffect(() => {
+    let live = true;
+    client.getPrice()
+      .catch(() => null)
+      .then(p => {
+        if (!live) return;
+        setPrice(p ?? null);
+        setStoreAvailability(storeAvailabilityFromPrice(p));
+      });
+    return () => { live = false; };
+  }, [client]);
 
   const reload = useCallback(async () => {
     setExpansion(await loadRewardExpansion());
@@ -54,9 +75,9 @@ export function RewardExpansionProvider({ children, iap }: { children: React.Rea
   }, [commit]);
 
   const value = useMemo(() => ({
-    expansion, slotLimit: rewardSlotLimit(expansion), loaded,
-    getPrice: () => client.getPrice(), purchase, restore, setTestUnlocked, reload,
-  }), [expansion, loaded, client, purchase, restore, setTestUnlocked, reload]);
+    expansion, slotLimit: rewardSlotLimit(expansion), loaded, storeAvailability, price,
+    purchase, restore, setTestUnlocked, reload,
+  }), [expansion, loaded, storeAvailability, price, purchase, restore, setTestUnlocked, reload]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
