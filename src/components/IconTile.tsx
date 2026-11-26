@@ -14,6 +14,10 @@ interface IconTileProps {
   size?: number;
   tileColor: string;
   iconColor?: string;
+  /** Overrides the ratio-based glyph size (Activity cards use 28 on 52). */
+  glyphSize?: number;
+  /** Overrides the 32% radius (Activity cards use 16 on 52). */
+  radius?: number;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -22,10 +26,12 @@ export default function IconTile({
   size = 44,
   tileColor,
   iconColor = ACTIVITY_ICON_INK,
+  glyphSize,
+  radius: radiusOverride,
   style,
 }: IconTileProps) {
-  const glyph = Math.max(10, Math.round(size * ICON_GLYPH_RATIO));
-  const radius = Math.max(6, Math.round(size * 0.32));
+  const glyph = glyphSize ?? Math.max(10, Math.round(size * ICON_GLYPH_RATIO));
+  const radius = radiusOverride ?? Math.max(6, Math.round(size * 0.32));
 
   return (
     <View

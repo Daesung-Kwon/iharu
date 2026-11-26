@@ -31,6 +31,29 @@ export const PastelTile = {
 
 export type PastelTileName = keyof typeof PastelTile;
 
+/**
+ * Brand activity hues (brand-guide §3): tint tile + darker ink of the same hue,
+ * icon contrast 3:1 or more. Keyed by Activity.colorKey. Used on the Activity
+ * tab cards only for now; Today and Plan keep PastelTile.
+ */
+export const ActivityBrandHue = {
+  blue: { tint: '#E7F0FF', ink: '#3D7BE0' },
+  purple: { tint: '#F1EBFD', ink: '#8A5CD6' },
+  pink: { tint: '#FFE9F1', ink: '#C8457E' },
+  green: { tint: '#E5F5E9', ink: '#2F8F50' },
+  orange: { tint: '#FFF0E0', ink: '#C96A12' },
+  yellow: { tint: '#FFF6D6', ink: '#A67B00' },
+  red: { tint: '#FFEAE8', ink: '#DE5248' },
+  teal: { tint: '#E0F4F1', ink: '#1A8A7F' },
+} as const;
+
+export type ActivityBrandHueName = keyof typeof ActivityBrandHue;
+
+/** Unknown or missing colorKey falls back to purple so a card is never blank. */
+export function activityBrandHue(colorKey: string | null | undefined) {
+  return ActivityBrandHue[(colorKey ?? '') as ActivityBrandHueName] ?? ActivityBrandHue.purple;
+}
+
 type IconChoice = {
   icon: string;
   tile: PastelTileName;
