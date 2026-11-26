@@ -40,9 +40,9 @@ import { NOTIFICATION_LEAD_OPTIONS, NotificationLeadMinutes } from '../utils/dat
 import { useActivity } from '../contexts/ActivityContext';
 import { useSchedule } from '../contexts/ScheduleContext';
 import { useWeeklyPromise } from '../contexts/WeeklyPromiseContext';
-import RewardExpansionSheet from '../components/RewardExpansionSheet';
+import RewardExpansionSheet, { SHOW_TEST_TOGGLE } from '../components/RewardExpansionSheet';
 import { useRewardExpansion } from '../contexts/RewardExpansionContext';
-import { EXPANSION_COPY } from '../utils/rewardExpansion';
+import { EXPANSION_COPY, showExpansionEntry } from '../utils/rewardExpansion';
 import WeeklyPromiseSheet from '../components/WeeklyPromiseSheet';
 import { daysLine } from '../utils/weeklyPromise';
 import { promiseLine } from '../utils/weeklyPromises';
@@ -101,6 +101,13 @@ export default function ProfileScreen() {
   useEffect(() => () => {
     if (rewardHandoffTimer.current) clearTimeout(rewardHandoffTimer.current);
   }, []);
+  // Product not loaded (unapproved / not attached to this version) and not
+  // unlocked: no row, no upsell, no sheet. Free single promise is unchanged.
+  const expansionShown = showExpansionEntry({
+    unlocked: rewardExpansion.expansion.unlocked,
+    store: rewardExpansion.storeAvailability,
+    qa: SHOW_TEST_TOGGLE,
+  });
   const expansionSummary = rewardExpansion.expansion.unlocked
     ? EXPANSION_COPY.unlockedSummary + (rewardExpansion.expansion.source === 'test' ? ' (테스트)' : '')
     : EXPANSION_COPY.lockedSummary;
@@ -711,6 +718,7 @@ export default function ProfileScreen() {
               thumbColor={weeklyResultOn ? SoftPopColors.primary : SoftPopColors.textSecondary}
             />
           </View>
+          {expansionShown && (
           <Pressable
             style={({ pressed }) => [styles.settingItem, pressed && styles.settingItemPressed]}
             onPress={() => setShowExpansionSheet(true)}
@@ -724,6 +732,7 @@ export default function ProfileScreen() {
             </View>
             <SettingsIcon name="ih-chevron" size={24} />
           </Pressable>
+          )}
         </View>
 
         {/* 정보 섹션 */}
@@ -824,7 +833,7 @@ export default function ProfileScreen() {
         visible={showPromiseSheet}
         promises={managed}
         limit={rewardExpansion.slotLimit}
-        canExpand={!rewardExpansion.expansion.unlocked}
+        canExpand={!rewardExpansion.expansion.unlocked && expansionShown}
         today={todayKey}
         onSave={(id, input) => weekly.save(id, input, rewardExpansion.slotLimit)}
         onStop={weekly.stop}
@@ -833,7 +842,7 @@ export default function ProfileScreen() {
       />
 
       <RewardExpansionSheet
-        visible={showExpansionSheet}
+        visible={showExpansionSheet && expansionShown}
         onClose={() => setShowExpansionSheet(false)}
         onMessage={text => showToast(text)}
       />

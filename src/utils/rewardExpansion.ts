@@ -65,6 +65,35 @@ export function mergeOnRestore(current: RewardExpansion, fromBackup: RewardExpan
   return fromBackup?.unlocked ? fromBackup : current;
 }
 
+/**
+ * Whether the store product could be loaded. 'unknown' until the one
+ * product fetch at launch answers (or times out).
+ */
+export type StoreAvailability = 'unknown' | 'available' | 'unavailable';
+
+/** A price from the store means the product exists for this build. */
+export function storeAvailabilityFromPrice(price: string | null | undefined): StoreAvailability {
+  return typeof price === 'string' && price.length > 0 ? 'available' : 'unavailable';
+}
+
+/**
+ * Show the 보상 확장 entry points (Settings row, weekly-promise upsell)?
+ * Only when the product actually loaded, or the user already has the unlock
+ * (they keep seeing 「확장을 쓰고 있어요」). Until the store answers, hide it:
+ * a reviewer must never land on a purchase that cannot load. `qa` keeps the
+ * sim/test toggle reachable in dev and EXPO_PUBLIC_IAP_TEST builds.
+ */
+export function showExpansionEntry(
+  { unlocked, store, qa = false }: { unlocked: boolean; store: StoreAvailability; qa?: boolean },
+): boolean {
+  return unlocked || store === 'available' || qa;
+}
+
+/** 구매 복원 points at the store, so it needs the product too. */
+export function showRestore({ unlocked, store }: { unlocked: boolean; store: StoreAvailability }): boolean {
+  return !unlocked && store === 'available';
+}
+
 /** Only the sim/test toggle may be turned off; a real purchase stays. */
 export function testOff(current: RewardExpansion): RewardExpansion {
   return current.source === 'test' ? LOCKED : current;

@@ -6,7 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { SoftPopColors } from '../constants/theme';
 import ModalBackdrop, { sheetFrameStyle } from './ModalBackdrop';
 import { modalStyles } from '../constants/modalStyle';
-import { EXPANSION_COPY as C } from '../utils/rewardExpansion';
+import { EXPANSION_COPY as C, showRestore } from '../utils/rewardExpansion';
 import { useRewardExpansion } from '../contexts/RewardExpansionContext';
 
 /** Sim/QA builds only (EXPO_PUBLIC_IAP_TEST=1 at bundle time, or dev). */
@@ -20,19 +20,14 @@ interface Props {
 
 export default function RewardExpansionSheet({ visible, onClose, onMessage }: Props) {
   const insets = useSafeAreaInsets();
-  const { expansion, getPrice, purchase, restore, setTestUnlocked } = useRewardExpansion();
-  const [price, setPrice] = useState<string | null>(null);
+  const { expansion, price, storeAvailability, purchase, restore, setTestUnlocked } = useRewardExpansion();
   const [busy, setBusy] = useState<'buy' | 'restore' | null>(null);
   /** Shown inside the sheet: a Toast would sit under the Modal. */
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (visible) setNotice(null);
-    if (!visible || expansion.unlocked) return;
-    let live = true;
-    getPrice().then(p => { if (live) setPrice(p); });
-    return () => { live = false; };
-  }, [visible, expansion.unlocked, getPrice]);
+  }, [visible]);
 
   const onBuy = async () => {
     setBusy('buy');
@@ -54,6 +49,7 @@ export default function RewardExpansionSheet({ visible, onClose, onMessage }: Pr
   };
 
   const unlocked = expansion.unlocked;
+  const restoreShown = showRestore({ unlocked, store: storeAvailability });
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={modalStyles.sheetOverlay}>
@@ -100,17 +96,19 @@ export default function RewardExpansionSheet({ visible, onClose, onMessage }: Pr
               {notice
                 ? <Text style={[styles.note, styles.notice]} accessibilityLiveRegion="polite">{notice}</Text>
                 : !price && <Text style={styles.note}>{C.priceLater}</Text>}
-              <Pressable
-                disabled={busy !== null}
-                onPress={onRestore}
-                style={styles.restore}
-                accessibilityRole="button"
-                hitSlop={8}
-              >
-                {busy === 'restore'
-                  ? <ActivityIndicator color={SoftPopColors.textSecondary} />
-                  : <Text style={styles.restoreText}>{C.restore}</Text>}
-              </Pressable>
+              {restoreShown && (
+                <Pressable
+                  disabled={busy !== null}
+                  onPress={onRestore}
+                  style={styles.restore}
+                  accessibilityRole="button"
+                  hitSlop={8}
+                >
+                  {busy === 'restore'
+                    ? <ActivityIndicator color={SoftPopColors.textSecondary} />
+                    : <Text style={styles.restoreText}>{C.restore}</Text>}
+                </Pressable>
+              )}
             </>
           )}
 

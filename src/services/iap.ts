@@ -6,7 +6,6 @@
  * App Store Connect / Play Console; until then fetching it returns nothing
  * and the sheet shows "지금은 구매할 수 없어요". No server, no secrets.
  */
-import { Platform } from 'react-native';
 import { REWARD_EXPANSION_PRODUCT_ID } from '../utils/rewardExpansion';
 
 export type PurchaseOutcome =
@@ -25,9 +24,28 @@ export interface IapClient {
 
 type ExpoIap = typeof import('expo-iap');
 
+/** StoreKit / Play Billing answers in well under this; past it we give up. */
+export const IAP_TIMEOUT_MS = 10_000;
+
+/** Resolve `fallback` if `work` has not settled within `ms`. Never rejects for a timeout. */
+export function withTimeout<T>(work: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => resolve(fallback), ms);
+    work.then(
+      v => { clearTimeout(timer); resolve(v); },
+      e => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
+
+const TIMED_OUT = Symbol('timedOut');
+
 const loadNative = (): ExpoIap | null => {
-  if (Platform.OS !== 'ios' && Platform.OS !== 'android') return null;
   try {
+    // Lazy so this file stays importable in node tests.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Platform } = require('react-native') as typeof import('react-native');
+    if (Platform.OS !== 'ios' && Platform.OS !== 'android') return null;
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     return require('expo-iap') as ExpoIap;
   } catch {
@@ -40,14 +58,21 @@ const isCancel = (e: unknown) => {
   return code.includes('cancel');
 };
 
-export function createStoreIap(productId = REWARD_EXPANSION_PRODUCT_ID): IapClient {
+export function createStoreIap(
+  productId = REWARD_EXPANSION_PRODUCT_ID,
+  { load = loadNative, timeoutMs = IAP_TIMEOUT_MS }: { load?: () => ExpoIap | null; timeoutMs?: number } = {},
+): IapClient {
   let connected: Promise<ExpoIap | null> | null = null;
   const connect = () => {
     connected ??= (async () => {
-      const iap = loadNative();
+      const iap = load();
       if (!iap) return null;
       try {
-        await iap.initConnection();
+        const ok = await withTimeout<boolean | typeof TIMED_OUT>(iap.initConnection().then(() => true), timeoutMs, TIMED_OUT);
+        if (ok === TIMED_OUT) {
+          connected = null;
+          return null;
+        }
         return iap;
       } catch {
         connected = null;
@@ -55,6 +80,19 @@ export function createStoreIap(productId = REWARD_EXPANSION_PRODUCT_ID): IapClie
       }
     })();
     return connected;
+  };
+  /** One product lookup; null when missing, failed, or too slow. */
+  const findProduct = async (iap: ExpoIap) => {
+    try {
+      const products = await withTimeout(
+        iap.fetchProducts({ skus: [productId], type: 'in-app' }),
+        timeoutMs,
+        null,
+      );
+      return products?.find(x => x.id === productId) ?? null;
+    } catch {
+      return null;
+    }
   };
 
   const owns = (list: readonly { productId: string }[] | null | undefined) =>
@@ -64,20 +102,15 @@ export function createStoreIap(productId = REWARD_EXPANSION_PRODUCT_ID): IapClie
     async getPrice() {
       const iap = await connect();
       if (!iap) return null;
-      try {
-        const products = await iap.fetchProducts({ skus: [productId], type: 'in-app' });
-        const p = products?.find(x => x.id === productId);
-        return p?.displayPrice ?? null;
-      } catch {
-        return null;
-      }
+      const p = await findProduct(iap);
+      return p?.displayPrice ?? null;
     },
 
     async purchase() {
       const iap = await connect();
       if (!iap) return { kind: 'unavailable' };
-      const products = await iap.fetchProducts({ skus: [productId], type: 'in-app' }).catch(() => null);
-      if (!products?.some(x => x.id === productId)) return { kind: 'unavailable' };
+      if (!(await findProduct(iap))) return { kind: 'unavailable' };
+      // No timeout from here on: the user may take a while in the store sheet.
 
       return new Promise<PurchaseOutcome>(resolve => {
         let done = false;
@@ -107,7 +140,7 @@ export function createStoreIap(productId = REWARD_EXPANSION_PRODUCT_ID): IapClie
       const iap = await connect();
       if (!iap) return false;
       try {
-        return owns(await iap.getAvailablePurchases());
+        return owns(await withTimeout(iap.getAvailablePurchases(), timeoutMs, null));
       } catch {
         return false;
       }
